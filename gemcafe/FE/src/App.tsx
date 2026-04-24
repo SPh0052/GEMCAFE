@@ -1,26 +1,44 @@
-import { Link, Route, Routes } from 'react-router-dom'
-import Home from '@/pages/Home'
-import About from '@/pages/About'
+import { Route, Routes } from 'react-router-dom'
+import AppLayout from '@/layout/AppLayout'
+import RequireAuth from '@/shared/components/RequireAuth'
+import LoginPage from '@/features/auth/LoginPage'
+import SignupPage from '@/features/auth/SignupPage'
+import CreateVideoPage from '@/features/create-video/CreateVideoPage'
+import CreatingPage from '@/features/create-video/CreatingPage'
+import MyVideosPage from '@/features/my-videos/MyVideosPage'
+import VideoDetailPage from '@/features/my-videos/VideoDetailPage'
+import MyPage from '@/features/my-page/MyPage'
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <nav className="border-b bg-white">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
-          <Link to="/" className="font-semibold">
-            gemcafe
-          </Link>
-          <Link to="/about" className="text-sm text-slate-600 hover:text-slate-900">
-            About
-          </Link>
-        </div>
-      </nav>
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      {/* 로그인/회원가입 — 레이아웃 없이 독립 */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+
+      {/* 로딩 페이지 — 레이아웃 자체적으로 포함 */}
+      <Route
+        path="/creating"
+        element={
+          <RequireAuth>
+            <CreatingPage />
+          </RequireAuth>
+        }
+      />
+
+      {/* 메인 앱 — 로그인 필요 + AppLayout (헤더+하단네비) */}
+      <Route
+        element={
+          <RequireAuth>
+            <AppLayout />
+          </RequireAuth>
+        }
+      >
+        <Route path="/" element={<CreateVideoPage />} />
+        <Route path="/videos" element={<MyVideosPage />} />
+        <Route path="/videos/:id" element={<VideoDetailPage />} />
+        <Route path="/me" element={<MyPage />} />
+      </Route>
+    </Routes>
   )
 }
