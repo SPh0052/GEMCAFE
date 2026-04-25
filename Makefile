@@ -54,17 +54,25 @@ start: _require-env
 		bash scripts/jira_transition.sh "$(JIRA_PROJECT_KEY)-$$N" "$(JIRA_TRANSITION_IN_PROGRESS)" in-progress; \
 	done
 
-# Guided commit (story key in subject + task keys in body)
+# Guided commit
+# Format: [PROJECT-STORY] TYPE: [DOMAIN] MESSAGE
+#
+# Tasks: PROJECT-XXX, PROJECT-YYY
 commit:
-	@read -p "Story issue number (e.g. 164): " STORY; \
+	@read -p "Story issue number (e.g. 296): " STORY; \
+	read -p "Type (feat/fix/refactor/docs/chore/...): " TYPE; \
+	read -p "Domain (FE/BE/AI): " DOMAIN; \
 	read -p "Commit message: " MSG; \
 	read -p "Completed task numbers (comma-separated, optional): " TASKS; \
-	if [ -z "$$STORY" ] || [ -z "$$MSG" ]; then echo "[ERROR] story/message empty"; exit 1; fi; \
+	if [ -z "$$STORY" ] || [ -z "$$TYPE" ] || [ -z "$$DOMAIN" ] || [ -z "$$MSG" ]; then \
+		echo "[ERROR] story/type/domain/message must not be empty"; exit 1; \
+	fi; \
+	SUBJECT="[$(JIRA_PROJECT_KEY)-$$STORY] $$TYPE: [$$DOMAIN] $$MSG"; \
 	if [ -z "$$TASKS" ]; then \
-		git commit -m "$(JIRA_PROJECT_KEY)-$$STORY $$MSG"; \
+		git commit -m "$$SUBJECT"; \
 	else \
 		BODY="Tasks: $$(echo $$TASKS | sed 's/, */, $(JIRA_PROJECT_KEY)-/g; s/^/$(JIRA_PROJECT_KEY)-/')"; \
-		git commit -m "$(JIRA_PROJECT_KEY)-$$STORY $$MSG" -m "$$BODY"; \
+		git commit -m "$$SUBJECT" -m "$$BODY"; \
 	fi
 
 # Manual Done transition (backup when Jira automation is not used)
