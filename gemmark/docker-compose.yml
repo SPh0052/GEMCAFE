@@ -1,0 +1,32 @@
+services:
+  gemmark-be:
+    build: ./BE
+    container_name: gemmark-be
+    restart: unless-stopped
+    networks:
+      - gemmark-network
+
+  gemmark-fe:
+    build: ./FE
+    container_name: gemmark-fe
+    restart: unless-stopped
+    networks:
+      - gemmark-network
+
+  gemmark-nginx:
+    image: nginx:alpine
+    container_name: gemmark-nginx
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - gemmark-fe
+      - gemmark-be
+    networks:
+      - gemmark-network
+
+networks:
+  gemmark-network:
+    driver: bridge
