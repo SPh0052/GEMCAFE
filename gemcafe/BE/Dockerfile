@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk-slim AS builder
+FROM eclipse-temurin:21-jdk-jammy AS builder
 WORKDIR /app
 
 COPY gradlew .
@@ -11,7 +11,7 @@ RUN ./gradlew dependencies --no-daemon
 COPY src src
 RUN ./gradlew build -x test --no-daemon
 
-FROM eclipse-temurin:21-jre-slim
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 EXPOSE 8002
