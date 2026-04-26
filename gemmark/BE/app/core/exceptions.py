@@ -18,7 +18,7 @@ class UnsupportedFileFormatError(VideoUploadError):
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
             error_code="VID-001",
-            message="지원하지 않는 파일 형식입니다. MP4, MOV만 허용됩니다",
+            message="지원하지 않는 파일 형식입니다. MP4, MOV, AVI, MKV만 허용됩니다",
         )
 
 

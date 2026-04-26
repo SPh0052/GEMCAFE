@@ -5,8 +5,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads" / "temp"
 
-ALLOWED_VIDEO_EXTENSIONS: tuple[str, ...] = (".mp4", ".mov")
-ALLOWED_VIDEO_MIME_TYPES: tuple[str, ...] = ("video/mp4", "video/quicktime")
+ALLOWED_VIDEO_EXTENSIONS: tuple[str, ...] = (".mp4", ".mov", ".avi", ".mkv")
+ALLOWED_VIDEO_MIME_TYPES: tuple[str, ...] = (
+    "video/mp4",
+    "video/quicktime",
+    "video/x-msvideo",
+    "video/x-matroska",
+)
 
 
 class Settings(BaseSettings):
