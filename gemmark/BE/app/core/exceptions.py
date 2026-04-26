@@ -56,3 +56,39 @@ class FileUploadError(VideoUploadError):
             error_code="VID-005",
             message="파일 업로드 중 오류가 발생했습니다",
         )
+
+
+class VideoIdMissingError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="WM-001",
+            message="videoId가 누락되었습니다",
+        )
+
+
+class VideoNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="WM-002",
+            message="해당 영상을 찾을 수 없습니다",
+        )
+
+
+class AlreadyWatermarkedError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            error_code="WM-003",
+            message="이미 워터마크가 삽입된 영상입니다",
+        )
+
+
+class WatermarkEmbedError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="WM-004",
+            message="워터마크 삽입 중 오류가 발생했습니다",
+        )
