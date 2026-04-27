@@ -23,7 +23,7 @@ export default function Topbar() {
           <div className="text-sm font-semibold">관리자</div>
           <div className="text-xs text-gray-500">보안 분석가</div>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-brand-300 to-brand-500 text-white">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-brand-300 to-brand-500 text-white">
           <User2 />
         </div>
       </div>

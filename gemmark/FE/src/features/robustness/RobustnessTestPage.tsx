@@ -201,7 +201,7 @@ export default function RobustnessTest() {
         </table>
       </Card>
 
-      <VideoListTable subtitle="강건성 테스트" />
+      <VideoListTable title="강건성 테스트" />
     </div>
   )
 }

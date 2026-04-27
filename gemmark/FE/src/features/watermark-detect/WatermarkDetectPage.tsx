@@ -1,7 +1,7 @@
-import { ChevronDown, Eye, Search, ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDown, Eye, Search } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
-import FileDropZone from '@/shared/components/FileDropZone'
 import Badge from '@/shared/components/Badge'
 
 type Status = 'detected' | 'notDetected' | 'processing'
@@ -53,26 +53,18 @@ const rows: VerificationRow[] = [
   },
 ]
 
-const statusBadge: Record<Status, { tone: 'success' | 'danger' | 'info'; label: string }> = {
+const statusBadge: Record<
+  Status,
+  { tone: 'success' | 'danger' | 'info'; label: string }
+> = {
   detected: { tone: 'success', label: '+ Detected' },
   notDetected: { tone: 'danger', label: '+ Not Detected' },
   processing: { tone: 'info', label: '+ Processing' },
 }
 
-const extractedWatermark = [
-  {
-    field: 'UUID',
-    value: '550e8400-e29b-41d4-a716-446655440000',
-    ok: true,
-  },
-  { field: 'Business ID', value: 'AMBER_GLOBAL_01', ok: true },
-  { field: 'Generation Model', value: 'Flux-D-Watermark-V2', ok: true },
-  { field: 'Timestamp', value: '2024-05-20 14:32:05 UTC', ok: true },
-  { field: 'User ID', value: 'usr_9488210', ok: true },
-  { field: 'Version', value: 'v1.4.2-stable', ok: true },
-]
-
 export default function WatermarkDetect() {
+  const navigate = useNavigate()
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -80,6 +72,7 @@ export default function WatermarkDetect() {
         actions={
           <button
             type="button"
+            onClick={() => navigate('/detect/new')}
             className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600"
           >
             <Search className="h-4 w-4" />
@@ -87,57 +80,6 @@ export default function WatermarkDetect() {
           </button>
         }
       />
-
-      <FileDropZone />
-
-      <Card className="p-0">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-          <div>
-            <div className="text-sm font-semibold">Verification Result</div>
-            <div className="mt-0.5 text-xs text-gray-500">
-              Analysis for{' '}
-              <span className="font-mono text-brand-500">
-                sample_video_001.mp4
-              </span>
-            </div>
-          </div>
-          <Badge tone="success" dot>
-            <ShieldCheck className="mr-0.5 h-3 w-3" /> VERIFIED
-          </Badge>
-        </div>
-
-        <div className="px-6 py-5">
-          <h3 className="mb-4 text-sm font-semibold text-gray-700">
-            검출된 워터마크
-          </h3>
-          <div className="overflow-hidden rounded-xl border border-gray-100">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-left text-xs font-medium tracking-wide text-gray-500">
-                  <th className="px-4 py-3 font-medium">FIELD NAME</th>
-                  <th className="px-4 py-3 font-medium">EXTRACTED VALUE</th>
-                  <th className="px-4 py-3 font-medium">STATUS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {extractedWatermark.map((row) => (
-                  <tr key={row.field}>
-                    <td className="px-4 py-3 text-gray-600">{row.field}</td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs text-brand-500">
-                        {row.value}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </Card>
 
       <Filters />
       <VerificationTable rows={rows} />
@@ -170,6 +112,8 @@ function Filters() {
 }
 
 function VerificationTable({ rows }: { rows: VerificationRow[] }) {
+  const navigate = useNavigate()
+
   return (
     <Card className="p-0">
       <div className="overflow-hidden">
@@ -188,7 +132,11 @@ function VerificationTable({ rows }: { rows: VerificationRow[] }) {
             {rows.map((row) => {
               const s = statusBadge[row.status]
               return (
-                <tr key={row.no} className="hover:bg-gray-50/50">
+                <tr
+                  key={row.no}
+                  onClick={() => navigate(`/detect/${row.projectId}`)}
+                  className="cursor-pointer transition hover:bg-gray-50/60"
+                >
                   <td className="px-5 py-4 text-gray-500">{row.no}</td>
                   <td className="px-5 py-4 font-mono text-xs text-brand-500">
                     {row.projectId}
@@ -198,7 +146,7 @@ function VerificationTable({ rows }: { rows: VerificationRow[] }) {
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-16 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200" />
+                      <div className="h-10 w-16 rounded-lg bg-linear-to-br from-gray-100 to-gray-200" />
                       <div>
                         <div className="text-sm text-gray-800">
                           {row.asset.name}
@@ -215,6 +163,10 @@ function VerificationTable({ rows }: { rows: VerificationRow[] }) {
                     <button
                       type="button"
                       aria-label="상세 보기"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/detect/${row.projectId}`)
+                      }}
                       className="text-gray-400 hover:text-brand-500"
                     >
                       <Eye className="h-4 w-4" />
@@ -238,11 +190,18 @@ function Pagination() {
   const pages = ['1', '2', '3', '...', '5']
   return (
     <div className="flex items-center gap-1">
+      <button
+        type="button"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100"
+        aria-label="이전 페이지"
+      >
+        ‹
+      </button>
       {pages.map((p, i) => (
         <button
           key={i}
           type="button"
-          className={`flex h-7 min-w-[28px] items-center justify-center rounded-md px-2 text-xs ${
+          className={`flex h-7 min-w-7 items-center justify-center rounded-md px-2 text-xs ${
             p === '1'
               ? 'bg-brand-500 text-white'
               : 'text-gray-600 hover:bg-gray-100'
