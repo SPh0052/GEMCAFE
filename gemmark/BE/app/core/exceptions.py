@@ -92,3 +92,21 @@ class WatermarkEmbedError(VideoUploadError):
             error_code="WM-004",
             message="워터마크 삽입 중 오류가 발생했습니다",
         )
+
+
+class VerifyUnsupportedFormatError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="VER-001",
+            message="지원하지 않는 파일 형식입니다",
+        )
+
+
+class WatermarkVerifyError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="VER-002",
+            message="워터마크 검증 중 오류가 발생했습니다",
+        )

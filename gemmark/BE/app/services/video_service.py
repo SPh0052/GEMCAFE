@@ -62,6 +62,52 @@ def mark_watermarked(video_id: str, watermark_id: str) -> bool:
     return True
 
 
+# 워터마크 페이로드 → 메타데이터 매핑 (검증 시 조회용)
+_watermark_payload_registry: dict[str, dict] = {}
+
+
+def register_watermark_metadata(
+    payload_hex: str,
+    video_uuid: str,
+    business_id: str,
+    created_at: datetime,
+) -> None:
+    _watermark_payload_registry[payload_hex] = {
+        "videoUuid": video_uuid,
+        "businessId": business_id,
+        "createdAt": created_at,
+    }
+
+
+def find_matching_watermark(
+    extracted_bits,
+    ber_threshold: float = 0.1,
+) -> tuple[dict | None, float]:
+    """추출된 비트와 가장 BER이 낮은 등록 페이로드 검색.
+
+    Returns:
+        (metadata, best_ber):
+            매칭 발견 (best_ber <= threshold) → metadata 반환
+            매칭 실패 → metadata=None, best_ber=발견된 최저값(또는 1.0)
+    """
+    from app.services.watermark.dct import hex_to_bits
+    from app.services.watermark.metrics import ber as calc_ber
+
+    best_metadata: dict | None = None
+    best_ber = 1.0
+
+    for payload_hex, metadata in _watermark_payload_registry.items():
+        stored_bits = hex_to_bits(payload_hex)
+        current_ber = calc_ber(stored_bits, extracted_bits)
+        if current_ber < best_ber:
+            best_ber = current_ber
+            best_metadata = metadata
+
+    if best_metadata is not None and best_ber <= ber_threshold:
+        return best_metadata, best_ber
+    return None, best_ber
+
+
 def _validate_file_attached(file: UploadFile | None) -> None:
     if file is None or not file.filename:
         raise FileNotAttachedError()
