@@ -23,6 +23,45 @@ from app.schemas.video import VideoUploadData
 CHUNK_SIZE: Final[int] = 1024 * 1024  # 1 MiB
 
 
+# 업로드된 영상의 메타데이터 등록부 (in-memory)
+# TODO: 영구 저장(DB)으로 교체 예정.
+_video_registry: dict[str, dict] = {}
+
+
+def register_video(
+    video_id: str,
+    file_path: Path,
+    original_filename: str,
+    mime_type: str,
+    uploaded_at: datetime,
+) -> None:
+    _video_registry[video_id] = {
+        "video_id": video_id,
+        "file_path": str(file_path),
+        "original_filename": original_filename,
+        "mime_type": mime_type,
+        "uploaded_at": uploaded_at,
+        "watermark_id": None,
+    }
+
+
+def get_video_info(video_id: str) -> dict | None:
+    return _video_registry.get(video_id)
+
+
+def is_watermarked(video_id: str) -> bool:
+    info = _video_registry.get(video_id)
+    return info is not None and info.get("watermark_id") is not None
+
+
+def mark_watermarked(video_id: str, watermark_id: str) -> bool:
+    info = _video_registry.get(video_id)
+    if info is None:
+        return False
+    info["watermark_id"] = watermark_id
+    return True
+
+
 def _validate_file_attached(file: UploadFile | None) -> None:
     if file is None or not file.filename:
         raise FileNotAttachedError()
@@ -86,10 +125,19 @@ async def upload_video(file: UploadFile | None) -> VideoUploadData:
 
     file_size = await _stream_to_disk(file, dest, settings.max_file_size_bytes)
 
+    uploaded_at = datetime.now(timezone.utc)
+    register_video(
+        video_id=video_id,
+        file_path=dest,
+        original_filename=file.filename,
+        mime_type=file.content_type or "application/octet-stream",
+        uploaded_at=uploaded_at,
+    )
+
     return VideoUploadData(
         videoId=video_id,
         originalFilename=file.filename,
         fileSize=file_size,
         mimeType=file.content_type or "application/octet-stream",
-        uploadedAt=datetime.now(timezone.utc),
+        uploadedAt=uploaded_at,
     )
