@@ -8,13 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.core.config import (
-    WATERMARK_BUSINESS_ID,
-    WATERMARK_DEFAULT_DOWNLOADER,
-    WATERMARK_ECC,
-    WATERMARK_VERSION,
-    settings,
-)
+from app.core.config import WATERMARK_DEFAULT_DOWNLOADER, settings
 from app.core.exceptions import (
     AlreadyWatermarkedError,
     VideoIdMissingError,
@@ -23,6 +17,7 @@ from app.core.exceptions import (
 )
 from app.schemas.watermark import WatermarkEmbedData
 from app.services import video_service
+from app.services.watermark.dct import bits_to_hex
 from app.services.watermark.payload import make_payload_bits
 from app.services.watermark.video import embed_video_file
 
@@ -72,15 +67,10 @@ async def embed_watermark(
     video_service.mark_watermarked(video_id, watermark_id)
 
     return WatermarkEmbedData(
-        watermarkId=watermark_id,
-        videoUuid=video_uuid,
-        watermarkedVideoUrl=f"/files/watermarked/{video_uuid}.mp4",
-        version=WATERMARK_VERSION,
-        businessId=WATERMARK_BUSINESS_ID,
-        downloaderUserId=downloader_user_id,
+        success=True,
         processingTime=stats["processing_time"],
-        fps=stats["processing_fps"],
         psnr=stats["psnr"],
-        ecc=WATERMARK_ECC,
-        createdAt=datetime.now(timezone.utc),
+        watermarkHex=bits_to_hex(payload),
+        contentUuid=video_uuid,
+        timestamp=datetime.now(timezone.utc),
     )

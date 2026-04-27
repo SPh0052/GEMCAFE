@@ -4,17 +4,12 @@ from pydantic import BaseModel, Field
 
 
 class WatermarkEmbedData(BaseModel):
-    watermarkId: str = Field(..., description="워터마크 작업 ID")
-    videoUuid: str = Field(..., description="워터마크가 삽입된 영상의 콘텐츠 UUID")
-    watermarkedVideoUrl: str = Field(..., description="워터마크 삽입된 영상 URL")
-    version: str = Field(..., description="워터마크 버전 (알고리즘 정보 포함)")
-    businessId: str = Field(..., description="사업자 ID (서버 고정값)")
-    downloaderUserId: str = Field(..., description="다운로더 user_id")
+    success: bool = Field(..., description="성공 여부")
     processingTime: float = Field(..., description="처리 시간 (초)")
-    fps: float = Field(..., description="처리 속도 (FPS)")
-    psnr: float = Field(..., description="PSNR 수치 (dB)")
-    ecc: str = Field(..., description="ECC 정보")
-    createdAt: datetime = Field(..., description="워터마크 생성 시각 (ISO 8601)")
+    psnr: float = Field(..., description="삽입 PSNR (dB)")
+    watermarkHex: str = Field(..., description="워터마크 페이로드 HEX")
+    contentUuid: str = Field(..., description="콘텐츠 UUID")
+    timestamp: datetime = Field(..., description="타임스탬프 (ISO 8601)")
 
 
 class WatermarkEmbedResponse(BaseModel):
