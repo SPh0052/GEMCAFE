@@ -127,3 +127,12 @@ def bits_to_hex(bits: np.ndarray) -> str:
         val = (int(bits[i]) << 3) | (int(bits[i + 1]) << 2) | (int(bits[i + 2]) << 1) | int(bits[i + 3])
         result += f"{val:X}"
     return result
+
+
+def hex_to_bits(hex_str: str) -> np.ndarray:
+    bits: list[int] = []
+    for ch in hex_str.upper():
+        val = int(ch, 16)
+        for shift in range(3, -1, -1):
+            bits.append((val >> shift) & 1)
+    return np.array(bits, dtype=np.uint8)

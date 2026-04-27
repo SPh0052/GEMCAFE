@@ -10,8 +10,14 @@ from typing import Optional
 import cv2
 import numpy as np
 
-from app.services.watermark.dct import DEFAULT_ALPHA, DEFAULT_KEY, embed as dct_embed
+from app.services.watermark.dct import (
+    DEFAULT_ALPHA,
+    DEFAULT_KEY,
+    embed as dct_embed,
+    extract as dct_extract,
+)
 from app.services.watermark.metrics import psnr as calc_psnr
+from app.services.watermark.payload import PAYLOAD_BITS
 
 
 def embed_video_file(
@@ -84,4 +90,74 @@ def embed_video_file(
         "psnr": round(psnr_first, 2),
         "processing_time": round(elapsed, 2),
         "processing_fps": round(processing_fps, 2),
+    }
+
+
+def extract_video_file(
+    src_path: Path,
+    wm_len: int = PAYLOAD_BITS,
+    key: int = DEFAULT_KEY,
+    alpha: float = DEFAULT_ALPHA,
+    n_sample: int = 8,
+) -> tuple[np.ndarray, dict]:
+    """영상에서 DCT 워터마크 비트열 추출.
+
+    균등 간격으로 n_sample 프레임 샘플링 → 각 프레임에서 추출 → majority vote.
+
+    Returns:
+        (extracted_bits, stats):
+            extracted_bits: (wm_len,) uint8
+            stats:
+                - frames_sampled (int)
+                - frames_extracted (int)
+                - processing_time (float): 초
+    """
+    cap = cv2.VideoCapture(str(src_path))
+    if not cap.isOpened():
+        raise ValueError(f"영상 파일을 열 수 없습니다: {src_path}")
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames <= 0:
+        cap.release()
+        return np.zeros(wm_len, dtype=np.uint8), {
+            "frames_sampled": 0,
+            "frames_extracted": 0,
+            "processing_time": 0.0,
+        }
+
+    indices = np.linspace(0, total_frames - 1, min(n_sample, total_frames), dtype=int)
+
+    votes = np.zeros(wm_len, dtype=np.int32)
+    n_extracted = 0
+    t0 = time.time()
+
+    try:
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            try:
+                bits = dct_extract(frame, wm_len, key=key, alpha=alpha)
+            except ValueError:
+                continue
+            votes += bits.astype(np.int32)
+            n_extracted += 1
+    finally:
+        cap.release()
+
+    elapsed = time.time() - t0
+
+    if n_extracted == 0:
+        return np.zeros(wm_len, dtype=np.uint8), {
+            "frames_sampled": int(len(indices)),
+            "frames_extracted": 0,
+            "processing_time": round(elapsed, 2),
+        }
+
+    extracted = (votes > n_extracted / 2).astype(np.uint8)
+    return extracted, {
+        "frames_sampled": int(len(indices)),
+        "frames_extracted": n_extracted,
+        "processing_time": round(elapsed, 2),
     }

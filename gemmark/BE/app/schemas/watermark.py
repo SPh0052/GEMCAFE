@@ -16,3 +16,17 @@ class WatermarkEmbedResponse(BaseModel):
     status: int = 200
     message: str = "워터마크 삽입 성공"
     data: WatermarkEmbedData
+
+
+class WatermarkVerifyData(BaseModel):
+    isWatermarked: bool = Field(..., description="워터마크 존재 여부")
+    videoUuid: str | None = Field(None, description="감지된 영상 UUID")
+    businessId: str | None = Field(None, description="사업자 ID")
+    createdAt: datetime | None = Field(None, description="원본 생성 시각 (ISO-8601)")
+    ber: float | None = Field(None, description="Bit Error Rate")
+
+
+class WatermarkVerifyResponse(BaseModel):
+    status: int = 200
+    message: str = "검증 완료"
+    data: WatermarkVerifyData
