@@ -3,6 +3,8 @@ services:
     build: ./BE
     container_name: gemmark-be
     restart: unless-stopped
+    volumes:
+      - /home/ubuntu/gemmark-uploads:/app/uploads
     networks:
       - gemmark-network
 
