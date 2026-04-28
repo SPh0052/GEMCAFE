@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Form
 
 from app.schemas.watermark import WatermarkEmbedResponse, WatermarkVerifyResponse
 from app.services.watermark_service import embed_watermark, verify_watermark
@@ -24,7 +24,7 @@ async def embed_watermark_endpoint(
     summary="워터마크 검증",
 )
 async def verify_watermark_endpoint(
-    file: UploadFile = File(default=None),
+    videoId: str = Form(default=None),
 ) -> WatermarkVerifyResponse:
-    data = await verify_watermark(file)
+    data = await verify_watermark(videoId)
     return WatermarkVerifyResponse(data=data)
