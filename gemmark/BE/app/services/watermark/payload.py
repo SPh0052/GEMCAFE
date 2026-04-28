@@ -1,17 +1,14 @@
-"""144-bit 워터마크 페이로드 생성.
+"""32-bit 워터마크 페이로드 생성 (Hex 8자).
 
-명세서 기준 페이로드 항목 (144 bit):
-- businessId, contentUuid, downloaderUserId, timestamp, ECC
-
-현재는 video_uuid + downloader_user_id 기반 결정론적 비트열로 단순화.
-실제 페이로드 구조 (BCH-33 인코딩 등)는 후속 작업으로 분리.
+video_uuid + downloader_user_id 기반 결정론적 비트열.
+SSAFY 운영 규모(영상 수십~수백)에선 충돌 가능성 무시 가능.
 """
 
 import hashlib
 
 import numpy as np
 
-PAYLOAD_BITS = 144
+PAYLOAD_BITS = 32
 
 
 def make_payload_bits(video_uuid: str, downloader_user_id: str) -> np.ndarray:
