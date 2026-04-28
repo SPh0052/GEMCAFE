@@ -64,7 +64,7 @@ export default function WatermarkDetectCreatePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="워터마크 검증" />
+      <PageHeader title="워터마크 검증" backTo="/detect" />
 
       {/* 드롭존: 업로드 전(idle) 또는 업로드 중(uploading) */}
       {(phase === 'idle' || phase === 'uploading') && (

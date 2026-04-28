@@ -9,6 +9,7 @@ import WatermarkDetectCreatePage from '@/features/watermark-detect/WatermarkDete
 import WatermarkDetectDetailPage from '@/features/watermark-detect/WatermarkDetectDetailPage'
 import RobustnessTestPage from '@/features/robustness/RobustnessTestPage'
 import RobustnessTestCreatePage from '@/features/robustness/RobustnessTestCreatePage'
+import RobustnessTestDetailPage from '@/features/robustness/RobustnessTestDetailPage'
 import ReportsPage from '@/features/reports/ReportsPage'
 import Playground from '@/test/Playground'
 
@@ -37,6 +38,10 @@ export default function App() {
         <Route
           path="/robustness/new"
           element={<RobustnessTestCreatePage />}
+        />
+        <Route
+          path="/robustness/:id"
+          element={<RobustnessTestDetailPage />}
         />
         <Route path="/reports" element={<ReportsPage />} />
       </Route>

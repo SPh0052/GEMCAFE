@@ -1,14 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import {
-  CheckCircle2,
   Crop,
   FileDown,
   Film,
   Filter,
   Loader2,
   Maximize2,
-  Play,
-  RotateCcw,
   Sun,
   Waves,
 } from 'lucide-react'
@@ -16,15 +14,8 @@ import type { LucideIcon } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
-import FileDropZone from '@/shared/components/FileDropZone'
 import Thumbnail from '@/shared/components/Thumbnail'
-import {
-  uploadVideo,
-  type UploadedVideo,
-} from '@/features/watermark-insert/api'
 import RadarChart from './components/RadarChart'
-
-type Phase = 'idle' | 'uploading' | 'uploaded' | 'testing' | 'done'
 
 interface AttackRow {
   icon: LucideIcon
@@ -78,41 +69,82 @@ const mockAttacks: AttackRow[] = [
   },
 ]
 
-export default function RobustnessTestCreatePage() {
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [video, setVideo] = useState<UploadedVideo | null>(null)
-  const [error, setError] = useState<string | null>(null)
+interface VideoInfo {
+  name: string
+  createdAt: string
+  type: string
+  size: string
+  thumbnailUrl?: string
+}
 
-  const handleFileSelect = async (file: File) => {
-    setPhase('uploading')
-    setError(null)
+const mockVideo: VideoInfo = {
+  name: '10kM_ai_video_1.mp4',
+  createdAt: '2024.03.15 14:32',
+  type: 'MP4 Video',
+  size: '345 MB',
+}
+
+export default function RobustnessTestDetailPage() {
+  // 실제 앱에서는 id로 서버에서 결과를 조회. 지금은 mock.
+  useParams<{ id: string }>()
+  const reportRef = useRef<HTMLDivElement>(null)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportReport = async () => {
+    if (!reportRef.current) return
+    setExporting(true)
     try {
-      const uploaded = await uploadVideo(file)
-      setVideo(uploaded)
-      setPhase('uploaded')
+      // 동적 import — 초기 번들 크기 줄이기
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas-pro'),
+      ])
+
+      const fileName = `${mockVideo.name.replace(/\.[^.]+$/, '')}_robustness-report.pdf`
+
+      // 1. DOM을 캔버스로 캡처
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f9fafb',
+      })
+
+      // 2. PDF 생성 (A4 portrait)
+      const pdf = new jsPDF({
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait',
+      })
+
+      const margin = 10
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pageWidth - margin * 2
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+
+      // 3. 길면 여러 페이지에 분할
+      let heightLeft = imgHeight
+      let position = margin
+
+      pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight - margin * 2
+
+      while (heightLeft > 0) {
+        position = position - (pageHeight - margin * 2)
+        pdf.addPage()
+        pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight - margin * 2
+      }
+
+      pdf.save(fileName)
     } catch (err) {
-      console.error('업로드 실패', err)
-      setError('업로드에 실패했습니다. 파일과 네트워크를 확인해주세요.')
-      setPhase('idle')
+      console.error('PDF 생성 실패', err)
+      alert('PDF 생성 중 오류가 발생했습니다.')
+    } finally {
+      setExporting(false)
     }
-  }
-
-  const handleStartTest = () => {
-    setPhase('testing')
-    setError(null)
-    // TODO: 실제 강건성 테스트 API로 교체
-    setTimeout(() => setPhase('done'), 3000)
-  }
-
-  const handleReset = () => {
-    setPhase('idle')
-    setVideo(null)
-    setError(null)
-  }
-
-  const handleExportReport = () => {
-    // TODO: 실제 리포트 내보내기 구현
-    alert('리포트 내보내기 (구현 예정)')
   }
 
   return (
@@ -122,138 +154,48 @@ export default function RobustnessTestCreatePage() {
         description="포렌식 워터마킹을 위한 편집 강건성 분석."
         backTo="/robustness"
         actions={
-          phase === 'done' ? (
-            <button
-              type="button"
-              onClick={handleExportReport}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-            >
+          <button
+            type="button"
+            onClick={handleExportReport}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
               <FileDown className="h-4 w-4" />
-              리포트 내보내기
-            </button>
-          ) : null
+            )}
+            {exporting ? 'PDF 생성 중...' : '리포트 내보내기'}
+          </button>
         }
       />
 
-      {/* 드롭존: idle / uploading */}
-      {(phase === 'idle' || phase === 'uploading') && (
-        <FileDropZone
-          onSelectFile={handleFileSelect}
-          disabled={phase === 'uploading'}
-          buttonLabel={phase === 'uploading' ? '업로드 중...' : '파일 선택하기'}
-        />
-      )}
-
-      {/* 업로드 카드: uploaded / testing / done */}
-      {(phase === 'uploaded' || phase === 'testing' || phase === 'done') &&
-        video && (
-          <UploadedVideoCard
-            video={video}
-            phase={phase}
-            onStartTest={handleStartTest}
-            onReset={handleReset}
-          />
-        )}
-
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </div>
-      )}
-
-      {phase === 'testing' && <TestingCard />}
-
-      {phase === 'done' && (
-        <>
-          <RobustnessAnalysis />
-          <AttackDetailsTable attacks={mockAttacks} />
-        </>
-      )}
+      <div ref={reportRef} className="space-y-6 bg-gray-50 p-1">
+        <VideoInfoCard video={mockVideo} />
+        <RobustnessAnalysis />
+        <AttackDetailsTable attacks={mockAttacks} />
+      </div>
     </div>
   )
 }
 
-function UploadedVideoCard({
-  video,
-  phase,
-  onStartTest,
-  onReset,
-}: {
-  video: UploadedVideo
-  phase: Phase
-  onStartTest: () => void
-  onReset: () => void
-}) {
-  const canStart = phase === 'uploaded'
-  const isTesting = phase === 'testing'
-  const isDone = phase === 'done'
-
+function VideoInfoCard({ video }: { video: VideoInfo }) {
   return (
     <Card>
-      <div className="flex items-start gap-4">
-        <Thumbnail className="h-32 w-48" />
+      <div className="flex items-center gap-4">
+        <Thumbnail src={video.thumbnailUrl} className="h-16 w-24" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-gray-900">
-              {video.originalFilename}
-            </h3>
-            <Badge tone="success" dot>
-              <CheckCircle2 className="mr-0.5 h-3 w-3" />
-              업로드 완료
-            </Badge>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-            <span>{formatBytes(video.fileSize)}</span>
+          <h3 className="truncate text-base font-semibold text-gray-900">
+            {video.name}
+          </h3>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+            <span>{video.createdAt}</span>
             <span>·</span>
-            <span>{video.mimeType}</span>
+            <span>{video.type}</span>
             <span>·</span>
-            <span>업로드: {formatDateTime(video.uploadedAt)}</span>
-          </div>
-          <div className="mt-1 text-[11px] text-gray-400">
-            videoId: <span className="font-mono">{video.videoId}</span>
+            <span>{video.size}</span>
           </div>
         </div>
-      </div>
-
-      <div className="mt-5 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onReset}
-          disabled={isTesting}
-          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <RotateCcw className="h-4 w-4" />
-          다시 업로드
-        </button>
-        <button
-          type="button"
-          onClick={onStartTest}
-          disabled={!canStart}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Play className="h-4 w-4" />
-          {isTesting
-            ? '테스트 중...'
-            : isDone
-              ? '테스트 완료'
-              : '강건성 테스트 시작하기'}
-        </button>
-      </div>
-    </Card>
-  )
-}
-
-function TestingCard() {
-  return (
-    <Card className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-      <Loader2 className="h-9 w-9 animate-spin text-brand-500" />
-      <div>
-        <p className="text-base font-semibold text-gray-900">
-          강건성 테스트 진행 중...
-        </p>
-        <p className="mt-1 text-sm text-gray-500">
-          여러 공격에 대한 워터마크 검출을 시뮬레이션하고 있습니다.
-        </p>
       </div>
     </Card>
   )
@@ -416,27 +358,3 @@ function AttackDetailsTable({ attacks }: { attacks: AttackRow[] }) {
   )
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
-
-function formatDateTime(iso: string): string {
-  if (!iso) return '-'
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  } catch {
-    return iso
-  }
-}

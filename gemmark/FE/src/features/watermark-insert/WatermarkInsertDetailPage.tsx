@@ -3,6 +3,7 @@ import { Download, RotateCw } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
+import Thumbnail from '@/shared/components/Thumbnail'
 
 export default function WatermarkInsertDetailPage() {
   // 실제 앱에서는 id로 서버에서 결과를 조회. 지금은 mock.
@@ -26,7 +27,7 @@ export default function WatermarkInsertDetailPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="워터마크 삽입 내역" />
+      <PageHeader title="워터마크 삽입 내역" backTo="/insert" />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -44,10 +45,13 @@ export default function WatermarkInsertDetailPage() {
 
         <Card className="p-0">
           {/* 결과 헤더 */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-            <h3 className="text-base font-bold text-gray-900">
-              삽입 결과 — {result.fileName}
-            </h3>
+          <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <Thumbnail className="h-32 w-48" />
+              <h3 className="truncate text-base font-bold text-gray-900">
+                삽입 결과 — {result.fileName}
+              </h3>
+            </div>
             <Badge tone="success">{result.status}</Badge>
           </div>
 

@@ -1,4 +1,5 @@
-import { ChevronsUpDown, FileText, RotateCw } from 'lucide-react'
+import { ChevronsUpDown, RotateCw } from 'lucide-react'
+import Thumbnail from './Thumbnail'
 
 export interface VideoRow {
   no: number
@@ -6,6 +7,7 @@ export interface VideoRow {
   createdAt: string
   type: string
   size: string
+  thumbnailUrl?: string
 }
 
 const mockVideos: VideoRow[] = [
@@ -78,10 +80,10 @@ export default function VideoListTable({
             >
               <td className="px-6 py-4 text-sm text-gray-700">{row.no}</td>
               <td className="px-6 py-4">
-                <span className="inline-flex items-center gap-2 text-sm text-gray-800">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                  {row.name}
-                </span>
+                <div className="flex items-center gap-3">
+                  <Thumbnail src={row.thumbnailUrl} />
+                  <span className="text-sm text-gray-800">{row.name}</span>
+                </div>
               </td>
               <td className="px-6 py-4 text-sm text-gray-500">{row.createdAt}</td>
               <td className="px-6 py-4 text-sm text-gray-500">{row.type}</td>
@@ -93,3 +95,4 @@ export default function VideoListTable({
     </div>
   )
 }
+

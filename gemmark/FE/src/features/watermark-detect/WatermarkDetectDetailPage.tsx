@@ -11,7 +11,7 @@ export default function WatermarkDetectDetailPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="워터마크 검증 내역" />
+      <PageHeader title="워터마크 검증 내역" backTo="/detect" />
       <VerificationResultCard fileName={fileName} verified />
       <ExtractedWatermarkCard />
     </div>

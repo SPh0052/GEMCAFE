@@ -67,6 +67,7 @@ export default function WatermarkInsertCreatePage() {
     <div className="space-y-6">
       <PageHeader
         title="워터마크 삽입"
+        backTo="/insert"
         actions={
           <button
             type="button"

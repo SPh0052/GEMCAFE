@@ -23,7 +23,10 @@ export default function RobustnessTest() {
         }
       />
 
-      <VideoListTable title="강건성 테스트" />
+      <VideoListTable
+        title="강건성 테스트"
+        onRowClick={(row) => navigate(`/robustness/${row.no}`)}
+      />
     </div>
   )
 }
