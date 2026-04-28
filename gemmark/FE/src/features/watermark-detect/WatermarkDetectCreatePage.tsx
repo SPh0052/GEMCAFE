@@ -10,56 +10,54 @@ import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
 import FileDropZone from '@/shared/components/FileDropZone'
+import {
+  uploadVideo,
+  type UploadedVideo,
+} from '@/features/watermark-insert/api'
 import VerificationResultCard from './components/VerificationResultCard'
 import ExtractedWatermarkCard from './components/ExtractedWatermarkCard'
 import { verifyWatermark, type VerifyResult } from './api'
 
-type Phase = 'idle' | 'selected' | 'verifying' | 'done'
-
-interface LocalFile {
-  raw: File
-  name: string
-  size: number
-  type: string
-  selectedAt: string
-}
+type Phase = 'idle' | 'uploading' | 'uploaded' | 'verifying' | 'done'
 
 export default function WatermarkDetectCreatePage() {
   const [phase, setPhase] = useState<Phase>('idle')
-  const [localFile, setLocalFile] = useState<LocalFile | null>(null)
+  const [video, setVideo] = useState<UploadedVideo | null>(null)
   const [result, setResult] = useState<VerifyResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const handleFileSelect = (file: File) => {
-    setLocalFile({
-      raw: file,
-      name: file.name,
-      size: file.size,
-      type: file.type || 'video/mp4',
-      selectedAt: new Date().toISOString(),
-    })
-    setPhase('selected')
+  const handleFileSelect = async (file: File) => {
+    setPhase('uploading')
     setError(null)
+    try {
+      const uploaded = await uploadVideo(file)
+      setVideo(uploaded)
+      setPhase('uploaded')
+    } catch (err) {
+      console.error('업로드 실패', err)
+      setError('업로드에 실패했습니다. 파일과 네트워크를 확인해주세요.')
+      setPhase('idle')
+    }
   }
 
   const handleStartVerify = async () => {
-    if (!localFile) return
+    if (!video) return
     setPhase('verifying')
     setError(null)
     try {
-      const verified = await verifyWatermark(localFile.raw)
+      const verified = await verifyWatermark(video.videoId)
       setResult(verified)
       setPhase('done')
     } catch (err) {
       console.error('워터마크 검증 실패', err)
       setError('워터마크 검증에 실패했습니다. 잠시 후 다시 시도해주세요.')
-      setPhase('selected')
+      setPhase('uploaded')
     }
   }
 
   const handleReset = () => {
     setPhase('idle')
-    setLocalFile(null)
+    setVideo(null)
     setResult(null)
     setError(null)
   }
@@ -68,16 +66,22 @@ export default function WatermarkDetectCreatePage() {
     <div className="space-y-6">
       <PageHeader title="워터마크 검증" />
 
-      {/* 드롭존: idle 일 때만 */}
-      {phase === 'idle' && <FileDropZone onSelectFile={handleFileSelect} />}
+      {/* 드롭존: 업로드 전(idle) 또는 업로드 중(uploading) */}
+      {(phase === 'idle' || phase === 'uploading') && (
+        <FileDropZone
+          onSelectFile={handleFileSelect}
+          disabled={phase === 'uploading'}
+          buttonLabel={phase === 'uploading' ? '업로드 중...' : '파일 선택하기'}
+        />
+      )}
 
-      {/* 업로드 카드: 파일 선택 후 계속 표시 */}
-      {(phase === 'selected' ||
+      {/* 업로드 카드: uploaded / verifying / done */}
+      {(phase === 'uploaded' ||
         phase === 'verifying' ||
         phase === 'done') &&
-        localFile && (
-          <SelectedFileCard
-            file={localFile}
+        video && (
+          <UploadedVideoCard
+            video={video}
             phase={phase}
             onStartVerify={handleStartVerify}
             onReset={handleReset}
@@ -92,10 +96,10 @@ export default function WatermarkDetectCreatePage() {
 
       {phase === 'verifying' && <DetectingCard />}
 
-      {phase === 'done' && result && localFile && (
+      {phase === 'done' && result && video && (
         <>
           <VerificationResultCard
-            fileName={localFile.name}
+            fileName={video.originalFilename}
             verified={result.isWatermarked}
           />
 
@@ -108,18 +112,18 @@ export default function WatermarkDetectCreatePage() {
   )
 }
 
-function SelectedFileCard({
-  file,
+function UploadedVideoCard({
+  video,
   phase,
   onStartVerify,
   onReset,
 }: {
-  file: LocalFile
+  video: UploadedVideo
   phase: Phase
   onStartVerify: () => void
   onReset: () => void
 }) {
-  const canStart = phase === 'selected'
+  const canStart = phase === 'uploaded'
   const isVerifying = phase === 'verifying'
 
   return (
@@ -131,7 +135,7 @@ function SelectedFileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate text-base font-semibold text-gray-900">
-              {file.name}
+              {video.originalFilename}
             </h3>
             <Badge tone="success" dot>
               <CheckCircle2 className="mr-0.5 h-3 w-3" />
@@ -139,11 +143,14 @@ function SelectedFileCard({
             </Badge>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-            <span>{formatBytes(file.size)}</span>
+            <span>{formatBytes(video.fileSize)}</span>
             <span>·</span>
-            <span>{file.type}</span>
+            <span>{video.mimeType}</span>
             <span>·</span>
-            <span>업로드: {formatDateTime(file.selectedAt)}</span>
+            <span>업로드: {formatDateTime(video.uploadedAt)}</span>
+          </div>
+          <div className="mt-1 text-[11px] text-gray-400">
+            videoId: <span className="font-mono">{video.videoId}</span>
           </div>
         </div>
       </div>

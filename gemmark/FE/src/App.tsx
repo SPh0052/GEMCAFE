@@ -8,6 +8,7 @@ import WatermarkDetectPage from '@/features/watermark-detect/WatermarkDetectPage
 import WatermarkDetectCreatePage from '@/features/watermark-detect/WatermarkDetectCreatePage'
 import WatermarkDetectDetailPage from '@/features/watermark-detect/WatermarkDetectDetailPage'
 import RobustnessTestPage from '@/features/robustness/RobustnessTestPage'
+import RobustnessTestCreatePage from '@/features/robustness/RobustnessTestCreatePage'
 import ReportsPage from '@/features/reports/ReportsPage'
 import Playground from '@/test/Playground'
 
@@ -31,7 +32,12 @@ export default function App() {
         <Route path="/detect/new" element={<WatermarkDetectCreatePage />} />
         <Route path="/detect/:id" element={<WatermarkDetectDetailPage />} />
 
+        {/* 강건성 테스트: 리스트 → 신규 테스트 */}
         <Route path="/robustness" element={<RobustnessTestPage />} />
+        <Route
+          path="/robustness/new"
+          element={<RobustnessTestCreatePage />}
+        />
         <Route path="/reports" element={<ReportsPage />} />
       </Route>
     </Routes>

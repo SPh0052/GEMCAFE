@@ -1,4 +1,4 @@
-import { Bell, Settings } from 'lucide-react'
+import { Bell } from 'lucide-react'
 
 export default function Topbar() {
   return (
@@ -9,13 +9,6 @@ export default function Topbar() {
         className="text-gray-500 transition hover:text-gray-700"
       >
         <Bell className="h-5 w-5" />
-      </button>
-      <button
-        type="button"
-        aria-label="설정"
-        className="text-gray-500 transition hover:text-gray-700"
-      >
-        <Settings className="h-5 w-5" />
       </button>
       <div className="h-8 w-px bg-gray-200" />
       <div className="flex items-center gap-3">
