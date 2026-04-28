@@ -10,8 +10,13 @@ from app.core.config import (
     WATERMARK_DEFAULT_DOWNLOADER,
     settings,
 )
+from fastapi.responses import FileResponse
+
 from app.core.exceptions import (
     AlreadyWatermarkedError,
+    DownloadError,
+    DownloadNotWatermarkedError,
+    DownloadVideoNotFoundError,
     VerifyVideoIdMissingError,
     VerifyVideoNotFoundError,
     VideoIdMissingError,
@@ -160,3 +165,42 @@ async def verify_watermark(video_id: str | None) -> WatermarkVerifyData:
         createdAt=metadata["createdAt"],
         ber=round(best_ber, 4),
     )
+
+
+# ──────────────────────────────────────────────────────────
+# Download
+# ──────────────────────────────────────────────────────────
+
+
+def download_watermarked_video(video_id: str) -> FileResponse:
+    """워터마크 삽입된 영상 파일 다운로드.
+
+    - 등록부 조회 → 워터마크 여부 확인 → 파일 존재 확인 → FileResponse 반환
+    - Content-Disposition: attachment 헤더로 강제 다운로드
+    - 파일명은 `watermarked_{원본파일명}.mp4` 형태
+    """
+    info = video_service.get_video_info(video_id)
+    if info is None:
+        raise DownloadVideoNotFoundError()
+
+    if not info.get("watermark_id"):
+        raise DownloadNotWatermarkedError()
+
+    video_uuid = _strip_video_prefix(video_id)
+    file_path = settings.WATERMARKED_DIR / f"{video_uuid}.mp4"
+
+    if not file_path.exists():
+        raise DownloadVideoNotFoundError()
+
+    try:
+        original_name = info.get("original_filename") or f"{video_uuid}.mp4"
+        base_name = Path(original_name).stem
+        download_name = f"watermarked_{base_name}.mp4"
+
+        return FileResponse(
+            path=file_path,
+            media_type="video/mp4",
+            filename=download_name,
+        )
+    except Exception:
+        raise DownloadError()
