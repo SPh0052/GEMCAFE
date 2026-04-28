@@ -13,7 +13,9 @@ import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
 import FileDropZone from '@/shared/components/FileDropZone'
 import {
+  downloadWatermarkedVideo,
   embedWatermark,
+  triggerBrowserDownload,
   uploadVideo,
   type EmbedResult,
   type UploadedVideo,
@@ -125,7 +127,11 @@ export default function WatermarkInsertCreatePage() {
           phase === 'uploaded') && <EmptyState />}
         {phase === 'processing' && <ProcessingCard />}
         {phase === 'done' && embedResult && video && (
-          <ResultCard result={embedResult} fileName={video.originalFilename} />
+          <ResultCard
+            result={embedResult}
+            fileName={video.originalFilename}
+            videoId={video.videoId}
+          />
         )}
       </section>
     </div>
@@ -227,10 +233,29 @@ function ProcessingCard() {
 function ResultCard({
   result,
   fileName,
+  videoId,
 }: {
   result: EmbedResult
   fileName: string
+  videoId: string
 }) {
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const blob = await downloadWatermarkedVideo(videoId)
+      const baseName = fileName.replace(/\.[^.]+$/, '')
+      const ext = fileName.match(/\.[^.]+$/)?.[0] ?? '.mp4'
+      triggerBrowserDownload(blob, `${baseName}_watermarked${ext}`)
+    } catch (err) {
+      console.error('다운로드 실패', err)
+      alert('다운로드에 실패했습니다.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <Card className="p-0">
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
@@ -279,10 +304,16 @@ function ResultCard({
       <div className="border-t border-gray-100 px-6 py-4">
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Download className="h-4 w-4" />
-          워터마크 영상 다운로드
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {downloading ? '다운로드 중...' : '워터마크 영상 다운로드'}
         </button>
       </div>
     </Card>

@@ -1,13 +1,17 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, RotateCw } from 'lucide-react'
+import { Download, Loader2, RotateCw } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
 import Thumbnail from '@/shared/components/Thumbnail'
+import { downloadWatermarkedVideo, triggerBrowserDownload } from './api'
 
 export default function WatermarkInsertDetailPage() {
-  // 실제 앱에서는 id로 서버에서 결과를 조회. 지금은 mock.
-  useParams<{ id: string }>()
+  // URL의 :id를 videoId로 사용 (실제 앱에선 별도 조회 필요)
+  const { id } = useParams<{ id: string }>()
+  const videoId = id ?? ''
+  const [downloading, setDownloading] = useState(false)
 
   const result = {
     fileName: 'sample_video_001.mp4',
@@ -23,6 +27,25 @@ export default function WatermarkInsertDetailPage() {
       timestamp: '2026-04-15 14:32:17',
       hex: 'E8B7B503',
     },
+  }
+
+  const handleDownload = async () => {
+    if (!videoId) {
+      alert('videoId 정보가 없습니다.')
+      return
+    }
+    setDownloading(true)
+    try {
+      const blob = await downloadWatermarkedVideo(videoId)
+      const baseName = result.fileName.replace(/\.[^.]+$/, '')
+      const ext = result.fileName.match(/\.[^.]+$/)?.[0] ?? '.mp4'
+      triggerBrowserDownload(blob, `${baseName}_watermarked${ext}`)
+    } catch (err) {
+      console.error('다운로드 실패', err)
+      alert('다운로드에 실패했습니다.')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -93,10 +116,16 @@ export default function WatermarkInsertDetailPage() {
           <div className="border-t border-gray-100 px-6 py-4">
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+              onClick={handleDownload}
+              disabled={downloading}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Download className="h-4 w-4" />
-              워터마크 영상 다운로드
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {downloading ? '다운로드 중...' : '워터마크 영상 다운로드'}
             </button>
           </div>
         </Card>
