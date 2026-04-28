@@ -10,21 +10,15 @@ import {
   Sun,
   Waves,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
 import Thumbnail from '@/shared/components/Thumbnail'
 import RadarChart from './components/RadarChart'
-
-interface AttackRow {
-  icon: LucideIcon
-  label: string
-  param: string
-  ber: string
-  psnr: string
-  status: '통과' | '경고'
-}
+import ReportTemplate, {
+  type AttackRow,
+  type ReportData,
+} from './components/ReportTemplate'
 
 const mockAttacks: AttackRow[] = [
   {
@@ -84,58 +78,76 @@ const mockVideo: VideoInfo = {
   size: '345 MB',
 }
 
+function buildReportData(): ReportData {
+  const now = new Date()
+  return {
+    reportId: `RBT-${now.getFullYear()}${(now.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-0001`,
+    generatedAt: now.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    fileInfo: mockVideo,
+    metrics: {
+      averageBer: '4.8%',
+      averagePsnr: '42.3 dB',
+      fps: '28.4 FPS',
+      totalScore: 87,
+      grade: 'A',
+    },
+    radar: {
+      values: [0.85, 0.75, 0.6, 0.82, 0.7],
+      labels: ['재인코딩', '해상도', '노이즈', '크롭', '밝기'],
+    },
+    attacks: mockAttacks,
+  }
+}
+
 export default function RobustnessTestDetailPage() {
   // 실제 앱에서는 id로 서버에서 결과를 조회. 지금은 mock.
   useParams<{ id: string }>()
-  const reportRef = useRef<HTMLDivElement>(null)
+  const templateRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
 
+  const reportData = buildReportData()
+
   const handleExportReport = async () => {
-    if (!reportRef.current) return
+    if (!templateRef.current) return
     setExporting(true)
     try {
-      // 동적 import — 초기 번들 크기 줄이기
       const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
         import('jspdf'),
         import('html2canvas-pro'),
       ])
 
-      const fileName = `${mockVideo.name.replace(/\.[^.]+$/, '')}_robustness-report.pdf`
+      const fileName = `${reportData.fileInfo.name.replace(/\.[^.]+$/, '')}_robustness-report.pdf`
 
-      // 1. DOM을 캔버스로 캡처
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#f9fafb',
-      })
+      // 보고서 템플릿 안의 각 페이지 div 캡처
+      const pageEls =
+        templateRef.current.querySelectorAll<HTMLElement>('[data-pdf-page]')
 
-      // 2. PDF 생성 (A4 portrait)
       const pdf = new jsPDF({
         unit: 'mm',
         format: 'a4',
         orientation: 'portrait',
       })
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
 
-      const margin = 10
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = pageWidth - margin * 2
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95)
-
-      // 3. 길면 여러 페이지에 분할
-      let heightLeft = imgHeight
-      let position = margin
-
-      pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight - margin * 2
-
-      while (heightLeft > 0) {
-        position = position - (pageHeight - margin * 2)
-        pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight - margin * 2
+      for (let i = 0; i < pageEls.length; i++) {
+        if (i > 0) pdf.addPage()
+        const canvas = await html2canvas(pageEls[i], {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+        })
+        const imgData = canvas.toDataURL('image/jpeg', 0.95)
+        // A4 전면을 채우도록 0,0에서 전체 크기로 배치
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight)
       }
 
       pdf.save(fileName)
@@ -170,11 +182,13 @@ export default function RobustnessTestDetailPage() {
         }
       />
 
-      <div ref={reportRef} className="space-y-6 bg-gray-50 p-1">
-        <VideoInfoCard video={mockVideo} />
-        <RobustnessAnalysis />
-        <AttackDetailsTable attacks={mockAttacks} />
-      </div>
+      {/* 화면용 콘텐츠 */}
+      <VideoInfoCard video={mockVideo} />
+      <RobustnessAnalysis />
+      <AttackDetailsTable attacks={mockAttacks} />
+
+      {/* PDF 전용 보고서 템플릿 (화면 밖에서 렌더링됨) */}
+      <ReportTemplate ref={templateRef} data={reportData} />
     </div>
   )
 }
@@ -357,4 +371,3 @@ function AttackDetailsTable({ attacks }: { attacks: AttackRow[] }) {
     </Card>
   )
 }
-
