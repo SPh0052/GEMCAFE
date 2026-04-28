@@ -119,3 +119,30 @@ class WatermarkVerifyError(VideoUploadError):
             error_code="VER-003",
             message="워터마크 검증 중 오류가 발생했습니다",
         )
+
+
+class DownloadVideoNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="DL-001",
+            message="해당 영상을 찾을 수 없습니다",
+        )
+
+
+class DownloadNotWatermarkedError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            error_code="DL-002",
+            message="아직 워터마크가 삽입되지 않은 영상입니다",
+        )
+
+
+class DownloadError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="DL-003",
+            message="다운로드 중 오류가 발생했습니다",
+        )

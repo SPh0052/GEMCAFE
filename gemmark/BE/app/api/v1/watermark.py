@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Form
+from fastapi.responses import FileResponse
 
 from app.schemas.watermark import WatermarkEmbedResponse, WatermarkVerifyResponse
-from app.services.watermark_service import embed_watermark, verify_watermark
+from app.services.watermark_service import (
+    download_watermarked_video,
+    embed_watermark,
+    verify_watermark,
+)
 
 router = APIRouter(prefix="/watermark", tags=["watermark"])
 
@@ -28,3 +33,12 @@ async def verify_watermark_endpoint(
 ) -> WatermarkVerifyResponse:
     data = await verify_watermark(videoId)
     return WatermarkVerifyResponse(data=data)
+
+
+@router.get(
+    "/{video_id}/download",
+    response_class=FileResponse,
+    summary="워터마크 영상 다운로드",
+)
+def download_watermarked_endpoint(video_id: str) -> FileResponse:
+    return download_watermarked_video(video_id)
