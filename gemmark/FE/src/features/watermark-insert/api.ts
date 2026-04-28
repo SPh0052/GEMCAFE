@@ -53,3 +53,33 @@ export async function embedWatermark(videoId: string): Promise<EmbedResult> {
   )
   return res.data.data
 }
+
+/**
+ * 워터마크 삽입된 영상 파일 다운로드.
+ * GET /api/v1/watermark/{videoId}/download
+ * 응답은 영상 파일 바이너리 (Blob).
+ */
+export async function downloadWatermarkedVideo(
+  videoId: string,
+): Promise<Blob> {
+  const res = await api.get(`/watermark/${videoId}/download`, {
+    responseType: 'blob',
+    timeout: 600_000, // 큰 영상 파일 대비 10분
+  })
+  return res.data as Blob
+}
+
+/**
+ * Blob을 브라우저 다운로드로 트리거.
+ * 임시 a 태그 생성 → click → 정리.
+ */
+export function triggerBrowserDownload(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
