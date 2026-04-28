@@ -18,8 +18,9 @@ router = APIRouter(prefix="/watermark", tags=["watermark"])
 )
 async def embed_watermark_endpoint(
     videoId: str = Form(default=None),
+    alpha: float = Form(default=20.0, ge=1.0, le=100.0),
 ) -> WatermarkEmbedResponse:
-    data = await embed_watermark(videoId)
+    data = await embed_watermark(videoId, alpha=alpha)
     return WatermarkEmbedResponse(data=data)
 
 
