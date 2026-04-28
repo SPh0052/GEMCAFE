@@ -1,23 +1,19 @@
 """워터마크 삽입/검증 오케스트레이션 서비스."""
 
 import asyncio
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import UploadFile
-
 from app.core.config import (
-    ALLOWED_VIDEO_EXTENSIONS,
-    ALLOWED_VIDEO_MIME_TYPES,
     WATERMARK_BUSINESS_ID,
     WATERMARK_DEFAULT_DOWNLOADER,
     settings,
 )
 from app.core.exceptions import (
     AlreadyWatermarkedError,
-    VerifyUnsupportedFormatError,
+    VerifyVideoIdMissingError,
+    VerifyVideoNotFoundError,
     VideoIdMissingError,
     VideoNotFoundError,
     WatermarkEmbedError,
@@ -28,6 +24,9 @@ from app.services import video_service
 from app.services.watermark.dct import bits_to_hex
 from app.services.watermark.payload import PAYLOAD_BITS, make_payload_bits
 from app.services.watermark.video import embed_video_file, extract_video_file
+
+
+_VERIFY_BER_THRESHOLD = 0.1
 
 
 def _strip_video_prefix(video_id: str) -> str:
@@ -77,7 +76,6 @@ async def embed_watermark(
     payload_hex = bits_to_hex(payload)
     created_at = datetime.now(timezone.utc)
 
-    # 검증 시 조회용 페이로드 → 메타데이터 매핑 등록
     video_service.register_watermark_metadata(
         payload_hex=payload_hex,
         video_uuid=video_uuid,
@@ -99,67 +97,48 @@ async def embed_watermark(
 # Verify
 # ──────────────────────────────────────────────────────────
 
-_VERIFY_CHUNK_SIZE = 1024 * 1024  # 1 MiB
-_VERIFY_BER_THRESHOLD = 0.1
+
+def _resolve_verify_target(info: dict, video_id: str) -> Path:
+    """검증 대상 파일 경로 결정.
+
+    - 워터마크된 영상이 존재 → 그것을 검증 (기본)
+    - 워터마크 안 된 경우 → 업로드된 원본 파일을 검증 (외부 워터마크 검출 시도용)
+    """
+    if info.get("watermark_id"):
+        video_uuid = _strip_video_prefix(video_id)
+        watermarked_path = settings.WATERMARKED_DIR / f"{video_uuid}.mp4"
+        if watermarked_path.exists():
+            return watermarked_path
+
+    original_path = Path(info["file_path"])
+    if original_path.exists():
+        return original_path
+
+    raise VerifyVideoNotFoundError()
 
 
-def _validate_verify_file(file: UploadFile | None) -> None:
-    if file is None or not file.filename:
-        raise VerifyUnsupportedFormatError()
-    ext = Path(file.filename).suffix.lower()
-    if ext not in ALLOWED_VIDEO_EXTENSIONS:
-        raise VerifyUnsupportedFormatError()
-    if file.content_type not in ALLOWED_VIDEO_MIME_TYPES:
-        raise VerifyUnsupportedFormatError()
+async def verify_watermark(video_id: str | None) -> WatermarkVerifyData:
+    """videoId로 등록된 영상에서 워터마크를 추출하고 등록부와 매칭."""
+    if not video_id:
+        raise VerifyVideoIdMissingError()
 
+    info = video_service.get_video_info(video_id)
+    if info is None:
+        raise VerifyVideoNotFoundError()
 
-async def _stream_to_temp(file: UploadFile, suffix: str, max_bytes: int) -> Path:
-    fd = tempfile.NamedTemporaryFile(prefix="verify_", suffix=suffix, delete=False)
-    tmp_path = Path(fd.name)
-    written = 0
+    src_path = _resolve_verify_target(info, video_id)
+
     try:
-        with fd as out:
-            while chunk := await file.read(_VERIFY_CHUNK_SIZE):
-                written += len(chunk)
-                if written > max_bytes:
-                    raise WatermarkVerifyError()
-                out.write(chunk)
-    except WatermarkVerifyError:
-        tmp_path.unlink(missing_ok=True)
-        raise
+        extracted_bits, _stats = await asyncio.to_thread(
+            extract_video_file,
+            src_path,
+            PAYLOAD_BITS,
+            settings.WATERMARK_KEY,
+            settings.WATERMARK_ALPHA,
+            8,
+        )
     except Exception:
-        tmp_path.unlink(missing_ok=True)
         raise WatermarkVerifyError()
-
-    if written == 0:
-        tmp_path.unlink(missing_ok=True)
-        raise WatermarkVerifyError()
-
-    return tmp_path
-
-
-async def verify_watermark(file: UploadFile | None) -> WatermarkVerifyData:
-    """입력 영상에서 워터마크를 추출하고 등록부와 매칭."""
-    _validate_verify_file(file)
-    assert file is not None and file.filename is not None  # narrow type
-
-    suffix = Path(file.filename).suffix.lower()
-    tmp_path = await _stream_to_temp(file, suffix, settings.max_file_size_bytes)
-
-    try:
-        try:
-            extracted_bits, _stats = await asyncio.to_thread(
-                extract_video_file,
-                tmp_path,
-                PAYLOAD_BITS,
-                settings.WATERMARK_KEY,
-                settings.WATERMARK_ALPHA,
-                8,
-            )
-        except Exception:
-            raise WatermarkVerifyError()
-    finally:
-        tmp_path.unlink(missing_ok=True)
 
     metadata, best_ber = video_service.find_matching_watermark(
         extracted_bits, ber_threshold=_VERIFY_BER_THRESHOLD
