@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Final
 
 from fastapi import UploadFile
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import (
     ALLOWED_VIDEO_EXTENSIONS,
@@ -17,7 +19,8 @@ from app.core.exceptions import (
     FileUploadError,
     UnsupportedFileFormatError,
 )
-from app.schemas.video import VideoUploadData
+from app.models.video import VideoWatermarked
+from app.schemas.video import VideoListData, VideoListItem, VideoUploadData
 
 
 CHUNK_SIZE: Final[int] = 1024 * 1024  # 1 MiB
@@ -150,6 +153,44 @@ async def _stream_to_disk(
         raise CorruptedFileError()
 
     return written
+
+
+async def list_watermarked_videos(
+    db: AsyncSession,
+    admin_id: int,
+    page: int,
+    size: int,
+) -> VideoListData:
+    """본인이 만든 워터마크 영상 목록 조회 (최신순, soft-delete 제외)."""
+    base = select(VideoWatermarked).where(
+        VideoWatermarked.admin_id == admin_id,
+        VideoWatermarked.deleted_at.is_(None),
+    )
+
+    total_result = await db.execute(
+        select(func.count()).select_from(base.subquery())
+    )
+    total = int(total_result.scalar_one())
+
+    rows_result = await db.execute(
+        base.order_by(VideoWatermarked.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+    )
+    rows = rows_result.scalars().all()
+
+    items = [
+        VideoListItem(
+            id=row.id,
+            name=row.original_file_name,
+            type=row.file_type,
+            size=row.file_size,
+            createdAt=row.created_at,
+        )
+        for row in rows
+    ]
+
+    return VideoListData(items=items, total=total, page=page, size=size)
 
 
 async def upload_video(file: UploadFile | None) -> VideoUploadData:
