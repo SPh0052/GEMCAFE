@@ -17,3 +17,9 @@ class LoginResponse(BaseModel):
     status: int = 200
     message: str = "로그인 성공"
     data: LoginData
+
+
+class LogoutResponse(BaseModel):
+    status: int = 200
+    message: str = "로그아웃 성공"
+    data: None = None

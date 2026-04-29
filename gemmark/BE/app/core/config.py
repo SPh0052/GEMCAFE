@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_RECYCLE: int = 3600  # 1시간 (MySQL wait_timeout 회피)
 
+    # Redis (JWT 블랙리스트)
+    REDIS_URL: str = "redis://:redis@localhost:6379/0"
+
     @property
     def max_file_size_bytes(self) -> int:
         return self.MAX_FILE_SIZE_MB * 1024 * 1024

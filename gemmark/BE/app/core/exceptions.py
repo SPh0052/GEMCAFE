@@ -164,3 +164,12 @@ class MissingAuthParameterError(VideoUploadError):
             error_code="AUTH-002",
             message="필수 파라미터가 누락되었습니다",
         )
+
+
+class InvalidTokenError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code="AUTH-003",
+            message="유효하지 않은 토큰입니다",
+        )

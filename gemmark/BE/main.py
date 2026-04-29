@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import router as api_router
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal, engine
+from app.core.redis import close_redis
 from app.services.admin_service import ensure_default_admin
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI):
 
     # ── Shutdown ──
     await engine.dispose()
+    await close_redis()
 
 
 app = FastAPI(
