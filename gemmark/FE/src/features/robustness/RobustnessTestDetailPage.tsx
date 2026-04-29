@@ -1,89 +1,64 @@
 import { useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Crop,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Download,
   FileDown,
-  Film,
+  FileVideo,
   Filter,
   Loader2,
-  Maximize2,
-  Sun,
-  Waves,
+  X,
 } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
-import Thumbnail from '@/shared/components/Thumbnail'
-import RadarChart from './components/RadarChart'
-import ReportTemplate, {
-  type AttackRow,
-  type ReportData,
-} from './components/ReportTemplate'
+import TestSummaryReportTemplate, {
+  type FailedVideoEntry,
+  type TestSummaryReportData,
+} from './components/TestSummaryReportTemplate'
 
-const mockAttacks: AttackRow[] = [
-  {
-    icon: Film,
-    label: 'H.264 재인코딩',
-    param: 'CRF 23',
-    ber: '0.02%',
-    psnr: '41.2 dB',
-    status: '통과',
-  },
-  {
-    icon: Maximize2,
-    label: '해상도 축소',
-    param: '50% Scale',
-    ber: '1.5%',
-    psnr: '38.5 dB',
-    status: '통과',
-  },
-  {
-    icon: Crop,
-    label: '크롭',
-    param: 'Center 10%',
-    ber: '4.2%',
-    psnr: '35.1 dB',
-    status: '경고',
-  },
-  {
-    icon: Sun,
-    label: '밝기/대비',
-    param: '+20% / +10%',
-    ber: '0.8%',
-    psnr: '44.0 dB',
-    status: '통과',
-  },
-  {
-    icon: Waves,
-    label: '가우시안 노이즈',
-    param: 'Sigma 10',
-    ber: '2.1%',
-    psnr: '32.8 dB',
-    status: '통과',
-  },
+const mockSummary = {
+  testId: 'T-2024-003',
+  testPeriod: '2024.03.16 09:00 ~ 13:20',
+  totalVideos: 100,
+  manager: '엄송현',
+  successCount: 85,
+  failureCount: 15,
+  averageBer: '1.34%',
+  averagePsnr: '37.8 dB',
+  averageFps: '29.1 FPS',
+  stdDevBer: '0.82%',
+  stdDevPsnr: '4.1 dB',
+  stdDevFps: '5.5 FPS',
+}
+
+const mockFailedVideos: FailedVideoEntry[] = [
+  { no: 1, fileName: 'fail_vid_01.mp4', alpha: 0.15, failedAttack: '크롭', ber: '5.2%', psnr: '29.1 dB' },
+  { no: 2, fileName: 'fail_vid_02.mp4', alpha: 0.22, failedAttack: '가우시안 노이즈', ber: '6.8%', psnr: '27.5 dB' },
+  { no: 3, fileName: 'fail_vid_03.mp4', alpha: 0.18, failedAttack: 'H.264 재인코딩', ber: '4.5%', psnr: '30.2 dB' },
+  { no: 4, fileName: 'fail_vid_04.mp4', alpha: 0.17, failedAttack: '크롭', ber: '5.5%', psnr: '28.8 dB' },
+  { no: 5, fileName: 'fail_vid_05.mp4', alpha: 0.18, failedAttack: '해상도 축소', ber: '4.9%', psnr: '29.4 dB' },
+  { no: 6, fileName: 'fail_vid_06.mp4', alpha: 0.18, failedAttack: '크롭', ber: '5.1%', psnr: '29.0 dB' },
+  { no: 7, fileName: 'fail_vid_07.mp4', alpha: 0.20, failedAttack: '밝기/대비', ber: '4.2%', psnr: '30.6 dB' },
+  { no: 8, fileName: 'fail_vid_08.mp4', alpha: 0.15, failedAttack: '가우시안 노이즈', ber: '7.1%', psnr: '26.9 dB' },
+  { no: 9, fileName: 'fail_vid_09.mp4', alpha: 0.16, failedAttack: '크롭', ber: '5.4%', psnr: '28.3 dB' },
+  { no: 10, fileName: 'fail_vid_10.mp4', alpha: 0.15, failedAttack: 'H.264 재인코딩', ber: '4.8%', psnr: '29.7 dB' },
+  { no: 11, fileName: 'fail_vid_11.mp4', alpha: 0.15, failedAttack: '크롭', ber: '5.6%', psnr: '28.1 dB' },
+  { no: 12, fileName: 'fail_vid_12.mp4', alpha: 0.18, failedAttack: '가우시안 노이즈', ber: '6.4%', psnr: '27.8 dB' },
+  { no: 13, fileName: 'fail_vid_13.mp4', alpha: 0.18, failedAttack: '해상도 축소', ber: '5.0%', psnr: '29.3 dB' },
+  { no: 14, fileName: 'fail_vid_14.mp4', alpha: 0.18, failedAttack: '크롭', ber: '5.3%', psnr: '28.6 dB' },
+  { no: 15, fileName: 'fail_vid_15.mp4', alpha: 0.18, failedAttack: '밝기/대비', ber: '4.4%', psnr: '30.1 dB' },
 ]
 
-interface VideoInfo {
-  name: string
-  createdAt: string
-  type: string
-  size: string
-  thumbnailUrl?: string
-}
-
-const mockVideo: VideoInfo = {
-  name: '10kM_ai_video_1.mp4',
-  createdAt: '2024.03.15 14:32',
-  type: 'MP4 Video',
-  size: '345 MB',
-}
-
-function buildReportData(): ReportData {
+function buildReportData(testId: string): TestSummaryReportData {
   const now = new Date()
   return {
     reportId: `RBT-${now.getFullYear()}${(now.getMonth() + 1)
       .toString()
-      .padStart(2, '0')}-0001`,
+      .padStart(2, '0')}-${testId}`,
     generatedAt: now.toLocaleString('ko-KR', {
       year: 'numeric',
       month: '2-digit',
@@ -91,29 +66,56 @@ function buildReportData(): ReportData {
       hour: '2-digit',
       minute: '2-digit',
     }),
-    fileInfo: mockVideo,
-    metrics: {
-      averageBer: '4.8%',
-      averagePsnr: '42.3 dB',
-      fps: '28.4 FPS',
-      totalScore: 87,
-      grade: 'A',
+    testInfo: {
+      testId: mockSummary.testId,
+      testPeriod: mockSummary.testPeriod,
+      totalVideos: mockSummary.totalVideos,
+      manager: mockSummary.manager,
     },
-    radar: {
-      values: [0.85, 0.75, 0.6, 0.82, 0.7],
-      labels: ['재인코딩', '해상도', '노이즈', '크롭', '밝기'],
+    results: {
+      successCount: mockSummary.successCount,
+      failureCount: mockSummary.failureCount,
     },
-    attacks: mockAttacks,
+    qualityMetrics: {
+      averageBer: mockSummary.averageBer,
+      averagePsnr: mockSummary.averagePsnr,
+      averageFps: mockSummary.averageFps,
+    },
+    stdDev: {
+      ber: mockSummary.stdDevBer,
+      psnr: mockSummary.stdDevPsnr,
+      fps: mockSummary.stdDevFps,
+    },
+    failedVideos: mockFailedVideos,
   }
 }
 
+const COMPLETED_TEST_IDS = new Set([
+  'T-2024-001',
+  'T-2024-002',
+  'T-2024-003',
+  'T-2024-004',
+  'T-2024-005',
+])
+
 export default function RobustnessTestDetailPage() {
-  // 실제 앱에서는 id로 서버에서 결과를 조회. 지금은 mock.
-  useParams<{ id: string }>()
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const templateRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
 
-  const reportData = buildReportData()
+  if (id && !COMPLETED_TEST_IDS.has(id)) {
+    return <InProgressView />
+  }
+
+  const reportData = buildReportData(id ?? mockSummary.testId)
+
+  const successRate = Math.round(
+    (mockSummary.successCount / mockSummary.totalVideos) * 100,
+  )
+  const failureRate = Math.round(
+    (mockSummary.failureCount / mockSummary.totalVideos) * 100,
+  )
 
   const handleExportReport = async () => {
     if (!templateRef.current) return
@@ -124,9 +126,8 @@ export default function RobustnessTestDetailPage() {
         import('html2canvas-pro'),
       ])
 
-      const fileName = `${reportData.fileInfo.name.replace(/\.[^.]+$/, '')}_robustness-report.pdf`
+      const fileName = `${mockSummary.testId}_robustness-summary.pdf`
 
-      // 보고서 템플릿 안의 각 페이지 div 캡처
       const pageEls =
         templateRef.current.querySelectorAll<HTMLElement>('[data-pdf-page]')
 
@@ -146,7 +147,6 @@ export default function RobustnessTestDetailPage() {
           backgroundColor: '#ffffff',
         })
         const imgData = canvas.toDataURL('image/jpeg', 0.95)
-        // A4 전면을 채우도록 0,0에서 전체 크기로 배치
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight)
       }
 
@@ -162,212 +162,265 @@ export default function RobustnessTestDetailPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="강건성 테스트"
-        description="포렌식 워터마킹을 위한 편집 강건성 분석."
+        title="강건성 분석 상세 보고서"
         backTo="/robustness"
         actions={
           <button
             type="button"
             onClick={handleExportReport}
             disabled={exporting}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {exporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <FileDown className="h-4 w-4" />
             )}
-            {exporting ? 'PDF 생성 중...' : '리포트 내보내기'}
+            {exporting ? 'PDF 생성 중...' : '보고서 만들기'}
           </button>
         }
       />
 
-      {/* 화면용 콘텐츠 */}
-      <VideoInfoCard video={mockVideo} />
-      <RobustnessAnalysis />
-      <AttackDetailsTable attacks={mockAttacks} />
-
-      {/* PDF 전용 보고서 템플릿 (화면 밖에서 렌더링됨) */}
-      <ReportTemplate ref={templateRef} data={reportData} />
-    </div>
-  )
-}
-
-function VideoInfoCard({ video }: { video: VideoInfo }) {
-  return (
-    <Card>
-      <div className="flex items-center gap-4">
-        <Thumbnail src={video.thumbnailUrl} className="h-16 w-24" />
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold text-gray-900">
-            {video.name}
-          </h3>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
-            <span>{video.createdAt}</span>
-            <span>·</span>
-            <span>{video.type}</span>
-            <span>·</span>
-            <span>{video.size}</span>
-          </div>
-        </div>
-      </div>
-    </Card>
-  )
-}
-
-function RobustnessAnalysis() {
-  return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-medium text-gray-700">강건성 분석</h2>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
-          <div className="mb-3 text-xs font-medium text-gray-500">
-            강건성 레이더
-          </div>
-          <div className="flex h-65 items-center justify-center">
-            <RadarChart
-              values={[0.85, 0.75, 0.6, 0.82, 0.7]}
-              labels={['재인코딩', '해상도', '노이즈', '크롭', '밝기']}
-              size={260}
+          <h3 className="text-sm font-bold text-gray-900">테스트 설정 정보</h3>
+          <dl className="mt-4 space-y-3">
+            <div>
+              <dt className="text-xs text-gray-500">설정 기간 (시작-종료)</dt>
+              <dd className="mt-1 text-sm font-medium text-gray-800">
+                {mockSummary.testPeriod}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">총 영상 수</dt>
+              <dd className="mt-1 text-sm font-medium text-gray-800">
+                {mockSummary.totalVideos}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">관리자</dt>
+              <dd className="mt-1 text-sm font-medium text-gray-800">
+                {mockSummary.manager}
+              </dd>
+            </div>
+          </dl>
+        </Card>
+
+        <Card>
+          <h3 className="text-sm font-bold text-gray-900">테스트 결과 개요</h3>
+          <div className="mt-4 space-y-4">
+            <ResultRow
+              label="성공"
+              count={mockSummary.successCount}
+              rate={successRate}
+              tone="success"
+            />
+            <ResultRow
+              label="실패"
+              count={mockSummary.failureCount}
+              rate={failureRate}
+              tone="danger"
             />
           </div>
         </Card>
 
         <Card>
-          <div className="mb-4 text-xs font-medium text-gray-500">요약 지표</div>
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-6">
-              <Metric
-                label="평균 BER"
-                value="4.8"
-                unit="%"
-                accentColor="bg-rose-400"
-              />
-              <Metric
-                label="평균 PSNR"
-                value="42.3"
-                unit="dB"
-                accentColor="bg-blue-400"
-              />
-            </div>
-            <div className="grid grid-cols-2 items-end gap-4">
-              <div>
-                <div className="text-xs text-gray-500">처리 속도</div>
-                <div className="mt-1 flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-gray-900">28.4</span>
-                  <span className="text-sm text-gray-500">FPS</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-brand-50 p-4">
-                <div>
-                  <div className="text-xs font-medium text-brand-600">
-                    종합 점수
-                  </div>
-                  <div className="mt-1 flex items-baseline gap-0.5">
-                    <span className="text-3xl font-bold text-brand-600">
-                      87
-                    </span>
-                    <span className="text-sm text-brand-500">/100</span>
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-lg font-bold text-white">
-                  A
-                </div>
-              </div>
-            </div>
-          </div>
+          <h3 className="text-sm font-bold text-gray-900">평균 품질 지표</h3>
+          <dl className="mt-4 space-y-3">
+            <MetricRow label="평균 BER" value={mockSummary.averageBer} />
+            <MetricRow label="평균 PSNR" value={mockSummary.averagePsnr} />
+            <MetricRow label="평균 처리 속도" value={mockSummary.averageFps} />
+          </dl>
+        </Card>
+
+        <Card>
+          <h3 className="text-sm font-bold text-gray-900">지표 편차</h3>
+          <dl className="mt-4 space-y-3">
+            <MetricRow label="표준 편차 (BER)" value={mockSummary.stdDevBer} />
+            <MetricRow label="표준 편차 (PSNR)" value={mockSummary.stdDevPsnr} />
+            <MetricRow label="표준 편차 (속도)" value={mockSummary.stdDevFps} />
+          </dl>
         </Card>
       </div>
-    </section>
-  )
-}
 
-function Metric({
-  label,
-  value,
-  unit,
-  accentColor,
-}: {
-  label: string
-  value: string
-  unit: string
-  accentColor: string
-}) {
-  return (
-    <div>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="mt-1 flex items-baseline gap-1">
-        <span className="text-2xl font-bold text-gray-900">{value}</span>
-        <span className="text-sm text-gray-500">{unit}</span>
-      </div>
-      <div className={`mt-2 h-1 w-12 rounded-full ${accentColor}`} />
+      <Card className="p-0">
+        <div className="flex items-center justify-between px-6 py-4">
+          <h3 className="text-base font-bold text-gray-900">
+            실패 영상 리스트 ({mockSummary.failureCount}건)
+          </h3>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="필터"
+              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+            >
+              <Filter className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleExportReport}
+              disabled={exporting}
+              aria-label="리포트 내보내기"
+              className="rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        </div>
+        <table className="w-full">
+          <thead>
+            <tr className="border-y border-gray-100 bg-gray-50/40 text-left text-xs font-medium text-gray-500">
+              <th className="px-6 py-3 font-medium">No.</th>
+              <th className="px-6 py-3 font-medium">파일명</th>
+              <th className="px-6 py-3 font-medium">워터마크 ALPHA값</th>
+              <th className="px-6 py-3 font-medium">상태(실패)</th>
+              <th className="px-6 py-3 font-medium">상세 정보</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mockFailedVideos.map((video) => (
+              <tr
+                key={video.no}
+                onClick={() =>
+                  navigate(`/robustness/${id}/videos/${video.no}`)
+                }
+                className="cursor-pointer border-b border-gray-100 last:border-b-0 transition hover:bg-gray-50/60"
+              >
+                <td className="px-6 py-4 text-sm text-gray-700">{video.no}</td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-800">
+                    <FileVideo className="h-4 w-4 text-gray-400" />
+                    <span>{video.fileName}</span>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  {video.alpha.toFixed(2)}
+                </td>
+                <td className="px-6 py-4">
+                  <Badge tone="danger">실패</Badge>
+                </td>
+                <td className="px-6 py-4">
+                  <span
+                    aria-label="상세 보기"
+                    className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-1.5 text-gray-500"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <TestSummaryReportTemplate ref={templateRef} data={reportData} />
     </div>
   )
 }
 
-function AttackDetailsTable({ attacks }: { attacks: AttackRow[] }) {
+function ResultRow({
+  label,
+  count,
+  rate,
+  tone,
+}: {
+  label: string
+  count: number
+  rate: number
+  tone: 'success' | 'danger'
+}) {
+  const Icon = tone === 'success' ? Check : X
+  const iconWrapClass =
+    tone === 'success'
+      ? 'bg-emerald-500 text-white'
+      : 'bg-rose-500 text-white'
+  const pillClass =
+    tone === 'success'
+      ? 'bg-emerald-50 text-emerald-600'
+      : 'bg-rose-50 text-rose-600'
+
   return (
-    <Card className="p-0">
-      <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-        <h3 className="text-sm font-semibold">공격별 상세 결과</h3>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="필터"
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-          >
-            <Filter className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="내보내기"
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-          >
-            <FileDown className="h-4 w-4" />
-          </button>
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="text-xs text-gray-500">{label}</div>
+        <div className="mt-1 text-2xl font-bold text-gray-900">{count}</div>
+      </div>
+      <div
+        className={`flex flex-col items-center gap-1 rounded-xl px-3 py-2 ${pillClass}`}
+      >
+        <span
+          className={`flex h-6 w-6 items-center justify-center rounded-full ${iconWrapClass}`}
+        >
+          <Icon className="h-4 w-4" strokeWidth={3} />
+        </span>
+        <span className="text-xs font-semibold">{rate}%</span>
+      </div>
+    </div>
+  )
+}
+
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-xs text-gray-500">{label}</dt>
+      <dd className="text-base font-bold text-gray-900">{value}</dd>
+    </div>
+  )
+}
+
+function InProgressView() {
+  const [collapsed, setCollapsed] = useState(false)
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="강건성 분석 상세 보고서" backTo="/robustness" />
+
+      <Card>
+        <button
+          type="button"
+          onClick={() => setCollapsed((prev) => !prev)}
+          aria-expanded={!collapsed}
+          className="flex w-full items-center justify-between"
+        >
+          <h3 className="text-base font-bold text-gray-900">테스트 진행 정보</h3>
+          {collapsed ? (
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+          ) : (
+            <ChevronUp className="h-5 w-5 text-gray-400" />
+          )}
+        </button>
+        {!collapsed && (
+          <dl className="mt-4 space-y-4">
+            <div>
+              <dt className="text-xs text-gray-500">설정 기간 (시작~종료)</dt>
+              <dd className="mt-1 text-sm font-medium text-gray-900">
+                2024.03.16 09:00 ~ 13:20
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">총 영상 수</dt>
+              <dd className="mt-1 text-sm font-medium text-gray-900">100</dd>
+            </div>
+          </dl>
+        )}
+      </Card>
+
+      <div className="flex flex-col items-center justify-center gap-6 rounded-2xl border border-gray-200 bg-white px-8 py-24 shadow-sm">
+        <div className="h-28 w-28 animate-spin rounded-full border-[6px] border-brand-100 border-t-brand-500" />
+        <div className="text-center">
+          <p className="text-lg font-bold text-gray-900">[일괄 테스트 진행 중]</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            데이터를 불러오고 분석하고 있습니다...
+          </p>
+          <p className="mt-3 text-sm text-gray-500">
+            일괄 종료 시 알림이 전송됩니다.
+          </p>
         </div>
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-gray-50/60 text-left text-xs font-medium tracking-wide text-gray-500">
-            <th className="px-6 py-3 font-medium">공격 유형</th>
-            <th className="px-6 py-3 font-medium">파라미터</th>
-            <th className="px-6 py-3 font-medium">BER</th>
-            <th className="px-6 py-3 font-medium">PSNR</th>
-            <th className="px-6 py-3 pr-6 text-right font-medium">결과</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {attacks.map((row) => {
-            const Icon = row.icon
-            return (
-              <tr key={row.label}>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="font-medium text-gray-800">
-                      {row.label}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-gray-600">{row.param}</td>
-                <td className="px-6 py-4 text-gray-800">{row.ber}</td>
-                <td className="px-6 py-4 text-gray-800">{row.psnr}</td>
-                <td className="px-6 py-4 text-right">
-                  <Badge
-                    tone={row.status === '통과' ? 'success' : 'danger'}
-                    dot
-                  >
-                    {row.status}
-                  </Badge>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </Card>
+    </div>
   )
 }
