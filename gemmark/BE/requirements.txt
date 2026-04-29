@@ -13,6 +13,9 @@ sqlalchemy[asyncio]>=2.0
 aiomysql>=0.2
 greenlet>=3.0
 
+# Redis (JWT 블랙리스트)
+redis>=5.0
+
 numpy>=1.24
 opencv-python>=4.8
 PyWavelets>=1.4

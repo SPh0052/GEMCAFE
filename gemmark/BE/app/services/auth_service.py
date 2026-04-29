@@ -1,4 +1,7 @@
-"""관리자 인증 서비스 — 로그인 비즈니스 로직 (DB 기반)."""
+"""관리자 인증 서비스 — 로그인/로그아웃 비즈니스 로직."""
+
+from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +13,7 @@ from app.core.security import (
     verify_password,
 )
 from app.schemas.auth import LoginData
-from app.services import admin_service
+from app.services import admin_service, token_blacklist
 
 
 async def login(
@@ -43,3 +46,19 @@ async def login(
         tokenType="Bearer",
         expiresIn=settings.JWT_ACCESS_EXPIRE_MINUTES * 60,
     )
+
+
+async def logout(token_payload: dict[str, Any]) -> None:
+    """로그아웃 — 토큰의 jti를 블랙리스트에 추가.
+
+    토큰 만료까지 남은 시간을 TTL로 설정 → 만료 후 자동 정리.
+    """
+    jti = token_payload.get("jti")
+    exp = token_payload.get("exp")
+    if not jti or not exp:
+        return  # jti/exp 없는 토큰은 무시 (예전 형식 호환)
+
+    now_ts = datetime.now(timezone.utc).timestamp()
+    ttl_seconds = max(0, int(exp - now_ts))
+
+    await token_blacklist.add(jti, ttl_seconds)
