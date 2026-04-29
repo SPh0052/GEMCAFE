@@ -40,11 +40,16 @@ export async function uploadVideo(file: File): Promise<UploadedVideo> {
 
 /**
  * 업로드된 영상에 워터마크 삽입.
- * POST /api/v1/watermark/embed  (application/x-www-form-urlencoded, field: videoId)
+ * POST /api/v1/watermark/embed  (application/x-www-form-urlencoded, fields: videoId, alpha)
+ * alpha: 워터마크 강도 (1~20)
  */
-export async function embedWatermark(videoId: string): Promise<EmbedResult> {
+export async function embedWatermark(
+  videoId: string,
+  alpha: number,
+): Promise<EmbedResult> {
   const params = new URLSearchParams()
   params.append('videoId', videoId)
+  params.append('alpha', String(alpha))
 
   const res = await api.post<ApiResponse<EmbedResult>>(
     '/watermark/embed',
