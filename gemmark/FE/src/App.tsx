@@ -1,5 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from '@/layout/AppLayout'
+import RequireAuth from '@/shared/components/RequireAuth'
+import LoginPage from '@/features/auth/LoginPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
 import WatermarkInsertPage from '@/features/watermark-insert/WatermarkInsertPage'
 import WatermarkInsertCreatePage from '@/features/watermark-insert/WatermarkInsertCreatePage'
@@ -10,17 +12,27 @@ import WatermarkDetectDetailPage from '@/features/watermark-detect/WatermarkDete
 import RobustnessTestPage from '@/features/robustness/RobustnessTestPage'
 import RobustnessTestCreatePage from '@/features/robustness/RobustnessTestCreatePage'
 import RobustnessTestDetailPage from '@/features/robustness/RobustnessTestDetailPage'
+import RobustnessFailedVideoPage from '@/features/robustness/RobustnessFailedVideoPage'
 import ReportsPage from '@/features/reports/ReportsPage'
 import Playground from '@/test/Playground'
 
 export default function App() {
   return (
     <Routes>
+      {/* 인증 필요 없는 페이지들 */}
+      <Route path="/login" element={<LoginPage />} />
+
       {/* 🧪 학습용 실험실 — 사이드바 없이 단독 페이지 */}
       <Route path="/test" element={<Playground />} />
 
-      {/* 일반 페이지들은 레이아웃(사이드바 + 탑바) 안에서 */}
-      <Route element={<AppLayout />}>
+      {/* 보호된 라우트: 로그인 필수 + AppLayout(사이드바+탑바) 안에서 */}
+      <Route
+        element={
+          <RequireAuth>
+            <AppLayout />
+          </RequireAuth>
+        }
+      >
         <Route path="/" element={<DashboardPage />} />
 
         {/* 워터마크 삽입: 리스트 → 생성 / 상세 */}
@@ -33,7 +45,7 @@ export default function App() {
         <Route path="/detect/new" element={<WatermarkDetectCreatePage />} />
         <Route path="/detect/:id" element={<WatermarkDetectDetailPage />} />
 
-        {/* 강건성 테스트: 리스트 → 신규 테스트 */}
+        {/* 강건성 테스트: 리스트 → 신규 테스트 / 상세 */}
         <Route path="/robustness" element={<RobustnessTestPage />} />
         <Route
           path="/robustness/new"
@@ -42,6 +54,10 @@ export default function App() {
         <Route
           path="/robustness/:id"
           element={<RobustnessTestDetailPage />}
+        />
+        <Route
+          path="/robustness/:id/videos/:videoId"
+          element={<RobustnessFailedVideoPage />}
         />
         <Route path="/reports" element={<ReportsPage />} />
       </Route>

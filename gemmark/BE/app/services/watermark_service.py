@@ -40,6 +40,7 @@ def _strip_video_prefix(video_id: str) -> str:
 
 async def embed_watermark(
     video_id: str | None,
+    alpha: float | None = None,
     downloader_user_id: str = WATERMARK_DEFAULT_DOWNLOADER,
 ) -> WatermarkEmbedData:
     if not video_id:
@@ -56,6 +57,8 @@ async def embed_watermark(
     if video_service.is_watermarked(video_id):
         raise AlreadyWatermarkedError()
 
+    effective_alpha = alpha if alpha is not None else settings.WATERMARK_ALPHA
+
     video_uuid = _strip_video_prefix(video_id)
     payload = make_payload_bits(video_uuid, downloader_user_id)
 
@@ -69,7 +72,7 @@ async def embed_watermark(
             dest_path,
             payload,
             settings.WATERMARK_KEY,
-            settings.WATERMARK_ALPHA,
+            effective_alpha,
         )
     except Exception:
         dest_path.unlink(missing_ok=True)

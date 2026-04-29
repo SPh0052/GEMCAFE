@@ -13,7 +13,9 @@ import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
 import FileDropZone from '@/shared/components/FileDropZone'
 import {
+  downloadWatermarkedVideo,
   embedWatermark,
+  triggerBrowserDownload,
   uploadVideo,
   type EmbedResult,
   type UploadedVideo,
@@ -21,9 +23,14 @@ import {
 
 type Phase = 'idle' | 'uploading' | 'uploaded' | 'processing' | 'done'
 
+const DEFAULT_ALPHA = 10
+const MIN_ALPHA = 1
+const MAX_ALPHA = 20
+
 export default function WatermarkInsertCreatePage() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [video, setVideo] = useState<UploadedVideo | null>(null)
+  const [alpha, setAlpha] = useState<number>(DEFAULT_ALPHA)
   const [embedResult, setEmbedResult] = useState<EmbedResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,7 +53,7 @@ export default function WatermarkInsertCreatePage() {
     setPhase('processing')
     setError(null)
     try {
-      const result = await embedWatermark(video.videoId)
+      const result = await embedWatermark(video.videoId, alpha)
       setEmbedResult(result)
       setPhase('done')
     } catch (err) {
@@ -59,6 +66,7 @@ export default function WatermarkInsertCreatePage() {
   const handleReset = () => {
     setPhase('idle')
     setVideo(null)
+    setAlpha(DEFAULT_ALPHA)
     setEmbedResult(null)
     setError(null)
   }
@@ -95,6 +103,8 @@ export default function WatermarkInsertCreatePage() {
           <UploadedVideoCard
             video={video}
             phase={phase}
+            alpha={alpha}
+            onAlphaChange={setAlpha}
             onStartWatermark={handleStartWatermark}
             onReset={handleReset}
           />
@@ -125,7 +135,11 @@ export default function WatermarkInsertCreatePage() {
           phase === 'uploaded') && <EmptyState />}
         {phase === 'processing' && <ProcessingCard />}
         {phase === 'done' && embedResult && video && (
-          <ResultCard result={embedResult} fileName={video.originalFilename} />
+          <ResultCard
+            result={embedResult}
+            fileName={video.originalFilename}
+            videoId={video.videoId}
+          />
         )}
       </section>
     </div>
@@ -135,15 +149,20 @@ export default function WatermarkInsertCreatePage() {
 function UploadedVideoCard({
   video,
   phase,
+  alpha,
+  onAlphaChange,
   onStartWatermark,
   onReset,
 }: {
   video: UploadedVideo
   phase: Phase
+  alpha: number
+  onAlphaChange: (value: number) => void
   onStartWatermark: () => void
   onReset: () => void
 }) {
   const canStart = phase === 'uploaded'
+  const alphaLocked = phase !== 'uploaded'
 
   return (
     <Card>
@@ -171,6 +190,43 @@ function UploadedVideoCard({
           <div className="mt-1 text-[11px] text-gray-400">
             videoId: <span className="font-mono">{video.videoId}</span>
           </div>
+        </div>
+      </div>
+
+      {/* 워터마크 강도(α) 입력 */}
+      <div className="mt-5 border-t border-gray-100 pt-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <label
+              htmlFor="alpha-input"
+              className="text-sm font-medium text-gray-800"
+            >
+              워터마크 강도 (α)
+            </label>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {MIN_ALPHA} (약함, 화질 우선) ~ {MAX_ALPHA} (강함, 강건성 우선)
+            </p>
+          </div>
+          <input
+            id="alpha-input"
+            type="number"
+            inputMode="numeric"
+            min={MIN_ALPHA}
+            max={MAX_ALPHA}
+            step={1}
+            value={alpha}
+            onChange={(e) => {
+              const next = Number(e.target.value)
+              if (Number.isNaN(next)) return
+              onAlphaChange(next)
+            }}
+            onBlur={() => {
+              if (alpha < MIN_ALPHA) onAlphaChange(MIN_ALPHA)
+              else if (alpha > MAX_ALPHA) onAlphaChange(MAX_ALPHA)
+            }}
+            disabled={alphaLocked}
+            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-right text-base font-bold text-gray-900 shadow-sm focus:border-brand-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          />
         </div>
       </div>
 
@@ -227,10 +283,29 @@ function ProcessingCard() {
 function ResultCard({
   result,
   fileName,
+  videoId,
 }: {
   result: EmbedResult
   fileName: string
+  videoId: string
 }) {
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const blob = await downloadWatermarkedVideo(videoId)
+      const baseName = fileName.replace(/\.[^.]+$/, '')
+      const ext = fileName.match(/\.[^.]+$/)?.[0] ?? '.mp4'
+      triggerBrowserDownload(blob, `${baseName}_watermarked${ext}`)
+    } catch (err) {
+      console.error('다운로드 실패', err)
+      alert('다운로드에 실패했습니다.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <Card className="p-0">
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
@@ -279,10 +354,16 @@ function ResultCard({
       <div className="border-t border-gray-100 px-6 py-4">
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Download className="h-4 w-4" />
-          워터마크 영상 다운로드
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {downloading ? '다운로드 중...' : '워터마크 영상 다운로드'}
         </button>
       </div>
     </Card>
