@@ -37,8 +37,11 @@ async def embed_watermark_endpoint(
 )
 async def verify_watermark_endpoint(
     videoId: str = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
 ) -> WatermarkVerifyResponse:
-    data = await verify_watermark(videoId)
+    admin_id = int(token_payload["sub"])
+    data = await verify_watermark(db, admin_id, videoId)
     return WatermarkVerifyResponse(data=data)
 
 
