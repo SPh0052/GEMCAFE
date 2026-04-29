@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, Eye, Search } from 'lucide-react'
+import { Eye, Search } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
@@ -81,32 +81,7 @@ export default function WatermarkDetect() {
         }
       />
 
-      <Filters />
       <VerificationTable rows={rows} />
-    </div>
-  )
-}
-
-function Filters() {
-  const items = [
-    { label: 'STATUS', placeholder: 'All Status' },
-    { label: 'FILE TYPE', placeholder: 'All Assets' },
-    { label: 'DATE RANGE', placeholder: '2023.10.01 - 2023.10.31' },
-    { label: 'PROJECT ID', placeholder: 'Search ID...' },
-  ]
-  return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-      {items.map((it) => (
-        <div key={it.label}>
-          <label className="mb-1.5 block text-[11px] font-medium tracking-wide text-gray-500">
-            {it.label}
-          </label>
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 shadow-sm">
-            <span className="truncate">{it.placeholder}</span>
-            <ChevronDown className="h-4 w-4 text-gray-400" />
-          </div>
-        </div>
-      ))}
     </div>
   )
 }
