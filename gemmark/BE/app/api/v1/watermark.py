@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Depends, Form
 from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db import get_db
+from app.core.security import verify_token
 from app.schemas.watermark import WatermarkEmbedResponse, WatermarkVerifyResponse
 from app.services.watermark_service import (
     download_watermarked_video,
@@ -18,9 +21,12 @@ router = APIRouter(prefix="/watermark", tags=["watermark"])
 )
 async def embed_watermark_endpoint(
     videoId: str = Form(default=None),
-    alpha: float = Form(default=20.0, ge=1.0, le=100.0),
+    alpha: int = Form(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
 ) -> WatermarkEmbedResponse:
-    data = await embed_watermark(videoId, alpha=alpha)
+    admin_id = int(token_payload["sub"])
+    data = await embed_watermark(db, admin_id, videoId, alpha=alpha)
     return WatermarkEmbedResponse(data=data)
 
 
