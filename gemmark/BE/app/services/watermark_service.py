@@ -179,6 +179,14 @@ async def verify_watermark(
 
     src_path = _resolve_verify_target(info, video_id)
 
+    input_content_uuid = _strip_video_prefix(video_id)
+    input_vw_id_result = await db.execute(
+        select(VideoWatermarked.id).where(
+            VideoWatermarked.content_uuid == input_content_uuid
+        )
+    )
+    input_vw_id = input_vw_id_result.scalar_one_or_none()
+
     try:
         extracted_bits, _stats = await asyncio.to_thread(
             extract_video_file,
@@ -201,7 +209,7 @@ async def verify_watermark(
         await _log_verification(
             db,
             admin_id=admin_id,
-            video_watermarked_id=None,
+            video_watermarked_id=input_vw_id,
             status=VerificationStatus.NOT_DETECTED,
             accuracy=0.0,
             extract_duration=extract_duration,
@@ -214,18 +222,11 @@ async def verify_watermark(
             ber=None,
         )
 
-    vw_id_result = await db.execute(
-        select(VideoWatermarked.id).where(
-            VideoWatermarked.content_uuid == metadata["videoUuid"]
-        )
-    )
-    video_watermarked_id = vw_id_result.scalar_one_or_none()
-
     accuracy = round(max(0.0, (1.0 - best_ber) * 100.0), 2)
     await _log_verification(
         db,
         admin_id=admin_id,
-        video_watermarked_id=video_watermarked_id,
+        video_watermarked_id=input_vw_id,
         status=VerificationStatus.DETECTED,
         accuracy=accuracy,
         extract_duration=extract_duration,
