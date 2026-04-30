@@ -118,6 +118,8 @@ async def embed_watermark(
         file_size=dest_path.stat().st_size,
         duration_sec=stats["duration_sec"],
         embed_psnr=stats["psnr"],
+        processing_time=stats.get("processing_time"),
+        processing_fps=stats.get("processing_fps"),
     )
     try:
         db.add(record)
