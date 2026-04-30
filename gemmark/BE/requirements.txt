@@ -6,6 +6,7 @@ pydantic-settings>=2.0
 
 # 인증
 passlib[bcrypt]>=1.7
+bcrypt==4.0.1
 python-jose[cryptography]>=3.3
 
 # DB
