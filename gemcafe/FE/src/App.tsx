@@ -3,6 +3,8 @@ import AppLayout from '@/layout/AppLayout'
 import RequireAuth from '@/shared/components/RequireAuth'
 import LoginPage from '@/features/auth/LoginPage'
 import SignupPage from '@/features/auth/SignupPage'
+import CompleteSignupPage from '@/features/auth/CompleteSignupPage'
+import HomePage from '@/features/home/HomePage'
 import CreateVideoPage from '@/features/create-video/CreateVideoPage'
 import CreatingPage from '@/features/create-video/CreatingPage'
 import MyVideosPage from '@/features/my-videos/MyVideosPage'
@@ -15,6 +17,14 @@ export default function App() {
       {/* 로그인/회원가입 — 레이아웃 없이 독립 */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route
+        path="/signup/phone"
+        element={
+          <RequireAuth>
+            <CompleteSignupPage />
+          </RequireAuth>
+        }
+      />
 
       {/* 로딩 페이지 — 레이아웃 자체적으로 포함 */}
       <Route
@@ -34,7 +44,8 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route path="/" element={<CreateVideoPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/create" element={<CreateVideoPage />} />
         <Route path="/videos" element={<MyVideosPage />} />
         <Route path="/videos/:id" element={<VideoDetailPage />} />
         <Route path="/me" element={<MyPage />} />
