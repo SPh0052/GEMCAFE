@@ -157,6 +157,15 @@ class VideoDetailNotFoundError(VideoUploadError):
         )
 
 
+class VerificationDetailNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="VER-101",
+            message="해당 검증 이력을 찾을 수 없습니다",
+        )
+
+
 class InvalidCredentialsError(VideoUploadError):
     def __init__(self) -> None:
         super().__init__(
