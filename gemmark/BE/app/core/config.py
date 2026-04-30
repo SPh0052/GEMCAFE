@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # Redis (JWT 블랙리스트)
     REDIS_URL: str = "redis://:redis@localhost:6379/0"
 
+    # RabbitMQ (메시지 큐)
+    RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
+
     @property
     def max_file_size_bytes(self) -> int:
         return self.MAX_FILE_SIZE_MB * 1024 * 1024
