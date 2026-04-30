@@ -30,7 +30,10 @@ export default function SignupPage() {
     agreements.privacy
 
   const handleSignup = () => {
+    // BE 붙기 전 mock — 이메일을 식별자로 임시 sub 생성.
+    // 진짜 회원가입 API가 생기면 응답의 user.id (또는 sub)을 사용.
     login({
+      sub: 'mock-' + form.email,
       nickname: form.nickname,
       email: form.email,
       gem: 10000,

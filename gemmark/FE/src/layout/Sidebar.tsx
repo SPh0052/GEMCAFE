@@ -4,7 +4,6 @@ import {
   ImagePlus,
   Search,
   ShieldCheck,
-  FileText,
 } from 'lucide-react'
 
 const nav = [
@@ -12,7 +11,6 @@ const nav = [
   { to: '/insert', label: '워터마크 삽입', icon: ImagePlus },
   { to: '/detect', label: '워터마크 검출', icon: Search },
   { to: '/robustness', label: '강건성 테스트', icon: ShieldCheck },
-  { to: '/reports', label: '보고서 관리', icon: FileText },
 ]
 
 export default function Sidebar() {
