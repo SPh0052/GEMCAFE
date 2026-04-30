@@ -190,6 +190,7 @@ async def list_watermarked_videos(
     items = [
         VideoListItem(
             id=row.id,
+            contentUuid=row.content_uuid,
             name=row.original_file_name,
             type=row.file_type,
             size=row.file_size,
