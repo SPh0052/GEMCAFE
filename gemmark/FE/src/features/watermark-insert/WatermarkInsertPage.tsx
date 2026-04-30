@@ -1,21 +1,49 @@
-import { Download, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
-import Card from '@/shared/components/Card'
-import FileDropZone from '@/shared/components/FileDropZone'
-import VideoListTable from '@/shared/components/VideoListTable'
-import Badge from '@/shared/components/Badge'
-
-const resultMeta = [
-  { label: '삽입된 페이로드 (144 bit)', value: '' },
-  { label: '버전', value: 'v1 (DCT)' },
-  { label: '사업자 ID', value: 'gemgem (0x01)' },
-  { label: '콘텐츠 UUID', value: 'a3f2e9c1-b847-4d21-9f3a' },
-  { label: '다운로더 user_id', value: 'u8721 (5eA-256 32bit)' },
-  { label: '생성 타임스탬프', value: '2026-04-15 14:32:17' },
-  { label: 'ECC', value: 'BCH (33% 리던던시)' },
-]
+import VideoListTable, {
+  type VideoRow,
+} from '@/shared/components/VideoListTable'
+import { listVideos, type VideoListItem } from './api'
 
 export default function WatermarkInsert() {
+  const navigate = useNavigate()
+  const [rows, setRows] = useState<VideoRow[]>([])
+  const [total, setTotal] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    listVideos(1, 20)
+      .then((res) => {
+        // 디버깅용 — 응답 구조 콘솔에서 직접 확인
+        console.log('[GET /videos] response:', res)
+        if (cancelled) return
+        setTotal(res.total)
+        setRows(res.items.map(toVideoRow))
+      })
+      .catch((err) => {
+        console.error('[GET /videos] error:', err)
+        if (cancelled) return
+        setError(
+          err?.response?.data?.message ??
+            '영상 목록을 불러오지 못했습니다.',
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -23,79 +51,70 @@ export default function WatermarkInsert() {
         actions={
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600"
+            onClick={() => navigate('/insert/new')}
+            className="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
           >
-            <Sparkles className="h-4 w-4" />
             워터마크 생성
           </button>
         }
       />
 
-      <FileDropZone />
+      {/* 디버그 상태 표시 — API 응답 확인용 */}
+      <div className="flex items-center gap-3 text-sm text-gray-600">
+        {loading && (
+          <span className="inline-flex items-center gap-1.5">
+            <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+            목록 불러오는 중...
+          </span>
+        )}
+        {!loading && !error && total !== null && (
+          <span>
+            총 <strong className="text-gray-900">{total}</strong>건
+            (이번 페이지 {rows.length}건 표시)
+          </span>
+        )}
+        {error && <span className="text-rose-600">{error}</span>}
+      </div>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700">생성된 영상 목록</h2>
-          <button
-            type="button"
-            className="text-xs font-medium text-brand-500 hover:underline"
-          >
-            ↻ 목록 업데이트
-          </button>
-        </div>
-
-        <Card className="p-0">
-          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-            <h3 className="text-sm font-semibold">
-              삽입 결과 — sample_video_001.mp4
-            </h3>
-            <Badge tone="success" dot>
-              성공
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 px-6 py-5 md:grid-cols-2">
-            <div>
-              <div className="text-xs text-gray-500">처리 시간</div>
-              <div className="mt-1 text-2xl font-bold text-gray-900">4.82초</div>
-              <div className="mt-0.5 text-xs text-gray-400">28.4 FPS</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500">PSNR (화질 열화)</div>
-              <div className="mt-1 text-2xl font-bold text-gray-900">
-                44.2 dB
-              </div>
-              <div className="mt-0.5 text-xs font-medium text-emerald-600">
-                영상 검증
-              </div>
-            </div>
-          </div>
-
-          <dl className="divide-y divide-gray-100 border-t border-gray-100 px-6">
-            {resultMeta.map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center justify-between py-3 text-sm"
-              >
-                <dt className="text-gray-500">{item.label}</dt>
-                <dd className="font-mono text-gray-800">{item.value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          <div className="border-t border-gray-100 px-6 py-4">
-            <button
-              type="button"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600"
-            >
-              <Download className="h-4 w-4" />
-              워터마크 영상 다운로드
-            </button>
-          </div>
-        </Card>
-      </section>
-
-      <VideoListTable />
+      <VideoListTable
+        rows={rows}
+        onRowClick={(row) => navigate(`/insert/${row.no}`)}
+      />
     </div>
   )
+}
+
+function toVideoRow(item: VideoListItem): VideoRow {
+  return {
+    no: item.id,
+    name: item.name,
+    createdAt: formatDateTime(item.createdAt),
+    type: item.type || '-',
+    size: formatBytes(item.size),
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes && bytes !== 0) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+function formatDateTime(iso: string): string {
+  if (!iso) return '-'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
 }

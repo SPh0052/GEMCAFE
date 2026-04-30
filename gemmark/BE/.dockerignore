@@ -1,0 +1,7 @@
+# gemmark/BE/.dockerignore (새 파일)
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+uploads/
