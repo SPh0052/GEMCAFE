@@ -1,25 +1,69 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, UtensilsCrossed } from 'lucide-react'
+import { Mail, Lock, UtensilsCrossed, Loader2 } from 'lucide-react'
 import MobileShell from '@/shared/components/MobileShell'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
+import { signInWithGoogle } from './google'
+import { findUserBySub } from './userRegistry'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleLogin = () => {
     // TODO: 실제 서버 로그인 — 지금은 mock
     login({
+      sub: 'mock-' + (email || 'guest'),
       nickname: '엄송현 사장',
       email: email || 'gemma.kim@example.com',
       gem: 45000,
     })
     navigate('/')
+  }
+
+  const handleGoogleLogin = async () => {
+    if (googleLoading) return
+    setGoogleLoading(true)
+    setError(null)
+    try {
+      const { accessToken, user: googleUser } = await signInWithGoogle()
+      // 디버그용 — 실제로 잘 들어오는지 콘솔에서 확인
+      console.log('[Google] sign-in success', { accessToken, googleUser })
+
+      // BE 준비되기 전 임시: 로컬 레지스트리로 신규/기존 회원 판별.
+      // BE 붙이는 시점엔 이 블록 통째로 fetch('/auth/google', { accessToken }) 한 번으로 대체.
+      const existing = findUserBySub(googleUser.sub)
+
+      login({
+        sub: googleUser.sub,
+        nickname: googleUser.name,
+        email: googleUser.email,
+        picture: googleUser.picture,
+        phone: existing?.phone,
+        gem: existing ? 0 : 0, // BE 붙으면 실제 잔액으로
+      })
+
+      if (existing) {
+        // 기존 회원 → 메인으로
+        navigate('/')
+      } else {
+        // 신규 회원 → 전화번호 입력 단계로
+        navigate('/signup/phone')
+      }
+    } catch (err) {
+      console.error('[Google] sign-in failed', err)
+      setError(
+        err instanceof Error ? err.message : '구글 로그인에 실패했습니다.',
+      )
+    } finally {
+      setGoogleLoading(false)
+    }
   }
 
   return (
@@ -74,10 +118,24 @@ export default function LoginPage() {
             <div className="flex-1 border-t border-gray-200" />
           </div>
 
-          <Button variant="outline" size="lg" fullWidth>
-            <GoogleIcon />
-            구글로 시작하기
+          <Button
+            variant="outline"
+            size="lg"
+            fullWidth
+            onClick={handleGoogleLogin}
+            disabled={googleLoading}
+          >
+            {googleLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            {googleLoading ? '구글 로그인 중...' : '구글로 시작하기'}
           </Button>
+
+          {error && (
+            <p className="text-center text-sm text-rose-600">{error}</p>
+          )}
         </div>
 
         <p className="mt-8 text-center text-sm text-gray-500">
