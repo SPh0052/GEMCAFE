@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
+import { login as loginApi } from './api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -27,13 +29,25 @@ export default function LoginPage() {
     setSubmitting(true)
     setError(null)
     try {
-      // TODO: 실제 로그인 API 연결. 지금은 입력값 그대로 통과.
-      await new Promise((r) => setTimeout(r, 300))
-      login(username)
+      const tokens = await loginApi({ loginId: username, password })
+      login({ username, ...tokens })
       navigate(from, { replace: true })
     } catch (err) {
       console.error('로그인 실패', err)
-      setError('로그인에 실패했습니다.')
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status
+        if (status === 422) {
+          setError('입력값이 올바르지 않습니다.')
+        } else if (status === 401 || status === 400) {
+          setError('아이디 또는 비밀번호가 일치하지 않습니다.')
+        } else {
+          setError(
+            err.response?.data?.message ?? '로그인에 실패했습니다. 잠시 후 다시 시도해주세요.',
+          )
+        }
+      } else {
+        setError('로그인에 실패했습니다.')
+      }
     } finally {
       setSubmitting(false)
     }

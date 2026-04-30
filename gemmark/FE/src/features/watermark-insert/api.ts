@@ -17,10 +17,40 @@ export interface EmbedResult {
   timestamp: string
 }
 
+export interface VideoListItem {
+  id: number
+  name: string
+  type: string
+  size: number
+  createdAt: string
+}
+
+export interface VideoListResponse {
+  items: VideoListItem[]
+  total: number
+  page: number
+  size: number
+}
+
 interface ApiResponse<T> {
   status: number
   message: string
   data: T
+}
+
+/**
+ * 워터마크 삽입 영상 목록 조회.
+ * GET /api/v1/videos?page=1&size=20
+ * Authorization 헤더는 axios 요청 인터셉터가 자동 첨부.
+ */
+export async function listVideos(
+  page = 1,
+  size = 20,
+): Promise<VideoListResponse> {
+  const res = await api.get<ApiResponse<VideoListResponse>>('/videos', {
+    params: { page, size },
+  })
+  return res.data.data
 }
 
 /**

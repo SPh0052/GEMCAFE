@@ -1,14 +1,27 @@
-import { Bell, LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { Bell, Loader2, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
+import { logout as logoutApi } from '@/features/auth/api'
 
 export default function Topbar() {
   const navigate = useNavigate()
   const { username, logout } = useAuthStore()
+  const [loggingOut, setLoggingOut] = useState(false)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await logoutApi()
+    } catch (err) {
+      // 서버 호출이 실패해도 로컬 세션은 정리해서 사용자가 갇히지 않도록 한다.
+      console.error('로그아웃 API 실패', err)
+    } finally {
+      logout()
+      setLoggingOut(false)
+      navigate('/login', { replace: true })
+    }
   }
 
   return (
@@ -35,11 +48,16 @@ export default function Topbar() {
       <button
         type="button"
         onClick={handleLogout}
+        disabled={loggingOut}
         aria-label="로그아웃"
-        className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <LogOut className="h-4 w-4" />
-        로그아웃
+        {loggingOut ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <LogOut className="h-4 w-4" />
+        )}
+        {loggingOut ? '로그아웃 중...' : '로그아웃'}
       </button>
     </header>
   )
