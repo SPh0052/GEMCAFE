@@ -19,6 +19,8 @@ export interface EmbedResult {
 
 export interface VideoListItem {
   id: number
+  /** 워터마크 콘텐츠 UUID. 상세 조회 path 파라미터로 사용. */
+  contentUuid: string
   name: string
   type: string
   size: number
