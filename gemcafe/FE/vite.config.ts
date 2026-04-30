@@ -15,7 +15,7 @@ export default defineConfig({
         name: 'gem.cafe',
         short_name: 'gem.cafe',
         description: 'AI 레시피 영상 생성 서비스',
-        theme_color: '#FF6A00',
+        theme_color: '#ff4a0d',
         background_color: '#FFFFFF',
         display: 'standalone',
         orientation: 'portrait',

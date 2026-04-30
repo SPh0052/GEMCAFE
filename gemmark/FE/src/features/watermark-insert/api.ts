@@ -32,6 +32,18 @@ export interface VideoListResponse {
   size: number
 }
 
+export interface VideoDetail {
+  name: string
+  processingTime: number
+  processingFps: number
+  embedPsnr: number
+  payloadBits: number
+  businessId: string
+  contentUuid: string
+  createdAt: string
+  watermarkHex: string
+}
+
 interface ApiResponse<T> {
   status: number
   message: string
@@ -50,6 +62,18 @@ export async function listVideos(
   const res = await api.get<ApiResponse<VideoListResponse>>('/videos', {
     params: { page, size },
   })
+  return res.data.data
+}
+
+/**
+ * 워터마크 삽입 영상 상세 조회.
+ * GET /api/v1/videos/{uuid}
+ * uuid: 목록 조회 응답의 item.id 값.
+ */
+export async function getVideoDetail(uuid: string): Promise<VideoDetail> {
+  const res = await api.get<ApiResponse<VideoDetail>>(
+    `/videos/${encodeURIComponent(uuid)}`,
+  )
   return res.data.data
 }
 

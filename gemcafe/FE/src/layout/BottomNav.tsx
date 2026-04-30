@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { PlusCircle, Video, User } from 'lucide-react'
+import { Home, PlusCircle, Video, User } from 'lucide-react'
 
 const tabs = [
-  { to: '/', label: '생성하기', icon: PlusCircle, end: true },
+  { to: '/', label: '홈', icon: Home, end: true },
+  { to: '/create', label: '생성하기', icon: PlusCircle },
   { to: '/videos', label: '내 영상', icon: Video },
   { to: '/me', label: '마이페이지', icon: User },
 ]
@@ -10,7 +11,7 @@ const tabs = [
 export default function BottomNav() {
   return (
     <nav className="sticky bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white/95 backdrop-blur">
-      <div className="flex items-center justify-around px-2 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+      <div className="flex items-center justify-around px-2 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0))]">
         {tabs.map((t) => {
           const Icon = t.icon
           return (
