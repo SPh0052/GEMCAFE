@@ -19,6 +19,7 @@ class VideoUploadResponse(BaseModel):
 
 class VideoListItem(BaseModel):
     id: int = Field(..., description="워터마크 영상 ID")
+    contentUuid: str = Field(..., description="콘텐츠 UUID (상세 조회 path param)")
     name: str = Field(..., description="원본 파일명")
     type: str = Field(..., description="파일 타입 (확장자)")
     size: int = Field(..., description="파일 크기 (bytes)")
