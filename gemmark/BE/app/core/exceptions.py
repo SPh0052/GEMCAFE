@@ -146,3 +146,39 @@ class DownloadError(VideoUploadError):
             error_code="DL-003",
             message="다운로드 중 오류가 발생했습니다",
         )
+
+
+class VideoDetailNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="VID-101",
+            message="해당 영상을 찾을 수 없습니다",
+        )
+
+
+class InvalidCredentialsError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code="AUTH-001",
+            message="아이디 또는 비밀번호가 올바르지 않습니다",
+        )
+
+
+class MissingAuthParameterError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="AUTH-002",
+            message="필수 파라미터가 누락되었습니다",
+        )
+
+
+class InvalidTokenError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code="AUTH-003",
+            message="유효하지 않은 토큰입니다",
+        )

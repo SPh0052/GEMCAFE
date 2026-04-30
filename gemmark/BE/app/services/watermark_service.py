@@ -11,6 +11,7 @@ from app.core.config import (
     settings,
 )
 from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
     AlreadyWatermarkedError,
@@ -24,11 +25,19 @@ from app.core.exceptions import (
     WatermarkEmbedError,
     WatermarkVerifyError,
 )
+from sqlalchemy import select
+
+from app.models.verification import VerificationHistory, VerificationStatus
+from app.models.video import VideoWatermarked
 from app.schemas.watermark import WatermarkEmbedData, WatermarkVerifyData
 from app.services import video_service
 from app.services.watermark.dct import bits_to_hex
 from app.services.watermark.payload import PAYLOAD_BITS, make_payload_bits
-from app.services.watermark.video import embed_video_file, extract_video_file
+from app.services.watermark.video import (
+    embed_video_file,
+    extract_video_file,
+    save_first_frame,
+)
 
 
 _VERIFY_BER_THRESHOLD = 0.1
@@ -39,8 +48,10 @@ def _strip_video_prefix(video_id: str) -> str:
 
 
 async def embed_watermark(
+    db: AsyncSession,
+    admin_id: int,
     video_id: str | None,
-    alpha: float | None = None,
+    alpha: int | None = None,
     downloader_user_id: str = WATERMARK_DEFAULT_DOWNLOADER,
 ) -> WatermarkEmbedData:
     if not video_id:
@@ -57,7 +68,7 @@ async def embed_watermark(
     if video_service.is_watermarked(video_id):
         raise AlreadyWatermarkedError()
 
-    effective_alpha = alpha if alpha is not None else settings.WATERMARK_ALPHA
+    effective_alpha = int(alpha) if alpha is not None else int(settings.WATERMARK_ALPHA)
 
     video_uuid = _strip_video_prefix(video_id)
     payload = make_payload_bits(video_uuid, downloader_user_id)
@@ -72,7 +83,7 @@ async def embed_watermark(
             dest_path,
             payload,
             settings.WATERMARK_KEY,
-            effective_alpha,
+            float(effective_alpha),
         )
     except Exception:
         dest_path.unlink(missing_ok=True)
@@ -90,6 +101,34 @@ async def embed_watermark(
         business_id=WATERMARK_BUSINESS_ID,
         created_at=created_at,
     )
+
+    thumb_path = settings.WATERMARKED_DIR / f"{video_uuid}.jpg"
+    thumb_ok = await asyncio.to_thread(save_first_frame, dest_path, thumb_path)
+    thumbnail_name = thumb_path.name if thumb_ok else None
+
+    record = VideoWatermarked(
+        admin_id=admin_id,
+        content_uuid=video_uuid,
+        watermark_hex=payload_hex,
+        alpha=effective_alpha,
+        original_file_name=info["original_filename"],
+        stored_file_name=dest_path.name,
+        thumbnail_name=thumbnail_name,
+        file_type=dest_path.suffix.lstrip(".").lower(),
+        file_size=dest_path.stat().st_size,
+        duration_sec=stats["duration_sec"],
+        embed_psnr=stats["psnr"],
+        processing_time=stats.get("processing_time"),
+        processing_fps=stats.get("processing_fps"),
+    )
+    try:
+        db.add(record)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        dest_path.unlink(missing_ok=True)
+        thumb_path.unlink(missing_ok=True)
+        raise WatermarkEmbedError()
 
     return WatermarkEmbedData(
         success=True,
@@ -125,7 +164,11 @@ def _resolve_verify_target(info: dict, video_id: str) -> Path:
     raise VerifyVideoNotFoundError()
 
 
-async def verify_watermark(video_id: str | None) -> WatermarkVerifyData:
+async def verify_watermark(
+    db: AsyncSession,
+    admin_id: int,
+    video_id: str | None,
+) -> WatermarkVerifyData:
     """videoId로 등록된 영상에서 워터마크를 추출하고 등록부와 매칭."""
     if not video_id:
         raise VerifyVideoIdMissingError()
@@ -152,7 +195,17 @@ async def verify_watermark(video_id: str | None) -> WatermarkVerifyData:
         extracted_bits, ber_threshold=_VERIFY_BER_THRESHOLD
     )
 
+    extract_duration = float(_stats.get("processing_time", 0.0))
+
     if metadata is None:
+        await _log_verification(
+            db,
+            admin_id=admin_id,
+            video_watermarked_id=None,
+            status=VerificationStatus.NOT_DETECTED,
+            accuracy=0.0,
+            extract_duration=extract_duration,
+        )
         return WatermarkVerifyData(
             isWatermarked=False,
             videoUuid=None,
@@ -161,6 +214,23 @@ async def verify_watermark(video_id: str | None) -> WatermarkVerifyData:
             ber=None,
         )
 
+    vw_id_result = await db.execute(
+        select(VideoWatermarked.id).where(
+            VideoWatermarked.content_uuid == metadata["videoUuid"]
+        )
+    )
+    video_watermarked_id = vw_id_result.scalar_one_or_none()
+
+    accuracy = round(max(0.0, (1.0 - best_ber) * 100.0), 2)
+    await _log_verification(
+        db,
+        admin_id=admin_id,
+        video_watermarked_id=video_watermarked_id,
+        status=VerificationStatus.DETECTED,
+        accuracy=accuracy,
+        extract_duration=extract_duration,
+    )
+
     return WatermarkVerifyData(
         isWatermarked=True,
         videoUuid=metadata["videoUuid"],
@@ -168,6 +238,30 @@ async def verify_watermark(video_id: str | None) -> WatermarkVerifyData:
         createdAt=metadata["createdAt"],
         ber=round(best_ber, 4),
     )
+
+
+async def _log_verification(
+    db: AsyncSession,
+    *,
+    admin_id: int,
+    video_watermarked_id: int | None,
+    status: VerificationStatus,
+    accuracy: float,
+    extract_duration: float,
+) -> None:
+    log = VerificationHistory(
+        video_watermarked_id=video_watermarked_id,
+        admin_id=admin_id,
+        status=status,
+        accuracy=accuracy,
+        extract_duration=extract_duration,
+    )
+    try:
+        db.add(log)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise WatermarkVerifyError()
 
 
 # ──────────────────────────────────────────────────────────

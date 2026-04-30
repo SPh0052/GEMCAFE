@@ -129,6 +129,25 @@ def embed_video_file(
     }
 
 
+def save_first_frame(
+    src_path: Path,
+    dest_path: Path,
+    jpeg_quality: int = 85,
+) -> bool:
+    """영상의 첫 프레임을 JPG로 저장. 실패 시 False."""
+    cap = cv2.VideoCapture(str(src_path))
+    try:
+        ret, frame = cap.read()
+        if not ret:
+            return False
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        return bool(
+            cv2.imwrite(str(dest_path), frame, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+        )
+    finally:
+        cap.release()
+
+
 def extract_video_file(
     src_path: Path,
     wm_len: int = PAYLOAD_BITS,
