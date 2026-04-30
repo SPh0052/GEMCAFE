@@ -8,12 +8,15 @@ gemmark Backend — FastAPI 진입점
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router as api_router
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal, engine
+from app.core.exceptions import VideoUploadError
 from app.core.redis import close_redis
 from app.services.admin_service import ensure_default_admin
 
@@ -42,6 +45,31 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+        "https://k14s307.p.ssafy.io",
+        "http://k14s307.p.ssafy.io",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    max_age=3600,
+)
+
+
+@app.exception_handler(VideoUploadError)
+async def custom_error_handler(request: Request, exc: VideoUploadError) -> JSONResponse:
+    """`detail` 래퍼 없이 평면 구조로 에러 응답."""
+    return JSONResponse(status_code=exc.status_code, content=exc.detail)
+
 
 app.include_router(api_router, prefix="/api")
 

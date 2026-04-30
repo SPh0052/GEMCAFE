@@ -148,6 +148,15 @@ class DownloadError(VideoUploadError):
         )
 
 
+class VideoDetailNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="VID-101",
+            message="해당 영상을 찾을 수 없습니다",
+        )
+
+
 class InvalidCredentialsError(VideoUploadError):
     def __init__(self) -> None:
         super().__init__(

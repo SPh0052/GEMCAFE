@@ -32,6 +32,8 @@ class VideoWatermarked(Base):
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_sec: Mapped[float] = mapped_column(Float, nullable=False)
     embed_psnr: Mapped[float] = mapped_column(Float, nullable=False)
+    processing_time: Mapped[float | None] = mapped_column(Float, nullable=True)
+    processing_fps: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
