@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     DB_POOL_RECYCLE: int = 3600  # 1시간 (MySQL wait_timeout 회피)
 
     # Redis (JWT 블랙리스트)
-    REDIS_URL: str = "redis://:redis@localhost:6379/0"
+    REDIS_URL: str = Field(...)
 
     @property
     def max_file_size_bytes(self) -> int:
