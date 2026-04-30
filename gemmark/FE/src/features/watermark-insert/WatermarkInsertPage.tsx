@@ -78,7 +78,11 @@ export default function WatermarkInsert() {
 
       <VideoListTable
         rows={rows}
-        onRowClick={(row) => navigate(`/insert/${row.no}`)}
+        onRowClick={(row) => {
+          // contentUuid 가 있으면 그걸로 상세 조회. 없으면 no(=item.id) fallback.
+          const target = row.uuid ?? row.no
+          navigate(`/insert/${target}`)
+        }}
       />
     </div>
   )
@@ -87,6 +91,7 @@ export default function WatermarkInsert() {
 function toVideoRow(item: VideoListItem): VideoRow {
   return {
     no: item.id,
+    uuid: item.contentUuid,
     name: item.name,
     createdAt: formatDateTime(item.createdAt),
     type: item.type || '-',
