@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
     WATERMARK_KEY: int = 42
 
     # JWT 인증
-    JWT_SECRET: str = "change-me-in-production"  # 운영 환경에서는 환경변수로 override 필수
+    JWT_SECRET: str = Field(..., min_length=32)  # 검증도 같이 가능
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_EXPIRE_MINUTES: int = 60      # 1시간
     JWT_REFRESH_EXPIRE_DAYS: int = 7         # 7일
@@ -44,13 +45,13 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_NAME: str = "관리자"
 
     # DB 연결
-    DATABASE_URL: str = "mysql+aiomysql://gemmark:gemmark@db:3306/gemmark"
+    DATABASE_URL: str = Field(...)
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_RECYCLE: int = 3600  # 1시간 (MySQL wait_timeout 회피)
 
     # Redis (JWT 블랙리스트)
-    REDIS_URL: str = "redis://:redis@localhost:6379/0"
+    REDIS_URL: str = Field(...)
 
     # RabbitMQ (메시지 큐)
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
