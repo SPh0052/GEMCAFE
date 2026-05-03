@@ -191,3 +191,21 @@ class InvalidTokenError(VideoUploadError):
             error_code="AUTH-003",
             message="유효하지 않은 토큰입니다",
         )
+
+
+class InvalidDateRangeError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="ROB-001",
+            message="시작일은 종료일보다 이전이어야 합니다",
+        )
+
+
+class InvalidEndDateError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="ROB-002",
+            message="종료일은 시작일보다 이후여야 합니다.",
+        )
