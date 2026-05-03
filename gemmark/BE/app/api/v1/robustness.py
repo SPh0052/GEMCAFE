@@ -9,8 +9,10 @@ from app.schemas.robustness import (
     RobustnessRunRequest,
     RobustnessRunResponse,
     RobustnessTargetListResponse,
+    RobustnessVideoInfoResponse,
 )
 from app.services.robustness_service import (
+    get_robustness_test_video_info,
     list_robustness_target_videos,
     run_robustness_test,
 )
@@ -42,6 +44,21 @@ async def list_robustness_target_videos_endpoint(
         db, admin_id, page, size, startDate, endDate
     )
     return RobustnessTargetListResponse(data=data)
+
+
+@router.get(
+    "/tests/{test_id}/{video_id}",
+    response_model=RobustnessVideoInfoResponse,
+    summary="강건성 테스트 상세 - 영상 기본 정보 조회",
+)
+async def get_robustness_test_video_info_endpoint(
+    test_id: int,
+    video_id: int,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessVideoInfoResponse:
+    data = await get_robustness_test_video_info(db, test_id, video_id)
+    return RobustnessVideoInfoResponse(data=data)
 
 
 @router.post(

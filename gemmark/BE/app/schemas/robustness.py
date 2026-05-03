@@ -1,3 +1,6 @@
+import enum
+from datetime import datetime
+
 from app.schemas.video import VideoListData
 from pydantic import BaseModel, Field
 
@@ -38,3 +41,24 @@ class RobustnessRunResponse(BaseModel):
     status: int = 200
     message: str = "강건성 테스트 실행 성공"
     data: RobustnessRunData
+
+
+class TestPassedStatus(str, enum.Enum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
+class RobustnessVideoInfoData(BaseModel):
+    videoFileName: str
+    videoUuid: str
+    createDate: datetime
+    fileSize: int
+    testDate: datetime
+    testPassed: TestPassedStatus
+    adminId: str
+
+
+class RobustnessVideoInfoResponse(BaseModel):
+    status: int = 200
+    message: str = "테스트 상세 - 영상 정보 조회 성공"
+    data: RobustnessVideoInfoData

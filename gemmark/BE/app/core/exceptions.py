@@ -254,3 +254,19 @@ class RobustnessExecutionError(VideoUploadError):
             error_code="RT-005",
             message="강건성 테스트 실행 중 오류가 발생했습니다",
         )
+
+class RobustnessTestNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="RTR-001",
+            message="해당 테스트 결과를 찾을 수 없습니다",
+        )
+
+class RobustnessTestVideoNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="RTR-002",
+            message="테스트 결과에서 해당 영상 정보를 찾을 수 없습니다",
+        )

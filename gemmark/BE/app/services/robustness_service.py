@@ -20,7 +20,10 @@ from app.core.exceptions import (
     RobustnessNoTargetVideoError,
     RobustnessRequiredParameterError,
     RobustnessStartAfterEndError,
+    RobustnessTestNotFoundError,
+    RobustnessTestVideoNotFoundError,
 )
+from app.models.admin import Admin
 from app.models.robustness import (
     RobustnessAttackDetail,
     RobustnessTest,
@@ -28,7 +31,12 @@ from app.models.robustness import (
     RobustnessTestVideo,
 )
 from app.models.video import VideoWatermarked
-from app.schemas.robustness import FailedVideoItem, RobustnessRunData
+from app.schemas.robustness import (
+    FailedVideoItem,
+    RobustnessRunData,
+    RobustnessVideoInfoData,
+    TestPassedStatus,
+)
 from app.schemas.video import VideoListData, VideoListItem
 from app.services.watermark.attacks import (
     ATTACK_H264_REENCODE,
@@ -399,3 +407,56 @@ async def run_robustness_test(
             logger.exception("test_record ERROR 상태 업데이트 실패")
             await db.rollback()
         raise RobustnessExecutionError()
+
+
+# ──────────────────────────────────────────────────────
+# 강건성 테스트 상세 - 영상 기본 정보 조회
+# ──────────────────────────────────────────────────────
+async def get_robustness_test_video_info(
+    db: AsyncSession,
+    test_id: int,
+    video_id: int,
+) -> RobustnessVideoInfoData:
+    test_exists = await db.execute(
+        select(RobustnessTest.id).where(RobustnessTest.id == test_id)
+    )
+    if test_exists.scalar_one_or_none() is None:
+        raise RobustnessTestNotFoundError()
+
+    result = await db.execute(
+        select(
+            VideoWatermarked.original_file_name,
+            VideoWatermarked.content_uuid,
+            VideoWatermarked.created_at,
+            VideoWatermarked.file_size,
+            RobustnessTestVideo.created_at.label("test_created_at"),
+            RobustnessTestVideo.passed,
+            Admin.admin_id,
+        )
+        .join(
+            RobustnessTestVideo,
+            RobustnessTestVideo.video_watermarked_id == VideoWatermarked.id,
+        )
+        .join(
+            RobustnessTest,
+            RobustnessTest.id == RobustnessTestVideo.robustness_test_id,
+        )
+        .join(Admin, Admin.id == RobustnessTest.admin_id)
+        .where(
+            RobustnessTestVideo.robustness_test_id == test_id,
+            RobustnessTestVideo.video_watermarked_id == video_id,
+        )
+    )
+    row = result.first()
+    if row is None:
+        raise RobustnessTestVideoNotFoundError()
+
+    return RobustnessVideoInfoData(
+        videoFileName=row.original_file_name,
+        videoUuid=row.content_uuid,
+        createDate=row.created_at,
+        fileSize=row.file_size,
+        testDate=row.test_created_at,
+        testPassed=TestPassedStatus.SUCCESS if row.passed else TestPassedStatus.FAILED,
+        adminId=row.admin_id,
+    )
