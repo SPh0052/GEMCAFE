@@ -24,6 +24,8 @@ engine = create_async_engine(
     pool_recycle=settings.DB_POOL_RECYCLE,
     pool_pre_ping=True,
     echo=False,
+    # 모든 새 커넥션에 KST(+09:00) 타임존 설정 → CURRENT_TIMESTAMP / NOW()가 KST 반환
+    connect_args={"init_command": "SET time_zone = '+09:00'"},
 )
 
 
