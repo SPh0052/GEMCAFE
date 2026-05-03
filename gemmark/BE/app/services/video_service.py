@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Final
 
@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import (
     ALLOWED_VIDEO_EXTENSIONS,
     ALLOWED_VIDEO_MIME_TYPES,
+    KST,
     WATERMARK_BUSINESS_ID,
     settings,
 )
@@ -251,7 +252,7 @@ async def upload_video(file: UploadFile | None) -> VideoUploadData:
 
     file_size = await _stream_to_disk(file, dest, settings.max_file_size_bytes)
 
-    uploaded_at = datetime.now(timezone.utc)
+    uploaded_at = datetime.now(KST)
     register_video(
         video_id=video_id,
         file_path=dest,

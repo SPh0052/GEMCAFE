@@ -2,10 +2,11 @@
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from app.core.config import (
+    KST,
     WATERMARK_BUSINESS_ID,
     WATERMARK_DEFAULT_DOWNLOADER,
     settings,
@@ -93,7 +94,7 @@ async def embed_watermark(
     video_service.mark_watermarked(video_id, watermark_id)
 
     payload_hex = bits_to_hex(payload)
-    created_at = datetime.now(timezone.utc)
+    created_at = datetime.now(KST)
 
     video_service.register_watermark_metadata(
         payload_hex=payload_hex,

@@ -209,3 +209,48 @@ class InvalidEndDateError(VideoUploadError):
             error_code="ROB-002",
             message="종료일은 시작일보다 이후여야 합니다.",
         )
+
+
+class RobustnessRequiredParameterError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="RT-001",
+            message="필수 파라미터가 누락되었습니다",
+        )
+
+
+class RobustnessInvalidDateFormatError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="RT-002",
+            message="날짜 형식이 올바르지 않습니다",
+        )
+
+
+class RobustnessStartAfterEndError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="RT-003",
+            message="시작날짜가 종료날짜보다 늦을 수 없습니다",
+        )
+
+
+class RobustnessNoTargetVideoError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="RT-004",
+            message="테스트 가능한 영상을 찾을 수 없습니다",
+        )
+
+
+class RobustnessExecutionError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="RT-005",
+            message="강건성 테스트 실행 중 오류가 발생했습니다",
+        )
