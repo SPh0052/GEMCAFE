@@ -62,3 +62,24 @@ class RobustnessVideoInfoResponse(BaseModel):
     status: int = 200
     message: str = "테스트 상세 - 영상 정보 조회 성공"
     data: RobustnessVideoInfoData
+
+
+class RobustnessAttackItem(BaseModel):
+    type: str
+    ber: float
+    psnr: float
+    duration: float
+
+
+class RobustnessAttackResultData(BaseModel):
+    avgBer: float
+    avgPsnr: float
+    avgDuration: float
+    totalScore: int
+    attacks: list[RobustnessAttackItem]
+
+
+class RobustnessAttackResultResponse(BaseModel):
+    status: int = 200
+    message: str = "테스트 상세 - 공격 유형별 상세 조회 성공"
+    data: RobustnessAttackResultData
