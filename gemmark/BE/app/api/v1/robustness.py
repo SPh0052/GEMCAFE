@@ -6,12 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.core.security import verify_token
 from app.schemas.robustness import (
+    RobustnessAttackResultResponse,
     RobustnessRunRequest,
     RobustnessRunResponse,
     RobustnessTargetListResponse,
     RobustnessVideoInfoResponse,
 )
 from app.services.robustness_service import (
+    get_robustness_attack_results,
     get_robustness_test_video_info,
     list_robustness_target_videos,
     run_robustness_test,
@@ -47,7 +49,7 @@ async def list_robustness_target_videos_endpoint(
 
 
 @router.get(
-    "/tests/{test_id}/{video_id}",
+    "/tests/{test_id}/videos/{video_id}",
     response_model=RobustnessVideoInfoResponse,
     summary="강건성 테스트 상세 - 영상 기본 정보 조회",
 )
@@ -59,6 +61,21 @@ async def get_robustness_test_video_info_endpoint(
 ) -> RobustnessVideoInfoResponse:
     data = await get_robustness_test_video_info(db, test_id, video_id)
     return RobustnessVideoInfoResponse(data=data)
+
+
+@router.get(
+    "/tests/{test_id}/videos/{video_id}/attacks",
+    response_model=RobustnessAttackResultResponse,
+    summary="강건성 테스트 상세 - 공격 유형별 결과 조회",
+)
+async def get_robustness_attack_results_endpoint(
+    test_id: int,
+    video_id: int,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessAttackResultResponse:
+    data = await get_robustness_attack_results(db, test_id, video_id)
+    return RobustnessAttackResultResponse(data=data)
 
 
 @router.post(

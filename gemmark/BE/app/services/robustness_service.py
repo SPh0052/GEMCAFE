@@ -26,6 +26,7 @@ from app.core.exceptions import (
 from app.models.admin import Admin
 from app.models.robustness import (
     RobustnessAttackDetail,
+    RobustnessAttackType,
     RobustnessTest,
     RobustnessTestStatus,
     RobustnessTestVideo,
@@ -33,6 +34,8 @@ from app.models.robustness import (
 from app.models.video import VideoWatermarked
 from app.schemas.robustness import (
     FailedVideoItem,
+    RobustnessAttackItem,
+    RobustnessAttackResultData,
     RobustnessRunData,
     RobustnessVideoInfoData,
     TestPassedStatus,
@@ -459,4 +462,75 @@ async def get_robustness_test_video_info(
         testDate=row.test_created_at,
         testPassed=TestPassedStatus.SUCCESS if row.passed else TestPassedStatus.FAILED,
         adminId=row.admin_id,
+    )
+
+
+# ──────────────────────────────────────────────────────
+# 강건성 테스트 상세 - 공격 유형별 결과 조회
+# ──────────────────────────────────────────────────────
+
+# 요약 지표
+def _calc_total_score(avg_ber: float, avg_psnr: float, avg_duration: float) -> int:
+    # BER: 0에 가까울수록 좋음 (50점 만점) — BER 0%→50점, 10% 이상→0점
+    ber_score = max(0.0, 50.0 * (1 - avg_ber / 0.10))
+    # PSNR: 43 dB이 최적 (35점 만점) — 43dB→35점, ±20dB 이상→0점
+    psnr_score = max(0.0, 35.0 * (1 - abs(avg_psnr - 43) / 20))
+    # Duration: 낮을수록 좋음, 초 단위 기준 (15점 만점) — 0.033s 이하→15점, 0.2s 이상→0점
+    duration_score = max(0.0, 15.0 * (1 - avg_duration / 0.2))
+    return round(ber_score + psnr_score + duration_score)
+
+# 공격 유형별 상세
+async def get_robustness_attack_results(
+    db: AsyncSession,
+    test_id: int,
+    video_id: int,
+) -> RobustnessAttackResultData:
+    test_exists = await db.execute(
+        select(RobustnessTest.id).where(RobustnessTest.id == test_id)
+    )
+    if test_exists.scalar_one_or_none() is None:
+        raise RobustnessTestNotFoundError()
+
+    rtv_result = await db.execute(
+        select(RobustnessTestVideo).where(
+            RobustnessTestVideo.robustness_test_id == test_id,
+            RobustnessTestVideo.video_watermarked_id == video_id,
+        )
+    )
+    rtv = rtv_result.scalar_one_or_none()
+    if rtv is None:
+        raise RobustnessTestVideoNotFoundError()
+
+    details_result = await db.execute(
+        select(
+            RobustnessAttackType.type_name,
+            RobustnessAttackDetail.ber,
+            RobustnessAttackDetail.psnr,
+            RobustnessAttackDetail.duration,
+        )
+        .join(
+            RobustnessAttackType,
+            RobustnessAttackType.id == RobustnessAttackDetail.attack_type_id,
+        )
+        .where(RobustnessAttackDetail.robustness_test_video_id == rtv.id)
+        .order_by(RobustnessAttackType.id)
+    )
+    rows = details_result.all()
+
+    attacks = [
+        RobustnessAttackItem(
+            type=row.type_name,
+            ber=row.ber,
+            psnr=row.psnr,
+            duration=row.duration,
+        )
+        for row in rows
+    ]
+
+    return RobustnessAttackResultData(
+        avgBer=rtv.avg_ber,
+        avgPsnr=rtv.avg_psnr,
+        avgDuration=rtv.avg_duration,
+        totalScore=_calc_total_score(rtv.avg_ber, rtv.avg_psnr, rtv.avg_duration),
+        attacks=attacks,
     )
