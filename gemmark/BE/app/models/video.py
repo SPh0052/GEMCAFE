@@ -6,11 +6,11 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
+from app.core.time import now_kst_naive
 
 
 class VideoWatermarked(Base):
@@ -35,7 +35,7 @@ class VideoWatermarked(Base):
     processing_time: Mapped[float | None] = mapped_column(Float, nullable=True)
     processing_fps: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, default=now_kst_naive
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
