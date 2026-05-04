@@ -9,8 +9,8 @@ const bins: { label: string; value: number; color: string }[] = [
 export default function VerificationTrendChart() {
   return (
     <div className="h-full rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-gray-900">PSNR 검증 추이</h2>
-      <p className="mt-1 text-sm text-gray-500">PSNR 구간별 영상 수 테스트</p>
+      <h2 className="text-lg font-semibold text-gray-900">PSNR 분포별 영상 수</h2>
+      <p className="mt-1 text-sm text-gray-500">PSNR 구간별로 본 영상 수 분포</p>
 
       <div className="relative mt-6 h-60">
         {/* 가로 그리드 라인 */}
