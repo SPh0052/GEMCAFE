@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -70,5 +71,25 @@ public class AuthController {
                 tokens.accessExpiresIn()
         );
         return ApiResponse.ok("로그인 성공", body);
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(
+            HttpServletResponse response,
+            @CookieValue(name = "${app.cookie.refresh-name:refreshToken}", required = false) String refreshToken
+    ) {
+        authService.logout(refreshToken);
+
+        // refresh 쿠키 즉시 만료
+        ResponseCookie clearCookie = ResponseCookie.from(refreshCookieName, "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path(refreshCookiePath)
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, clearCookie.toString());
+
+        return ApiResponse.ok("로그아웃 성공");
     }
 }

@@ -10,6 +10,9 @@ import com.ssafy.BE.domain.user.repository.UserRepository;
 import com.ssafy.BE.global.exception.BusinessException;
 import com.ssafy.BE.global.exception.ErrorCode;
 import com.ssafy.BE.security.jwt.JwtTokenProvider;
+import com.ssafy.BE.security.jwt.TokenBlacklistService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Transactional
     public SignupResponse signup(SignupRequest req) {
@@ -58,5 +62,22 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
         return new TokenPair(accessToken, refreshToken, jwtTokenProvider.accessExpireSeconds());
+    }
+
+    /**
+     * 로그아웃 — refresh 토큰의 jti를 Redis 블랙리스트에 등록.
+     * access는 짧은 TTL(1시간)로 자연 만료 — 추후 /refresh 호출 차단으로 사실상 무효화.
+     */
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        try {
+            Claims claims = jwtTokenProvider.parse(refreshToken);
+            long ttl = (claims.getExpiration().getTime() - System.currentTimeMillis()) / 1000;
+            tokenBlacklistService.blacklist(claims.getId(), ttl);
+        } catch (JwtException ignored) {
+            // 이미 만료/위변조된 토큰은 블랙리스트할 필요 없음
+        }
     }
 }
