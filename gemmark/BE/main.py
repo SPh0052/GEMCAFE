@@ -44,6 +44,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version="0.1.0",
     lifespan=lifespan,
+    root_path=os.getenv("ROOT_PATH", ""),
 )
 
 app.add_middleware(
