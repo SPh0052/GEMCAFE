@@ -14,5 +14,5 @@ export default defineConfig({
   server: {
     port: 5173,
   },
-  base: '/gemmark/',  // ← 추가
+  base: process.env.VITE_BASE || '/'
 })
