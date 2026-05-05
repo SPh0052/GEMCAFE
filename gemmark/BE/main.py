@@ -4,6 +4,7 @@ gemmark Backend — FastAPI 진입점
 실행:
     uvicorn main:app --reload
 """
+import os
 import logging
 from contextlib import asynccontextmanager
 
@@ -43,6 +44,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version="0.1.0",
     lifespan=lifespan,
+    root_path=os.getenv("ROOT_PATH", ""),
 )
 
 app.add_middleware(
