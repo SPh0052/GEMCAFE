@@ -36,6 +36,7 @@ from app.schemas.robustness import (
     FailedVideoItem,
     RobustnessAttackItem,
     RobustnessAttackResultData,
+    RobustnessHistoryItem,
     RobustnessRunData,
     RobustnessVideoInfoData,
     TestPassedStatus,
@@ -534,3 +535,42 @@ async def get_robustness_attack_results(
         totalScore=_calc_total_score(rtv.avg_ber, rtv.avg_psnr, rtv.avg_duration),
         attacks=attacks,
     )
+
+
+# ──────────────────────────────────────────────────────
+# 강건성 테스트 이력 조회
+# ──────────────────────────────────────────────────────
+async def list_robustness_history(
+    db: AsyncSession,
+    admin_id: int,
+) -> list[RobustnessHistoryItem]:
+    result = await db.execute(
+        select(
+            RobustnessTest.id,
+            RobustnessTest.filter_start_at,
+            RobustnessTest.filter_end_at,
+            RobustnessTest.total_count,
+            RobustnessTest.success_count,
+            RobustnessTest.fail_count,
+            RobustnessTest.created_at,
+            Admin.admin_id,
+        )
+        .join(Admin, Admin.id == RobustnessTest.admin_id)
+        .where(RobustnessTest.admin_id == admin_id)
+        .order_by(RobustnessTest.created_at.desc())
+    )
+    rows = result.all()
+
+    return [
+        RobustnessHistoryItem(
+            testId=row.id,
+            startDate=row.filter_start_at,
+            endDate=row.filter_end_at,
+            totalCount=row.total_count,
+            successCount=row.success_count,
+            failCount=row.fail_count,
+            admin=row.admin_id,
+            testDate=row.created_at,
+        )
+        for row in rows
+    ]
