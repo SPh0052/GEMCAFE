@@ -67,6 +67,8 @@ app.add_middleware(
         "https://127.0.0.1:8000",
         "https://k14s307.p.ssafy.io",
         "http://k14s307.p.ssafy.io",
+        "http://k14s307.p.ssafy.io:3003",
+        "https://k14s307.p.ssafy.io:3003",
     ],
     allow_credentials=True,
     allow_methods=["*"],
