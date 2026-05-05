@@ -4,7 +4,7 @@ gemmark Backend — FastAPI 진입점
 실행:
     uvicorn main:app --reload
 """
-
+import os
 import logging
 from contextlib import asynccontextmanager
 
