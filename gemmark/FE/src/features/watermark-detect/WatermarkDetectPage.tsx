@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, Loader2, Search } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
+import Pagination from '@/shared/components/Pagination'
+import SearchInput from '@/shared/components/SearchInput'
 import { listVerifications, type VerificationListItem } from './api'
+
+const PAGE_SIZE = 20
 
 type BadgeTone = 'success' | 'danger' | 'info' | 'neutral'
 
@@ -31,8 +35,13 @@ function mapStatus(raw: string): BadgeInfo {
 
 export default function WatermarkDetect() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1)
+  const q = searchParams.get('q') ?? ''
+
   const [items, setItems] = useState<VerificationListItem[]>([])
-  const [total, setTotal] = useState<number | null>(null)
+  const [total, setTotal] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,7 +50,7 @@ export default function WatermarkDetect() {
     setLoading(true)
     setError(null)
 
-    listVerifications(1, 20)
+    listVerifications({ page, size: PAGE_SIZE, q })
       .then((res) => {
         console.log('[GET /verifications] response:', res)
         if (cancelled) return
@@ -63,7 +72,35 @@ export default function WatermarkDetect() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [page, q])
+
+  const updateParams = (next: { page?: number; q?: string }) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        if (next.page !== undefined) {
+          if (next.page === 1) params.delete('page')
+          else params.set('page', String(next.page))
+        }
+        if (next.q !== undefined) {
+          if (!next.q) params.delete('q')
+          else params.set('q', next.q)
+        }
+        return params
+      },
+      { replace: false },
+    )
+  }
+
+  const handleSearchChange = (newQ: string) => {
+    updateParams({ q: newQ, page: 1 })
+  }
+
+  const handlePageChange = (newPage: number) => {
+    updateParams({ page: newPage })
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <div className="space-y-6">
@@ -81,24 +118,46 @@ export default function WatermarkDetect() {
         }
       />
 
-      {/* 디버그 상태 표시 */}
-      <div className="flex items-center gap-3 text-sm text-gray-600">
-        {loading && (
-          <span className="inline-flex items-center gap-1.5">
-            <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
-            검증 이력 불러오는 중...
-          </span>
-        )}
-        {!loading && !error && total !== null && (
-          <span>
-            총 <strong className="text-gray-900">{total}</strong>건
-            (이번 페이지 {items.length}건 표시)
-          </span>
-        )}
-        {error && <span className="text-rose-600">{error}</span>}
+      {/* 검색 + 상태 */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SearchInput
+          value={q}
+          onChange={handleSearchChange}
+          placeholder="파일명으로 검색"
+          className="w-full sm:w-80"
+        />
+
+        <div className="text-sm text-gray-600">
+          {loading && (
+            <span className="inline-flex items-center gap-1.5">
+              <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+              불러오는 중...
+            </span>
+          )}
+          {!loading && !error && (
+            <span>
+              총 <strong className="text-gray-900">{total}</strong>건
+              {q && (
+                <>
+                  {' · 검색어 '}
+                  <span className="font-medium text-brand-600">"{q}"</span>
+                </>
+              )}
+            </span>
+          )}
+          {error && <span className="text-rose-600">{error}</span>}
+        </div>
       </div>
 
       <VerificationTable items={items} loading={loading} />
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onChange={handlePageChange}
+        />
+      )}
     </div>
   )
 }
