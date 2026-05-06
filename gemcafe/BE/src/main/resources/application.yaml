@@ -45,8 +45,8 @@ app:
     secure: ${COOKIE_SECURE:true}
     same-site: ${COOKIE_SAME_SITE:Strict}
   file:
-    upload-dir: ${FILE_UPLOAD_DIR:/app/uploads}
     base-url: ${FILE_BASE_URL:/dev/files/gemcafe}
+    upload-dir: ${UPLOAD_DIR:/app/uploads}
 
 springdoc:
   api-docs:
