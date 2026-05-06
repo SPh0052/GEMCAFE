@@ -38,7 +38,10 @@ app:
     refresh-path: ${REFRESH_COOKIE_PATH:/api/v1/auth}
     secure: ${COOKIE_SECURE:true}
     same-site: ${COOKIE_SAME_SITE:Strict}
-
+  file:
+    base-url: ${FILE_BASE_URL:/dev/files/gemcafe}
+    upload-dir: ${UPLOAD_DIR:/app/uploads}
+    
 springdoc:
   api-docs:
     path: /v3/api-docs
