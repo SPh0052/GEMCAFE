@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Download,
   FileDown,
   FileVideo,
@@ -128,6 +130,12 @@ export default function RobustnessTestDetailPage() {
         </div>
       </div>
     )
+  }
+
+  // 진행 중 판정 — success + fail 이 total 과 다르면 아직 처리 중
+  const processedCount = detail.successCount + detail.failCount
+  if (processedCount !== detail.totalCount) {
+    return <InProgressView detail={detail} />
   }
 
   const totalCount = detail.totalCount
@@ -374,6 +382,65 @@ function MetricRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between">
       <dt className="text-xs text-gray-500">{label}</dt>
       <dd className="text-base font-bold text-gray-900">{value}</dd>
+    </div>
+  )
+}
+
+/**
+ * 진행 중 화면 — 테스트가 아직 끝나지 않아 결과가 부분만 들어온 상태.
+ * 상단에 테스트 진행 정보(접기 가능) + 큰 스피너 + 안내 문구.
+ */
+function InProgressView({ detail }: { detail: RobustnessTestDetail }) {
+  const [collapsed, setCollapsed] = useState(false)
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="강건성 분석 상세 보고서" backTo="/robustness" />
+
+      <Card>
+        <button
+          type="button"
+          onClick={() => setCollapsed((prev) => !prev)}
+          aria-expanded={!collapsed}
+          className="flex w-full items-center justify-between"
+        >
+          <h3 className="text-base font-bold text-gray-900">테스트 진행 정보</h3>
+          {collapsed ? (
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+          ) : (
+            <ChevronUp className="h-5 w-5 text-gray-400" />
+          )}
+        </button>
+        {!collapsed && (
+          <dl className="mt-4 space-y-4">
+            <div>
+              <dt className="text-xs text-gray-500">설정 기간 (시작~종료)</dt>
+              <dd className="mt-1 text-sm font-medium text-gray-900">
+                {formatDate(detail.startDate)} ~ {formatDate(detail.endDate)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">총 영상 수</dt>
+              <dd className="mt-1 text-sm font-medium text-gray-900">
+                {detail.totalCount}
+              </dd>
+            </div>
+          </dl>
+        )}
+      </Card>
+
+      <div className="flex flex-col items-center justify-center gap-6 rounded-2xl border border-gray-200 bg-white px-8 py-24 shadow-sm">
+        <div className="h-28 w-28 animate-spin rounded-full border-[6px] border-brand-100 border-t-brand-500" />
+        <div className="text-center">
+          <p className="text-lg font-bold text-gray-900">[일괄 테스트 진행 중]</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            데이터를 불러오고 분석하고 있습니다...
+          </p>
+          <p className="mt-3 text-sm text-gray-500">
+            일괄 종료 시 알림이 전송됩니다.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
