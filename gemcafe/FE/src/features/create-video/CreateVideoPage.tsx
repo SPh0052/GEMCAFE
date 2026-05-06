@@ -59,7 +59,7 @@ export default function CreateVideoPage() {
               key={sim.id}
               type="button"
               onClick={() => setSelectedSim(sim.id)}
-              className={`flex aspect-square flex-col items-center justify-end overflow-hidden rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 p-3 text-white transition ${
+              className={`flex aspect-square flex-col items-center justify-end overflow-hidden rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 p-3 text-white transition md:aspect-2/1 ${
                 selectedSim === sim.id
                   ? 'ring-2 ring-brand-500 ring-offset-2'
                   : ''
@@ -97,7 +97,7 @@ export default function CreateVideoPage() {
 
       {/* 배경 설정 */}
       <Section title="배경 설정">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {backgrounds.map((bg) => (
             <button
               key={bg.id}
