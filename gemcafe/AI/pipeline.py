@@ -23,6 +23,8 @@ import fal_client
 import requests
 from dotenv import load_dotenv
 
+import prompt_builder
+
 load_dotenv()  # .env 파일에서 FAL_KEY 자동 로드
 
 # =====================================================================
