@@ -1,4 +1,4 @@
-import { api } from '@/shared/lib/axios'
+import { api, resolveFileUrl } from '@/shared/lib/axios'
 
 export interface UploadedVideo {
   videoId: string
@@ -24,6 +24,8 @@ export interface VideoListItem {
   name: string
   type: string
   size: number
+  /** 썸네일 절대 URL (BE 가 상대 경로로 줬다면 host prefix 부착됨). */
+  thumbnailUrl: string | null
   createdAt: string
 }
 
@@ -42,6 +44,8 @@ export interface VideoDetail {
   payloadBits: number
   businessId: string
   contentUuid: string
+  /** 썸네일 절대 URL (BE 가 상대 경로로 줬다면 host prefix 부착됨). */
+  thumbnailUrl: string | null
   createdAt: string
   watermarkHex: string
 }
@@ -72,7 +76,15 @@ export async function listVideos(opts?: {
   const res = await api.get<ApiResponse<VideoListResponse>>('/videos', {
     params,
   })
-  return res.data.data
+  const data = res.data.data
+  // BE가 thumbnailUrl을 상대 경로(/api/v1/files/...)로 내려주므로 절대 URL로 변환.
+  return {
+    ...data,
+    items: data.items.map((item) => ({
+      ...item,
+      thumbnailUrl: resolveFileUrl(item.thumbnailUrl) ?? null,
+    })),
+  }
 }
 
 /**
@@ -84,7 +96,11 @@ export async function getVideoDetail(uuid: string): Promise<VideoDetail> {
   const res = await api.get<ApiResponse<VideoDetail>>(
     `/videos/${encodeURIComponent(uuid)}`,
   )
-  return res.data.data
+  const data = res.data.data
+  return {
+    ...data,
+    thumbnailUrl: resolveFileUrl(data.thumbnailUrl) ?? null,
+  }
 }
 
 /**
