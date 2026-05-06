@@ -7,6 +7,7 @@ from app.core.db import get_db
 from app.core.security import verify_token
 from app.schemas.robustness import (
     RobustnessAttackResultResponse,
+    RobustnessHistoryResponse,
     RobustnessRunRequest,
     RobustnessRunResponse,
     RobustnessTargetListResponse,
@@ -15,6 +16,7 @@ from app.schemas.robustness import (
 from app.services.robustness_service import (
     get_robustness_attack_results,
     get_robustness_test_video_info,
+    list_robustness_history,
     list_robustness_target_videos,
     run_robustness_test,
 )
@@ -76,6 +78,20 @@ async def get_robustness_attack_results_endpoint(
 ) -> RobustnessAttackResultResponse:
     data = await get_robustness_attack_results(db, test_id, video_id)
     return RobustnessAttackResultResponse(data=data)
+
+
+@router.get(
+    "/history",
+    response_model=RobustnessHistoryResponse,
+    summary="강건성 테스트 이력 조회",
+)
+async def list_robustness_history_endpoint(
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessHistoryResponse:
+    admin_id = int(token_payload["sub"])
+    data = await list_robustness_history(db, admin_id)
+    return RobustnessHistoryResponse(data=data)
 
 
 @router.post(

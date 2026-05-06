@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from app.schemas.video import VideoListData
 from pydantic import BaseModel, Field
@@ -83,3 +83,20 @@ class RobustnessAttackResultResponse(BaseModel):
     status: int = 200
     message: str = "테스트 상세 - 공격 유형별 상세 조회 성공"
     data: RobustnessAttackResultData
+
+
+class RobustnessHistoryItem(BaseModel):
+    testId: int
+    startDate: date
+    endDate: date
+    totalCount: int
+    successCount: int
+    failCount: int
+    admin: str
+    testDate: datetime
+
+
+class RobustnessHistoryResponse(BaseModel):
+    status: int = 200
+    message: str = "강건성 테스트 이력 조회 성공"
+    data: list[RobustnessHistoryItem]
