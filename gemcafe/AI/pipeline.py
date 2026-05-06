@@ -4,7 +4,7 @@
 흐름:
   1) 입력 이미지를 fal.ai 스토리지에 업로드
   2) nano-banana-pro로 instruction-based 이미지 편집 (END 프레임 생성)
-  3) Kling V3 Pro로 START → END 보간 영상 생성
+  3) Veo 3.1 first-last-frame으로 START → END 보간 영상 생성
 
 실행:
   1) FAL_KEY 환경변수 설정 (또는 .env 파일에 FAL_KEY=...)
@@ -66,7 +66,7 @@ INSTRUCTION_PROMPT = (
     "Match the original photo's lighting, color tone, and resolution exactly."
 )
 
-# Kling V3 Pro에 넘길 영상 프롬프트 (start → end 사이의 동작 묘사)
+# Veo 3.1에 넘길 영상 프롬프트 (start → end 사이의 동작 묘사)
 VIDEO_PROMPT = (
     "A metal fork descends from above and slowly presses down into the cake, "
     "deforming the soft surface as cream squeezes out around the tines."
@@ -145,17 +145,14 @@ def download_file(url: str, save_path: str) -> str:
 
 
 def step3_animate(start_url: str, end_url: str, prompt: str) -> str:
-    """
-    Veo 3.1 first-last-frame으로 start→end 프레임 보간 영상 생성. 영상 URL 반환.
-    ⚠️ 입력 필드명(image_url + last_image_url)은 추정. 422 에러나면 Schema 확인.
-    """
+    """Veo 3.1 first-last-frame으로 start→end 프레임 보간 영상 생성. 영상 URL 반환."""
     print(f"[3/3] Veo 3.1 first-last-frame 영상 생성 (start → end 보간, 1~3분 소요)")
     result = fal_client.subscribe(
         ENDPOINT_I2V,
         arguments={
             "prompt": prompt,
-            "image_url": start_url,           # start frame
-            "last_image_url": end_url,        # end frame (필드명 추정)
+            "first_frame_url": start_url,     # start frame
+            "last_frame_url": end_url,        # end frame
             "duration": VIDEO_DURATION,
             "resolution": VIDEO_RESOLUTION,
             "generate_audio": VIDEO_GENERATE_AUDIO,
@@ -197,7 +194,7 @@ def main():
     download_file(end_frame_url, str(end_frame_local))
     print(f"      → 저장: {end_frame_local}")
 
-    # [3/3] Kling V3 Pro 영상 (원본 = START, 편집된 이미지 = END)
+    # [3/3] Veo 3.1 first-last-frame 영상 (원본 = START, 편집된 이미지 = END)
     video_url = step3_animate(image_url, end_frame_url, VIDEO_PROMPT)
     video_local = run_dir / "3_video.mp4"
     download_file(video_url, str(video_local))
@@ -227,7 +224,7 @@ def main():
     print("=" * 60)
     print(f"  1_input.jpg         (원본 = 영상 START 프레임)")
     print(f"  2_end_frame.jpg     (nano-banana-pro 편집 = 영상 END 프레임)")
-    print(f"  3_video.mp4         (Kling V3 Pro로 START → END 보간)")
+    print(f"  3_video.mp4         (Veo 3.1 first-last-frame으로 START → END 보간)")
     print(f"  metadata.json       (URL/프롬프트 기록)")
     print("=" * 60)
 
