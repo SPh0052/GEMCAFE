@@ -157,6 +157,7 @@ function toVideoRow(item: VideoListItem): VideoRow {
     createdAt: formatDateTime(item.createdAt),
     type: item.type || '-',
     size: formatBytes(item.size),
+    thumbnailUrl: item.thumbnailUrl ?? undefined,
   }
 }
 

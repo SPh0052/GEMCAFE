@@ -1,7 +1,19 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'https://k14s307.p.ssafy.io/api/v1'
+  import.meta.env.VITE_API_BASE_URL ??
+  'https://k14s307.p.ssafy.io/dev/api/gemmark/v1'
+
+/**
+ * 정적 파일(이미지·영상) 서비스 base URL. API 와 도메인은 같지만 path 가 다름.
+ * 최종 파일 URL = `${FILE_BASE_URL}/{fileName}`
+ */
+const FILE_BASE_URL =
+  import.meta.env.VITE_FILE_BASE_URL ?? 'https://k14s307.p.ssafy.io/dev/files'
+
+  /** 워터마크 처리된 파일이 위치하는 sub path. */
+const WATERMARKED_PATH = '/watermarked'
+
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,24 +21,31 @@ export const api = axios.create({
 })
 
 /**
- * BE 호스트 (scheme + hostname + port). 정적 파일(/files/...) URL 조립에 사용.
- * 예: 'https://k14s307.p.ssafy.io/api/v1' → 'https://k14s307.p.ssafy.io'
+ * API 호스트 (scheme + hostname + port). API 호출용 도메인의 origin.
+ * 예: 'https://k14s307.p.ssafy.io/dev/api/gemmark/v1' → 'https://k14s307.p.ssafy.io'
  */
 export const API_HOST = new URL(API_BASE_URL).origin
 
 /**
- * BE가 내려준 상대 경로 URL을 절대 URL로 변환.
- * - null/undefined/빈 문자열 → undefined
- * - 'http://' 또는 'https://'로 시작 → 이미 절대 URL이라 그대로 반환
- * - 그 외 (예: '/files/watermarked/abc.jpg') → API_HOST prefix 부착
+ * BE가 내려준 파일 path 를 정적 파일 서버 URL 로 정규화.
  *
- * 배포에선 같은 도메인이라 nginx 프록시로 우연히 작동하지만, 로컬 dev 에선
- * FE origin(localhost:5173) 으로 요청 가서 404. 이 헬퍼로 명시적 절대화.
+ * 이미지·영상 모두 동일 규칙. BE 응답이 어떤 prefix
+ * (예: `/api/v1/files/watermarked/abc.jpg`)로 와도 마지막 segment(파일명)만
+ * 추출해서 정적 파일 서버 base URL 뒤에 붙임.
+ *
+ * - null/undefined/빈 문자열 → undefined
+ * - `http://` 또는 `https://` 로 시작 → 이미 절대 URL 이라 그대로 반환
+ * - 그 외 → `${FILE_BASE_URL}/{basename}` 으로 조립
+ *
+ * 예: `/api/v1/files/watermarked/1dcde499-...jpg`
+ *   → `https://k14s307.p.ssafy.io/dev/files/1dcde499-...jpg`
  */
 export function resolveFileUrl(path?: string | null): string | undefined {
   if (!path) return undefined
   if (/^https?:\/\//.test(path)) return path
-  return `${API_HOST}${path}`
+  const fileName = path.split('/').filter(Boolean).pop()
+  if (!fileName) return undefined
+    return `${FILE_BASE_URL}${WATERMARKED_PATH}/${fileName}`
 }
 
 const STORAGE_KEY = 'gemmark-auth'

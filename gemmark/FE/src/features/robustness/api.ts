@@ -95,3 +95,35 @@ export async function runRobustnessTest(body: {
   )
   return res.data.data
 }
+
+/**
+ * 강건성 테스트 이력 한 항목 (GET /robustness/history 응답).
+ */
+export interface RobustnessHistoryItem {
+  testId: number
+  /** 검색 기간 시작 (YYYY-MM-DD) */
+  startDate: string
+  /** 검색 기간 종료 (YYYY-MM-DD) */
+  endDate: string
+  totalCount: number
+  successCount: number
+  failCount: number
+  /** 실행한 관리자 식별자 */
+  admin: string
+  /** 실제 테스트가 실행된 시각 (ISO datetime) */
+  testDate: string
+}
+
+/**
+ * 강건성 테스트 이력 조회.
+ * GET /api/v1/robustness/history
+ *
+ * 페이지네이션 없음 — 전체 배열로 반환.
+ * authorization 헤더는 axios 요청 인터셉터가 자동 첨부.
+ */
+export async function listRobustnessHistory(): Promise<RobustnessHistoryItem[]> {
+  const res = await api.get<ApiResponse<RobustnessHistoryItem[]>>(
+    '/robustness/history',
+  )
+  return res.data.data
+}
