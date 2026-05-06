@@ -11,10 +11,12 @@ from app.schemas.robustness import (
     RobustnessRunRequest,
     RobustnessRunResponse,
     RobustnessTargetListResponse,
+    RobustnessTestDetailResponse,
     RobustnessVideoInfoResponse,
 )
 from app.services.robustness_service import (
     get_robustness_attack_results,
+    get_robustness_test_detail,
     get_robustness_test_video_info,
     list_robustness_history,
     list_robustness_target_videos,
@@ -48,6 +50,20 @@ async def list_robustness_target_videos_endpoint(
         db, admin_id, page, size, startDate, endDate
     )
     return RobustnessTargetListResponse(data=data)
+
+
+@router.get(
+    "/tests/{test_id}",
+    response_model=RobustnessTestDetailResponse,
+    summary="강건성 테스트 상세 조회",
+)
+async def get_robustness_test_detail_endpoint(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessTestDetailResponse:
+    data = await get_robustness_test_detail(db, test_id)
+    return RobustnessTestDetailResponse(data=data)
 
 
 @router.get(

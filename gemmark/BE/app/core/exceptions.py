@@ -255,6 +255,15 @@ class RobustnessExecutionError(VideoUploadError):
             message="강건성 테스트 실행 중 오류가 발생했습니다",
         )
 
+
+class RobustnessWatermarkFileNotFoundError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="RT-006",
+            message="워터마크 영상 파일을 찾을 수 없습니다",
+        )
+
 class RobustnessTestNotFoundError(VideoUploadError):
     def __init__(self) -> None:
         super().__init__(
@@ -269,4 +278,22 @@ class RobustnessTestVideoNotFoundError(VideoUploadError):
             status_code=status.HTTP_404_NOT_FOUND,
             error_code="RTR-002",
             message="테스트 결과에서 해당 영상 정보를 찾을 수 없습니다",
+        )
+
+
+class RobustnessInvalidTestIdError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="RTR-003",
+            message="유효하지 않은 테스트 ID입니다",
+        )
+
+
+class RobustnessTestError(VideoUploadError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="RTR-004",
+            message="서버 내부 오류가 발생했습니다",
         )

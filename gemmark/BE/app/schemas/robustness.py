@@ -100,3 +100,25 @@ class RobustnessHistoryResponse(BaseModel):
     status: int = 200
     message: str = "강건성 테스트 이력 조회 성공"
     data: list[RobustnessHistoryItem]
+
+
+class RobustnessTestDetailData(BaseModel):
+    startDate: date
+    endDate: date
+    admin: str
+    totalCount: int
+    successCount: int
+    failCount: int
+    avgBer: float
+    avgPsnr: float
+    avgDuration: float
+    sdBer: float
+    sdPsnr: float
+    sdDuration: float
+    failedVideos: list[FailedVideoItem]
+
+
+class RobustnessTestDetailResponse(BaseModel):
+    status: int = 200
+    message: str = "강건성 테스트 상세 조회 성공"
+    data: RobustnessTestDetailData
