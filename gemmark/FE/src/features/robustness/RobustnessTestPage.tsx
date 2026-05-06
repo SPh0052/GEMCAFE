@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Play, RotateCw } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
+import Badge from '@/shared/components/Badge'
 import {
   listRobustnessHistory,
   type RobustnessHistoryItem,
@@ -11,10 +12,25 @@ const columns: { label: string }[] = [
   { label: '검색 기간 (시작~종료)' },
   { label: '실행 시각' },
   { label: '관리자' },
+  { label: '상태' },
   { label: '영상 갯수' },
   { label: '성공' },
   { label: '실패' },
 ]
+
+/**
+ * 처리된 영상 수(success + fail)가 전체와 같으면 완료, 아니면 진행 중.
+ * BE 가 별도 status 필드를 안 주므로 카운트 비교로 추론.
+ */
+function deriveStatus(row: RobustnessHistoryItem): {
+  tone: 'success' | 'warning'
+  label: string
+} {
+  const processed = row.successCount + row.failCount
+  return processed === row.totalCount
+    ? { tone: 'success', label: '완료' }
+    : { tone: 'warning', label: '진행 중' }
+}
 
 export default function RobustnessTest() {
   const navigate = useNavigate()
@@ -127,34 +143,44 @@ export default function RobustnessTest() {
                 </td>
               </tr>
             )}
-            {items.map((row) => (
-              <tr
-                key={row.testId}
-                onClick={() => navigate(`/robustness/${row.testId}`)}
-                className="cursor-pointer border-b border-gray-100 transition last:border-b-0 hover:bg-gray-50/60"
-              >
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {formatDate(row.startDate)} ~ {formatDate(row.endDate)}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {formatDateTime(row.testDate)}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700">{row.admin}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">
-                  {row.totalCount}
-                </td>
-                <td className="px-6 py-4 text-sm text-emerald-600">
-                  {row.successCount}
-                </td>
-                <td
-                  className={`px-6 py-4 text-sm font-medium ${
-                    row.failCount > 0 ? 'text-rose-600' : 'text-gray-400'
-                  }`}
+            {items.map((row) => {
+              const status = deriveStatus(row)
+              return (
+                <tr
+                  key={row.testId}
+                  onClick={() => navigate(`/robustness/${row.testId}`)}
+                  className="cursor-pointer border-b border-gray-100 transition last:border-b-0 hover:bg-gray-50/60"
                 >
-                  {row.failCount}
-                </td>
-              </tr>
-            ))}
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {formatDate(row.startDate)} ~ {formatDate(row.endDate)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {formatDateTime(row.testDate)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {row.admin}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge tone={status.tone} dot>
+                      {status.label}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {row.totalCount}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-emerald-600">
+                    {row.successCount}
+                  </td>
+                  <td
+                    className={`px-6 py-4 text-sm font-medium ${
+                      row.failCount > 0 ? 'text-rose-600' : 'text-gray-400'
+                    }`}
+                  >
+                    {row.failCount}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
