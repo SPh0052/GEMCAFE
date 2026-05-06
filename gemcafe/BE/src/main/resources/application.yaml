@@ -46,6 +46,9 @@ springdoc:
     path: /swagger-ui.html
     config-url: /dev/be/gemcafe/v3/api-docs/swagger-config
     url: /dev/be/gemcafe/v3/api-docs
+    servers:
+      - url: https://k14s307.p.ssafy.io/dev/be/gemcafe
+        description: dev server
 
 server:
   port: ${SERVER_PORT:8002}
