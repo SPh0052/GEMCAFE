@@ -3,8 +3,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 COPY . .
+ARG VITE_BASE=/dev/
+ENV VITE_BASE=$VITE_BASE
 RUN npm run build
-
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx-fe.conf /etc/nginx/conf.d/default.conf
