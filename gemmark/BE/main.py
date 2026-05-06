@@ -89,6 +89,9 @@ app.include_router(api_router, prefix="/api")
 _files_root = settings.UPLOAD_DIR.parent
 _files_root.mkdir(parents=True, exist_ok=True)
 app.mount("/files", StaticFiles(directory=_files_root), name="files")
+# nginx의 /files/ 라우팅이 prod-gemmark-be를 가리켜 502가 떨어지는 환경 대응:
+# /api/ 라우팅은 정상이므로 동일 디렉토리를 /api/v1/files 경로로 한 번 더 마운트.
+app.mount("/api/v1/files", StaticFiles(directory=_files_root), name="api-files")
 
 
 @app.get("/")

@@ -18,7 +18,7 @@ from app.services.watermark.payload import PAYLOAD_BITS
 def _thumbnail_url(thumbnail_name: str | None) -> str | None:
     if not thumbnail_name:
         return None
-    return f"/files/watermarked/{thumbnail_name}"
+    return f"/api/v1/files/watermarked/{thumbnail_name}"
 
 
 async def list_verifications(
