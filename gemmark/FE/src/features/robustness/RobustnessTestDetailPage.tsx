@@ -1,10 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Check,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
   Download,
   FileDown,
   FileVideo,
@@ -19,84 +17,10 @@ import TestSummaryReportTemplate, {
   type FailedVideoEntry,
   type TestSummaryReportData,
 } from './components/TestSummaryReportTemplate'
-
-const mockSummary = {
-  testId: 'T-2024-003',
-  testPeriod: '2024.03.16 09:00 ~ 13:20',
-  totalVideos: 100,
-  manager: '엄송현',
-  successCount: 85,
-  failureCount: 15,
-  averageBer: '1.34%',
-  averagePsnr: '37.8 dB',
-  averageFps: '29.1 FPS',
-  stdDevBer: '0.82%',
-  stdDevPsnr: '4.1 dB',
-  stdDevFps: '5.5 FPS',
-}
-
-const mockFailedVideos: FailedVideoEntry[] = [
-  { no: 1, fileName: 'fail_vid_01.mp4', alpha: 0.15, failedAttack: '크롭', ber: '5.2%', psnr: '29.1 dB' },
-  { no: 2, fileName: 'fail_vid_02.mp4', alpha: 0.22, failedAttack: '가우시안 노이즈', ber: '6.8%', psnr: '27.5 dB' },
-  { no: 3, fileName: 'fail_vid_03.mp4', alpha: 0.18, failedAttack: 'H.264 재인코딩', ber: '4.5%', psnr: '30.2 dB' },
-  { no: 4, fileName: 'fail_vid_04.mp4', alpha: 0.17, failedAttack: '크롭', ber: '5.5%', psnr: '28.8 dB' },
-  { no: 5, fileName: 'fail_vid_05.mp4', alpha: 0.18, failedAttack: '해상도 축소', ber: '4.9%', psnr: '29.4 dB' },
-  { no: 6, fileName: 'fail_vid_06.mp4', alpha: 0.18, failedAttack: '크롭', ber: '5.1%', psnr: '29.0 dB' },
-  { no: 7, fileName: 'fail_vid_07.mp4', alpha: 0.20, failedAttack: '밝기/대비', ber: '4.2%', psnr: '30.6 dB' },
-  { no: 8, fileName: 'fail_vid_08.mp4', alpha: 0.15, failedAttack: '가우시안 노이즈', ber: '7.1%', psnr: '26.9 dB' },
-  { no: 9, fileName: 'fail_vid_09.mp4', alpha: 0.16, failedAttack: '크롭', ber: '5.4%', psnr: '28.3 dB' },
-  { no: 10, fileName: 'fail_vid_10.mp4', alpha: 0.15, failedAttack: 'H.264 재인코딩', ber: '4.8%', psnr: '29.7 dB' },
-  { no: 11, fileName: 'fail_vid_11.mp4', alpha: 0.15, failedAttack: '크롭', ber: '5.6%', psnr: '28.1 dB' },
-  { no: 12, fileName: 'fail_vid_12.mp4', alpha: 0.18, failedAttack: '가우시안 노이즈', ber: '6.4%', psnr: '27.8 dB' },
-  { no: 13, fileName: 'fail_vid_13.mp4', alpha: 0.18, failedAttack: '해상도 축소', ber: '5.0%', psnr: '29.3 dB' },
-  { no: 14, fileName: 'fail_vid_14.mp4', alpha: 0.18, failedAttack: '크롭', ber: '5.3%', psnr: '28.6 dB' },
-  { no: 15, fileName: 'fail_vid_15.mp4', alpha: 0.18, failedAttack: '밝기/대비', ber: '4.4%', psnr: '30.1 dB' },
-]
-
-function buildReportData(testId: string): TestSummaryReportData {
-  const now = new Date()
-  return {
-    reportId: `RBT-${now.getFullYear()}${(now.getMonth() + 1)
-      .toString()
-      .padStart(2, '0')}-${testId}`,
-    generatedAt: now.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    testInfo: {
-      testId: mockSummary.testId,
-      testPeriod: mockSummary.testPeriod,
-      totalVideos: mockSummary.totalVideos,
-      manager: mockSummary.manager,
-    },
-    results: {
-      successCount: mockSummary.successCount,
-      failureCount: mockSummary.failureCount,
-    },
-    qualityMetrics: {
-      averageBer: mockSummary.averageBer,
-      averagePsnr: mockSummary.averagePsnr,
-      averageFps: mockSummary.averageFps,
-    },
-    stdDev: {
-      ber: mockSummary.stdDevBer,
-      psnr: mockSummary.stdDevPsnr,
-      fps: mockSummary.stdDevFps,
-    },
-    failedVideos: mockFailedVideos,
-  }
-}
-
-const COMPLETED_TEST_IDS = new Set([
-  'T-2024-001',
-  'T-2024-002',
-  'T-2024-003',
-  'T-2024-004',
-  'T-2024-005',
-])
+import {
+  getRobustnessTestDetail,
+  type RobustnessTestDetail,
+} from './api'
 
 export default function RobustnessTestDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -104,21 +28,45 @@ export default function RobustnessTestDetailPage() {
   const templateRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
 
-  if (id && !COMPLETED_TEST_IDS.has(id)) {
-    return <InProgressView />
-  }
+  const [detail, setDetail] = useState<RobustnessTestDetail | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const reportData = buildReportData(id ?? mockSummary.testId)
+  useEffect(() => {
+    if (!id) {
+      setError('잘못된 접근입니다. 테스트 ID가 없습니다.')
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
 
-  const successRate = Math.round(
-    (mockSummary.successCount / mockSummary.totalVideos) * 100,
-  )
-  const failureRate = Math.round(
-    (mockSummary.failureCount / mockSummary.totalVideos) * 100,
-  )
+    getRobustnessTestDetail(id)
+      .then((res) => {
+        console.log('[GET /robustness/tests/{id}] response:', res)
+        if (cancelled) return
+        setDetail(res)
+      })
+      .catch((err) => {
+        console.error('[GET /robustness/tests/{id}] error:', err)
+        if (cancelled) return
+        setError(
+          err?.response?.data?.message ??
+            '테스트 상세 정보를 불러오지 못했습니다.',
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
   const handleExportReport = async () => {
-    if (!templateRef.current) return
+    if (!templateRef.current || !detail) return
     setExporting(true)
     try {
       const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
@@ -126,7 +74,7 @@ export default function RobustnessTestDetailPage() {
         import('html2canvas-pro'),
       ])
 
-      const fileName = `${mockSummary.testId}_robustness-summary.pdf`
+      const fileName = `T-${id}_robustness-summary.pdf`
 
       const pageEls =
         templateRef.current.querySelectorAll<HTMLElement>('[data-pdf-page]')
@@ -159,6 +107,37 @@ export default function RobustnessTestDetailPage() {
     }
   }
 
+  // 로딩 / 에러 상태
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="강건성 분석 상세 보고서" backTo="/robustness" />
+        <Card className="flex flex-col items-center justify-center gap-3 py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
+          <p className="text-sm text-gray-500">상세 정보를 불러오는 중...</p>
+        </Card>
+      </div>
+    )
+  }
+  if (error || !detail) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="강건성 분석 상세 보고서" backTo="/robustness" />
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error ?? '데이터가 없습니다.'}
+        </div>
+      </div>
+    )
+  }
+
+  const totalCount = detail.totalCount
+  const successRate =
+    totalCount > 0 ? Math.round((detail.successCount / totalCount) * 100) : 0
+  const failureRate =
+    totalCount > 0 ? Math.round((detail.failCount / totalCount) * 100) : 0
+
+  const reportData = buildReportData(id ?? '', detail)
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -188,19 +167,19 @@ export default function RobustnessTestDetailPage() {
             <div>
               <dt className="text-xs text-gray-500">설정 기간 (시작-종료)</dt>
               <dd className="mt-1 text-sm font-medium text-gray-800">
-                {mockSummary.testPeriod}
+                {formatDate(detail.startDate)} ~ {formatDate(detail.endDate)}
               </dd>
             </div>
             <div>
               <dt className="text-xs text-gray-500">총 영상 수</dt>
               <dd className="mt-1 text-sm font-medium text-gray-800">
-                {mockSummary.totalVideos}
+                {detail.totalCount}
               </dd>
             </div>
             <div>
               <dt className="text-xs text-gray-500">관리자</dt>
               <dd className="mt-1 text-sm font-medium text-gray-800">
-                {mockSummary.manager}
+                {detail.admin}
               </dd>
             </div>
           </dl>
@@ -211,13 +190,13 @@ export default function RobustnessTestDetailPage() {
           <div className="mt-4 space-y-4">
             <ResultRow
               label="성공"
-              count={mockSummary.successCount}
+              count={detail.successCount}
               rate={successRate}
               tone="success"
             />
             <ResultRow
               label="실패"
-              count={mockSummary.failureCount}
+              count={detail.failCount}
               rate={failureRate}
               tone="danger"
             />
@@ -227,18 +206,33 @@ export default function RobustnessTestDetailPage() {
         <Card>
           <h3 className="text-sm font-bold text-gray-900">평균 품질 지표</h3>
           <dl className="mt-4 space-y-3">
-            <MetricRow label="평균 BER" value={mockSummary.averageBer} />
-            <MetricRow label="평균 PSNR" value={mockSummary.averagePsnr} />
-            <MetricRow label="평균 처리 속도" value={mockSummary.averageFps} />
+            <MetricRow label="평균 BER" value={`${detail.avgBer.toFixed(2)}%`} />
+            <MetricRow
+              label="평균 PSNR"
+              value={`${detail.avgPsnr.toFixed(1)} dB`}
+            />
+            <MetricRow
+              label="평균 처리 시간"
+              value={`${detail.avgDuration.toFixed(2)}초`}
+            />
           </dl>
         </Card>
 
         <Card>
           <h3 className="text-sm font-bold text-gray-900">지표 편차</h3>
           <dl className="mt-4 space-y-3">
-            <MetricRow label="표준 편차 (BER)" value={mockSummary.stdDevBer} />
-            <MetricRow label="표준 편차 (PSNR)" value={mockSummary.stdDevPsnr} />
-            <MetricRow label="표준 편차 (속도)" value={mockSummary.stdDevFps} />
+            <MetricRow
+              label="표준 편차 (BER)"
+              value={`${detail.sdBer.toFixed(2)}%`}
+            />
+            <MetricRow
+              label="표준 편차 (PSNR)"
+              value={`${detail.sdPsnr.toFixed(1)} dB`}
+            />
+            <MetricRow
+              label="표준 편차 (시간)"
+              value={`${detail.sdDuration.toFixed(2)}초`}
+            />
           </dl>
         </Card>
       </div>
@@ -246,7 +240,7 @@ export default function RobustnessTestDetailPage() {
       <Card className="p-0">
         <div className="flex items-center justify-between px-6 py-4">
           <h3 className="text-base font-bold text-gray-900">
-            실패 영상 리스트 ({mockSummary.failureCount}건)
+            실패 영상 리스트 ({detail.failCount}건)
           </h3>
           <div className="flex items-center gap-2">
             <button
@@ -277,20 +271,30 @@ export default function RobustnessTestDetailPage() {
               <th className="px-6 py-3 font-medium">No.</th>
               <th className="px-6 py-3 font-medium">파일명</th>
               <th className="px-6 py-3 font-medium">워터마크 ALPHA값</th>
-              <th className="px-6 py-3 font-medium">상태(실패)</th>
+              <th className="px-6 py-3 font-medium">상태</th>
               <th className="px-6 py-3 font-medium">상세 정보</th>
             </tr>
           </thead>
           <tbody>
-            {mockFailedVideos.map((video) => (
+            {detail.failedVideos.length === 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-6 py-10 text-center text-sm text-gray-400"
+                >
+                  실패한 영상이 없습니다.
+                </td>
+              </tr>
+            )}
+            {detail.failedVideos.map((video, idx) => (
               <tr
-                key={video.no}
+                key={video.id}
                 onClick={() =>
-                  navigate(`/robustness/${id}/videos/${video.no}`)
+                  navigate(`/robustness/${id}/videos/${video.id}`)
                 }
                 className="cursor-pointer border-b border-gray-100 last:border-b-0 transition hover:bg-gray-50/60"
               >
-                <td className="px-6 py-4 text-sm text-gray-700">{video.no}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">{idx + 1}</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2 text-sm text-gray-800">
                     <FileVideo className="h-4 w-4 text-gray-400" />
@@ -301,7 +305,9 @@ export default function RobustnessTestDetailPage() {
                   {video.alpha.toFixed(2)}
                 </td>
                 <td className="px-6 py-4">
-                  <Badge tone="danger">실패</Badge>
+                  <Badge tone={video.passed ? 'success' : 'danger'}>
+                    {video.passed ? '통과' : '실패'}
+                  </Badge>
                 </td>
                 <td className="px-6 py-4">
                   <span
@@ -372,55 +378,58 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function InProgressView() {
-  const [collapsed, setCollapsed] = useState(false)
+/** 'YYYY-MM-DD' → 'YYYY.MM.DD' */
+function formatDate(ymd?: string): string {
+  if (!ymd) return '-'
+  return ymd.replaceAll('-', '.')
+}
 
-  return (
-    <div className="space-y-6">
-      <PageHeader title="강건성 분석 상세 보고서" backTo="/robustness" />
-
-      <Card>
-        <button
-          type="button"
-          onClick={() => setCollapsed((prev) => !prev)}
-          aria-expanded={!collapsed}
-          className="flex w-full items-center justify-between"
-        >
-          <h3 className="text-base font-bold text-gray-900">테스트 진행 정보</h3>
-          {collapsed ? (
-            <ChevronDown className="h-5 w-5 text-gray-400" />
-          ) : (
-            <ChevronUp className="h-5 w-5 text-gray-400" />
-          )}
-        </button>
-        {!collapsed && (
-          <dl className="mt-4 space-y-4">
-            <div>
-              <dt className="text-xs text-gray-500">설정 기간 (시작~종료)</dt>
-              <dd className="mt-1 text-sm font-medium text-gray-900">
-                2024.03.16 09:00 ~ 13:20
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-gray-500">총 영상 수</dt>
-              <dd className="mt-1 text-sm font-medium text-gray-900">100</dd>
-            </div>
-          </dl>
-        )}
-      </Card>
-
-      <div className="flex flex-col items-center justify-center gap-6 rounded-2xl border border-gray-200 bg-white px-8 py-24 shadow-sm">
-        <div className="h-28 w-28 animate-spin rounded-full border-[6px] border-brand-100 border-t-brand-500" />
-        <div className="text-center">
-          <p className="text-lg font-bold text-gray-900">[일괄 테스트 진행 중]</p>
-          <p className="mt-1 text-lg font-bold text-gray-900">
-            데이터를 불러오고 분석하고 있습니다...
-          </p>
-          <p className="mt-3 text-sm text-gray-500">
-            일괄 종료 시 알림이 전송됩니다.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
+/** PDF 보고서 데이터 — API 응답 → TestSummaryReportTemplate 형식으로 매핑. */
+function buildReportData(
+  testId: string,
+  detail: RobustnessTestDetail,
+): TestSummaryReportData {
+  const now = new Date()
+  return {
+    reportId: `RBT-${now.getFullYear()}${(now.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${testId}`,
+    generatedAt: now.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    testInfo: {
+      testId: `T-${testId}`,
+      testPeriod: `${formatDate(detail.startDate)} ~ ${formatDate(detail.endDate)}`,
+      totalVideos: detail.totalCount,
+      manager: detail.admin,
+    },
+    results: {
+      successCount: detail.successCount,
+      failureCount: detail.failCount,
+    },
+    qualityMetrics: {
+      averageBer: `${detail.avgBer.toFixed(2)}%`,
+      averagePsnr: `${detail.avgPsnr.toFixed(1)} dB`,
+      averageFps: `${detail.avgDuration.toFixed(2)}초`,
+    },
+    stdDev: {
+      ber: `${detail.sdBer.toFixed(2)}%`,
+      psnr: `${detail.sdPsnr.toFixed(1)} dB`,
+      fps: `${detail.sdDuration.toFixed(2)}초`,
+    },
+    // 실패 영상 — 응답에 없는 필드(failedAttack, ber, psnr)는 '-' 로 보냄.
+    // 추후 BE가 추가하면 여기 매핑만 보강.
+    failedVideos: detail.failedVideos.map<FailedVideoEntry>((v, i) => ({
+      no: i + 1,
+      fileName: v.fileName,
+      alpha: v.alpha,
+      failedAttack: '-',
+      ber: '-',
+      psnr: '-',
+    })),
+  }
 }

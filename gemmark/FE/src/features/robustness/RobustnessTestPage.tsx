@@ -8,7 +8,6 @@ import {
 } from './api'
 
 const columns: { label: string }[] = [
-  { label: '테스트 ID' },
   { label: '검색 기간 (시작~종료)' },
   { label: '실행 시각' },
   { label: '관리자' },
@@ -134,9 +133,6 @@ export default function RobustnessTest() {
                 onClick={() => navigate(`/robustness/${row.testId}`)}
                 className="cursor-pointer border-b border-gray-100 transition last:border-b-0 hover:bg-gray-50/60"
               >
-                <td className="px-6 py-4 text-sm text-gray-700">
-                  #{row.testId}
-                </td>
                 <td className="px-6 py-4 text-sm text-gray-500">
                   {formatDate(row.startDate)} ~ {formatDate(row.endDate)}
                 </td>
