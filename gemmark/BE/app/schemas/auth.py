@@ -23,3 +23,19 @@ class LogoutResponse(BaseModel):
     status: int = 200
     message: str = "로그아웃 성공"
     data: None = None
+
+
+class RefreshRequest(BaseModel):
+    refreshToken: str | None = Field(default=None, description="이전에 발급된 refresh 토큰")
+
+
+class RefreshData(BaseModel):
+    accessToken: str = Field(..., description="새로 발급된 access 토큰")
+    tokenType: str = Field(default="Bearer", description="토큰 타입")
+    expiresIn: int = Field(..., description="access 만료 시간(초)")
+
+
+class RefreshResponse(BaseModel):
+    status: int = 200
+    message: str = "토큰 재발급 성공"
+    data: RefreshData
