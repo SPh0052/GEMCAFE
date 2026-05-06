@@ -18,10 +18,13 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
-  // 로그인 후 원래 가려던 페이지로 복귀 (없으면 대시보드)
-  const from =
+  // 로그인 후 원래 가려던 페이지로 복귀 (없으면 대시보드).
+  // 단, RequireAuth 가 /login 자체에서 튕겼던 경우 from 이 /login 일 수 있음 →
+  // 그대로 두면 로그인 성공 후 다시 /login 으로 가는 무한 루프. '/' 로 강제.
+  const rawFrom =
     (location.state as { from?: { pathname?: string } } | null)?.from
       ?.pathname ?? '/'
+  const from = rawFrom === '/login' ? '/' : rawFrom
 
   // 필드별 유효성 — 매 렌더 동기적으로 계산. 에러 없으면 null.
   const usernameError = useMemo(() => validateUsername(username), [username])
@@ -45,23 +48,63 @@ export default function LoginPage() {
     setSubmitting(true)
     try {
       const tokens = await loginApi({ loginId: username, password })
-      login({ username, ...tokens })
+
+      // 응답 형태 검증 — BE 가 200을 줘도 토큰 누락이면 broken state 진입 방지.
+      // (이 상태로 store 에 들어가면 다음 API 가 401 → refresh → 또 broken 무한 루프 가능)
+      if (!tokens?.accessToken || !tokens?.refreshToken) {
+        console.error('로그인 응답 형태 이상', tokens)
+        setServerError(
+          '서버 응답이 올바르지 않습니다. 잠시 후 다시 시도해주세요.',
+        )
+        return
+      }
+
+      login({ username: username.trim(), ...tokens })
       navigate(from, { replace: true })
     } catch (err) {
       console.error('로그인 실패', err)
       if (axios.isAxiosError(err)) {
         const status = err.response?.status
-        if (status === 422) {
-          setServerError('입력값이 올바르지 않습니다.')
-        } else if (status === 401 || status === 400) {
-          setServerError('아이디 또는 비밀번호가 일치하지 않습니다.')
-        } else {
+
+        // 1) 타임아웃 (axios.create timeout 초과)
+        if (err.code === 'ECONNABORTED') {
+          setServerError('응답이 지연되고 있어요. 잠시 후 다시 시도해주세요.')
+        }
+        // 2) 네트워크 단절 / DNS 실패 / CORS 등 — 서버에 요청이 닿지 않은 상태
+        else if (err.code === 'ERR_NETWORK' || !err.response) {
           setServerError(
-            err.response?.data?.message ??
-              '로그인에 실패했습니다. 잠시 후 다시 시도해주세요.',
+            '네트워크 연결을 확인해주세요. 잠시 후 다시 시도해주세요.',
+          )
+        }
+        // 3) 입력값 검증 실패 (필드 포맷 등 BE-side validation)
+        else if (status === 422) {
+          setServerError('입력값이 올바르지 않습니다.')
+        }
+        // 4) 인증 실패 — 비밀번호 클리어 (공유 PC 보안 + 오탈자 가정)
+        else if (status === 401 || status === 400) {
+          setServerError('아이디 또는 비밀번호가 일치하지 않습니다.')
+          setPassword('')
+        }
+        // 5) 브루트포스/속도 제한
+        else if (status === 429) {
+          setServerError(
+            '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.',
+          )
+        }
+        // 6) 서버 측 일시 장애
+        else if (status && status >= 500) {
+          setServerError(
+            '서버에 일시적 문제가 있어요. 잠시 후 다시 시도해주세요.',
+          )
+        }
+        // 7) 그 외 — 서버가 message 를 주면 우선 사용
+        else {
+          setServerError(
+            err.response?.data?.message ?? '로그인에 실패했습니다.',
           )
         }
       } else {
+        // axios 가 아닌 예외 — 코드 버그 가능성. 일반 메시지로.
         setServerError('로그인에 실패했습니다.')
       }
     } finally {

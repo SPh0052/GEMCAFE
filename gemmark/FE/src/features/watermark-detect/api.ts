@@ -1,4 +1,4 @@
-import { api } from '@/shared/lib/axios'
+import { api, resolveFileUrl } from '@/shared/lib/axios'
 
 export interface VerifyResult {
   isWatermarked: boolean
@@ -81,18 +81,35 @@ export async function verifyWatermark(videoId: string): Promise<VerifyResult> {
 
 /**
  * 워터마크 검증 이력 목록 조회.
- * GET /api/v1/verifications?page=1&size=20
+ * GET /api/v1/verifications?page=1&size=20[&q=]
+ *
+ * - q: 파일명 검색어. 비어있으면 query에서 빠짐.
+ *   (BE가 지원 안 하면 무시되고 전체 목록이 옴)
  * authorization 헤더는 axios 요청 인터셉터가 자동 첨부.
  */
-export async function listVerifications(
-  page = 1,
-  size = 20,
-): Promise<VerificationListResponse> {
+export async function listVerifications(opts?: {
+  page?: number
+  size?: number
+  q?: string
+}): Promise<VerificationListResponse> {
+  const { page = 1, size = 20, q } = opts ?? {}
+  const params: Record<string, string | number> = { page, size }
+  if (q && q.trim()) params.q = q.trim()
+
   const res = await api.get<ApiResponse<VerificationListResponse>>(
     '/verifications',
-    { params: { page, size } },
+    { params },
   )
-  return res.data.data
+  const data = res.data.data
+  // BE가 thumbnailUrl을 상대 경로(/files/...)로 내려주므로 절대 URL로 변환.
+  // 변환 안 하면 dev 환경에서 FE origin으로 요청 가서 404.
+  return {
+    ...data,
+    items: data.items.map((item) => ({
+      ...item,
+      thumbnailUrl: resolveFileUrl(item.thumbnailUrl) ?? '',
+    })),
+  }
 }
 
 /**
@@ -105,5 +122,9 @@ export async function getVerificationDetail(
   const res = await api.get<ApiResponse<VerificationDetail>>(
     `/verifications/${encodeURIComponent(String(verificationId))}`,
   )
-  return res.data.data
+  const data = res.data.data
+  return {
+    ...data,
+    thumbnailUrl: resolveFileUrl(data.thumbnailUrl) ?? '',
+  }
 }

@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import VideoListTable, {
   type VideoRow,
 } from '@/shared/components/VideoListTable'
+import Pagination from '@/shared/components/Pagination'
+import SearchInput from '@/shared/components/SearchInput'
 import { listVideos, type VideoListItem } from './api'
+
+const PAGE_SIZE = 20
 
 export default function WatermarkInsert() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // URL을 단일 진실 원천(single source of truth)으로 사용
+  const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1)
+  const q = searchParams.get('q') ?? ''
+
   const [rows, setRows] = useState<VideoRow[]>([])
-  const [total, setTotal] = useState<number | null>(null)
+  const [total, setTotal] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,9 +29,8 @@ export default function WatermarkInsert() {
     setLoading(true)
     setError(null)
 
-    listVideos(1, 20)
+    listVideos({ page, size: PAGE_SIZE, q })
       .then((res) => {
-        // 디버깅용 — 응답 구조 콘솔에서 직접 확인
         console.log('[GET /videos] response:', res)
         if (cancelled) return
         setTotal(res.total)
@@ -42,7 +51,37 @@ export default function WatermarkInsert() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [page, q])
+
+  // URL 헬퍼 — page/q 변경 시 다른 파라미터는 보존
+  const updateParams = (next: { page?: number; q?: string }) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        if (next.page !== undefined) {
+          if (next.page === 1) params.delete('page')
+          else params.set('page', String(next.page))
+        }
+        if (next.q !== undefined) {
+          if (!next.q) params.delete('q')
+          else params.set('q', next.q)
+        }
+        return params
+      },
+      { replace: false },
+    )
+  }
+
+  const handleSearchChange = (newQ: string) => {
+    // 검색어 바뀌면 page=1 로 리셋
+    updateParams({ q: newQ, page: 1 })
+  }
+
+  const handlePageChange = (newPage: number) => {
+    updateParams({ page: newPage })
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <div className="space-y-6">
@@ -59,21 +98,35 @@ export default function WatermarkInsert() {
         }
       />
 
-      {/* 디버그 상태 표시 — API 응답 확인용 */}
-      <div className="flex items-center gap-3 text-sm text-gray-600">
-        {loading && (
-          <span className="inline-flex items-center gap-1.5">
-            <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
-            목록 불러오는 중...
-          </span>
-        )}
-        {!loading && !error && total !== null && (
-          <span>
-            총 <strong className="text-gray-900">{total}</strong>건
-            (이번 페이지 {rows.length}건 표시)
-          </span>
-        )}
-        {error && <span className="text-rose-600">{error}</span>}
+      {/* 검색 + 상태 */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SearchInput
+          value={q}
+          onChange={handleSearchChange}
+          placeholder="파일명으로 검색"
+          className="w-full sm:w-80"
+        />
+
+        <div className="text-sm text-gray-600">
+          {loading && (
+            <span className="inline-flex items-center gap-1.5">
+              <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+              불러오는 중...
+            </span>
+          )}
+          {!loading && !error && (
+            <span>
+              총 <strong className="text-gray-900">{total}</strong>건
+              {q && (
+                <>
+                  {' · 검색어 '}
+                  <span className="font-medium text-brand-600">"{q}"</span>
+                </>
+              )}
+            </span>
+          )}
+          {error && <span className="text-rose-600">{error}</span>}
+        </div>
       </div>
 
       <VideoListTable
@@ -84,6 +137,14 @@ export default function WatermarkInsert() {
           navigate(`/insert/${target}`)
         }}
       />
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onChange={handlePageChange}
+        />
+      )}
     </div>
   )
 }
