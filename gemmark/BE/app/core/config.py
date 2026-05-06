@@ -1,7 +1,12 @@
+from datetime import timedelta, timezone
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+
+
+# 한국 표준시 (UTC+9). 응답/저장용 timestamp 통일에 사용.
+KST = timezone(timedelta(hours=9))
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]

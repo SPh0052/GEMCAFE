@@ -4,7 +4,7 @@ gemmark Backend — FastAPI 진입점
 실행:
     uvicorn main:app --reload
 """
-
+import os
 import logging
 from contextlib import asynccontextmanager
 
@@ -44,19 +44,32 @@ app = FastAPI(
     title=settings.APP_NAME,
     version="0.1.0",
     lifespan=lifespan,
+    root_path=os.getenv("ROOT_PATH", ""),
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "https://localhost:5173",
+        "http://localhost:5174",
+        "https://localhost:5174",
         "http://localhost:3000",
+        "https://localhost:3000",
         "http://localhost:8000",
+        "https://localhost:8000",
         "http://127.0.0.1:5173",
+        "https://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "https://127.0.0.1:5174",
         "http://127.0.0.1:3000",
+        "https://127.0.0.1:3000",
         "http://127.0.0.1:8000",
+        "https://127.0.0.1:8000",
         "https://k14s307.p.ssafy.io",
         "http://k14s307.p.ssafy.io",
+        "http://k14s307.p.ssafy.io:3003",
+        "https://k14s307.p.ssafy.io:3003",
     ],
     allow_credentials=True,
     allow_methods=["*"],

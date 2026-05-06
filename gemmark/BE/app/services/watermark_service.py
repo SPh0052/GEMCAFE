@@ -2,10 +2,11 @@
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from app.core.config import (
+    KST,
     WATERMARK_BUSINESS_ID,
     WATERMARK_DEFAULT_DOWNLOADER,
     settings,
@@ -31,7 +32,8 @@ from app.models.verification import VerificationHistory, VerificationStatus
 from app.models.video import VideoWatermarked
 from app.schemas.watermark import WatermarkEmbedData, WatermarkVerifyData
 from app.services import video_service
-from app.services.watermark.dct import bits_to_hex
+from app.services.watermark.dct import bits_to_hex, hex_to_bits
+from app.services.watermark.metrics import ber as calc_ber
 from app.services.watermark.payload import PAYLOAD_BITS, make_payload_bits
 from app.services.watermark.video import (
     embed_video_file,
@@ -93,14 +95,7 @@ async def embed_watermark(
     video_service.mark_watermarked(video_id, watermark_id)
 
     payload_hex = bits_to_hex(payload)
-    created_at = datetime.now(timezone.utc)
-
-    video_service.register_watermark_metadata(
-        payload_hex=payload_hex,
-        video_uuid=video_uuid,
-        business_id=WATERMARK_BUSINESS_ID,
-        created_at=created_at,
-    )
+    created_at = datetime.now(KST)
 
     thumb_path = settings.WATERMARKED_DIR / f"{video_uuid}.jpg"
     thumb_ok = await asyncio.to_thread(save_first_frame, dest_path, thumb_path)
@@ -179,14 +174,6 @@ async def verify_watermark(
 
     src_path = _resolve_verify_target(info, video_id)
 
-    input_content_uuid = _strip_video_prefix(video_id)
-    input_vw_id_result = await db.execute(
-        select(VideoWatermarked.id).where(
-            VideoWatermarked.content_uuid == input_content_uuid
-        )
-    )
-    input_vw_id = input_vw_id_result.scalar_one_or_none()
-
     try:
         extracted_bits, _stats = await asyncio.to_thread(
             extract_video_file,
@@ -199,17 +186,18 @@ async def verify_watermark(
     except Exception:
         raise WatermarkVerifyError()
 
-    metadata, best_ber = video_service.find_matching_watermark(
-        extracted_bits, ber_threshold=_VERIFY_BER_THRESHOLD
+    matched_row, best_ber = await _find_matching_watermark_in_db(
+        db, extracted_bits, ber_threshold=_VERIFY_BER_THRESHOLD
     )
 
     extract_duration = float(_stats.get("processing_time", 0.0))
 
-    if metadata is None:
+    if matched_row is None:
+        # 매칭 실패 — 어떤 영상인지 모르므로 video_watermarked_id는 NULL
         await _log_verification(
             db,
             admin_id=admin_id,
-            video_watermarked_id=input_vw_id,
+            video_watermarked_id=None,
             status=VerificationStatus.NOT_DETECTED,
             accuracy=0.0,
             extract_duration=extract_duration,
@@ -222,11 +210,12 @@ async def verify_watermark(
             ber=None,
         )
 
+    # 매칭 성공 — 검출된 워터마크의 원본 video_watermarked.id로 기록
     accuracy = round(max(0.0, (1.0 - best_ber) * 100.0), 2)
     await _log_verification(
         db,
         admin_id=admin_id,
-        video_watermarked_id=input_vw_id,
+        video_watermarked_id=matched_row.id,
         status=VerificationStatus.DETECTED,
         accuracy=accuracy,
         extract_duration=extract_duration,
@@ -234,11 +223,40 @@ async def verify_watermark(
 
     return WatermarkVerifyData(
         isWatermarked=True,
-        videoUuid=metadata["videoUuid"],
-        businessId=metadata["businessId"],
-        createdAt=metadata["createdAt"],
+        videoUuid=matched_row.content_uuid,
+        businessId=WATERMARK_BUSINESS_ID,
+        createdAt=matched_row.created_at,
         ber=round(best_ber, 4),
     )
+
+
+async def _find_matching_watermark_in_db(
+    db: AsyncSession,
+    extracted_bits,
+    ber_threshold: float = 0.1,
+) -> tuple[VideoWatermarked | None, float]:
+    """DB의 모든 video_watermarked 행에서 BER이 가장 낮은 매칭 검색.
+
+    in-memory 등록부 대신 DB의 watermark_hex로 매칭 → 서버 재시작에도 안전.
+    """
+    result = await db.execute(
+        select(VideoWatermarked).where(VideoWatermarked.deleted_at.is_(None))
+    )
+    rows = result.scalars().all()
+
+    best_row: VideoWatermarked | None = None
+    best_ber = 1.0
+
+    for row in rows:
+        stored_bits = hex_to_bits(row.watermark_hex)
+        current_ber = calc_ber(stored_bits, extracted_bits)
+        if current_ber < best_ber:
+            best_ber = current_ber
+            best_row = row
+
+    if best_row is not None and best_ber <= ber_threshold:
+        return best_row, best_ber
+    return None, best_ber
 
 
 async def _log_verification(

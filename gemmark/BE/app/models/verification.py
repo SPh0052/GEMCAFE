@@ -7,11 +7,11 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
-    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
+from app.core.time import now_kst_naive
 
 
 class VerificationStatus(str, enum.Enum):
@@ -43,7 +43,7 @@ class VerificationHistory(Base):
     accuracy: Mapped[float] = mapped_column(Float, nullable=False)
     extract_duration: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, default=now_kst_naive
     )
 
     admin = relationship("Admin", foreign_keys=[admin_id])

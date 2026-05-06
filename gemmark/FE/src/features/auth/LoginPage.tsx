@@ -117,7 +117,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* 로고 */}
         <div className="mb-10 flex flex-col items-center">
-          <img src="/logo.png" alt="gem.mark" className="h-20 w-auto" />
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="gem.mark" className="h-20 w-auto" />
         </div>
 
         {/* 폼 */}
