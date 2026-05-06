@@ -15,6 +15,13 @@ public enum ErrorCode {
     USER_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "USER-001", "이미 가입된 이메일입니다"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-002", "해당 사용자를 찾을 수 없습니다"),
 
+    // Photo upload
+    PHOTO_INVALID_FORMAT(HttpStatus.BAD_REQUEST, "PHOTO-001", "지원하지 않는 파일 형식입니다 (jpg/jpeg/png만 허용)"),
+    PHOTO_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "PHOTO-002", "파일 크기가 10MB를 초과합니다"),
+    PHOTO_CORRUPTED(HttpStatus.BAD_REQUEST, "PHOTO-003", "파일이 비어있거나 손상되었습니다"),
+    PHOTO_NOT_ATTACHED(HttpStatus.BAD_REQUEST, "PHOTO-004", "파일이 첨부되지 않았습니다"),
+    PHOTO_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PHOTO-005", "파일 업로드 중 오류가 발생했습니다"),
+
     // Common
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "COM-001", "요청 형식이 올바르지 않습니다"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COM-500", "서버 오류가 발생했습니다");
