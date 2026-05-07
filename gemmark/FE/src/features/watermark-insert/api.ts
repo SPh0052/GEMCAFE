@@ -1,4 +1,4 @@
-import { api } from '@/shared/lib/axios'
+import { api, resolveFileUrl } from '@/shared/lib/axios'
 
 export interface UploadedVideo {
   videoId: string
@@ -24,6 +24,8 @@ export interface VideoListItem {
   name: string
   type: string
   size: number
+  /** 썸네일 절대 URL (BE 가 상대 경로로 줬다면 host prefix 부착됨). */
+  thumbnailUrl: string | null
   createdAt: string
 }
 
@@ -42,6 +44,8 @@ export interface VideoDetail {
   payloadBits: number
   businessId: string
   contentUuid: string
+  /** 썸네일 절대 URL (BE 가 상대 경로로 줬다면 host prefix 부착됨). */
+  thumbnailUrl: string | null
   createdAt: string
   watermarkHex: string
 }
@@ -54,17 +58,33 @@ interface ApiResponse<T> {
 
 /**
  * 워터마크 삽입 영상 목록 조회.
- * GET /api/v1/videos?page=1&size=20
+ * GET /api/v1/videos?page=1&size=20[&q=]
+ *
+ * - q: 파일명 검색어. 비어있으면 query에서 빠짐.
+ *   (BE가 지원 안 하면 무시되고 전체 목록이 옴 — 별도 에러는 안 남)
  * Authorization 헤더는 axios 요청 인터셉터가 자동 첨부.
  */
-export async function listVideos(
-  page = 1,
-  size = 20,
-): Promise<VideoListResponse> {
+export async function listVideos(opts?: {
+  page?: number
+  size?: number
+  q?: string
+}): Promise<VideoListResponse> {
+  const { page = 1, size = 20, q } = opts ?? {}
+  const params: Record<string, string | number> = { page, size }
+  if (q && q.trim()) params.q = q.trim()
+
   const res = await api.get<ApiResponse<VideoListResponse>>('/videos', {
-    params: { page, size },
+    params,
   })
-  return res.data.data
+  const data = res.data.data
+  // BE가 thumbnailUrl을 상대 경로(/api/v1/files/...)로 내려주므로 절대 URL로 변환.
+  return {
+    ...data,
+    items: data.items.map((item) => ({
+      ...item,
+      thumbnailUrl: resolveFileUrl(item.thumbnailUrl) ?? null,
+    })),
+  }
 }
 
 /**
@@ -76,7 +96,11 @@ export async function getVideoDetail(uuid: string): Promise<VideoDetail> {
   const res = await api.get<ApiResponse<VideoDetail>>(
     `/videos/${encodeURIComponent(uuid)}`,
   )
-  return res.data.data
+  const data = res.data.data
+  return {
+    ...data,
+    thumbnailUrl: resolveFileUrl(data.thumbnailUrl) ?? null,
+  }
 }
 
 /**

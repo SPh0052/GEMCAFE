@@ -96,7 +96,10 @@ export default function WatermarkInsertDetailPage() {
           {/* 결과 헤더 */}
           <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
             <div className="flex min-w-0 items-center gap-3">
-              <Thumbnail className="h-32 w-48" />
+              <Thumbnail
+                src={detail.thumbnailUrl ?? undefined}
+                className="h-32 w-48"
+              />
               <h3 className="truncate text-base font-bold text-gray-900">
                 삽입 결과 — {detail.name}
               </h3>

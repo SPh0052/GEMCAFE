@@ -95,3 +95,158 @@ export async function runRobustnessTest(body: {
   )
   return res.data.data
 }
+
+/**
+ * 강건성 테스트 이력 한 항목 (GET /robustness/history 응답).
+ */
+export interface RobustnessHistoryItem {
+  testId: number
+  /** 검색 기간 시작 (YYYY-MM-DD) */
+  startDate: string
+  /** 검색 기간 종료 (YYYY-MM-DD) */
+  endDate: string
+  totalCount: number
+  successCount: number
+  failCount: number
+  /** 실행한 관리자 식별자 */
+  admin: string
+  /** 실제 테스트가 실행된 시각 (ISO datetime) */
+  testDate: string
+}
+
+/**
+ * 강건성 테스트 이력 조회.
+ * GET /api/v1/robustness/history
+ *
+ * 페이지네이션 없음 — 전체 배열로 반환.
+ * authorization 헤더는 axios 요청 인터셉터가 자동 첨부.
+ */
+export async function listRobustnessHistory(): Promise<RobustnessHistoryItem[]> {
+  const res = await api.get<ApiResponse<RobustnessHistoryItem[]>>(
+    '/robustness/history',
+  )
+  return res.data.data
+}
+
+/**
+ * 강건성 테스트 상세 응답의 실패 영상 한 항목.
+ */
+export interface RobustnessFailedVideo {
+  id: number
+  fileName: string
+  alpha: number
+  /** 통과 여부. failedVideos 안에 있으니 보통 false 지만 BE가 보낸 값을 그대로 사용. */
+  passed: boolean
+}
+
+/**
+ * 강건성 테스트 상세 (GET /robustness/tests/{test_id} 응답).
+ */
+export interface RobustnessTestDetail {
+  startDate: string
+  endDate: string
+  admin: string
+  totalCount: number
+  successCount: number
+  failCount: number
+  /** 평균 BER (단위: %). */
+  avgBer: number
+  /** 평균 PSNR (단위: dB). */
+  avgPsnr: number
+  /** 평균 처리 시간 (단위: 초). */
+  avgDuration: number
+  /** 표준 편차 — BER. */
+  sdBer: number
+  /** 표준 편차 — PSNR. */
+  sdPsnr: number
+  /** 표준 편차 — 처리 시간. */
+  sdDuration: number
+  failedVideos: RobustnessFailedVideo[]
+}
+
+/**
+ * 강건성 테스트 상세 조회.
+ * GET /api/v1/robustness/tests/{test_id}
+ *
+ * authorization 헤더는 axios 요청 인터셉터가 자동 첨부.
+ */
+export async function getRobustnessTestDetail(
+  testId: number | string,
+): Promise<RobustnessTestDetail> {
+  const res = await api.get<ApiResponse<RobustnessTestDetail>>(
+    `/robustness/tests/${encodeURIComponent(String(testId))}`,
+  )
+  return res.data.data
+}
+
+/**
+ * 테스트 상세 - 영상 기본 정보 (GET /robustness/tests/{test_id}/videos/{video_id}).
+ */
+export interface RobustnessVideoInfo {
+  videoFileName: string
+  videoUuid: string
+  /** 영상 생성 일자 (ISO datetime) */
+  createDate: string
+  /** 영상 파일 크기 (bytes) */
+  fileSize: number
+  /** 테스트 실시 일자 (ISO datetime) */
+  testDate: string
+  /** 테스트 결과 enum (예: 'SUCCESS', 'FAILED', ...) */
+  testPassed: string
+  /** 담당 관리자 식별자 */
+  adminId: string
+}
+
+/**
+ * 강건성 테스트 상세 - 영상 기본 정보 조회.
+ * GET /api/v1/robustness/tests/{test_id}/videos/{video_id}
+ */
+export async function getRobustnessVideoInfo(
+  testId: number | string,
+  videoId: number | string,
+): Promise<RobustnessVideoInfo> {
+  const res = await api.get<ApiResponse<RobustnessVideoInfo>>(
+    `/robustness/tests/${encodeURIComponent(String(testId))}/videos/${encodeURIComponent(String(videoId))}`,
+  )
+  return res.data.data
+}
+
+/**
+ * 공격 1건의 측정값.
+ */
+export interface RobustnessAttackResult {
+  /** 공격 종류 (예: 'H.264 재인코딩', 'JPEG압축(Q50)') */
+  type: string
+  /** Bit Error Rate (단위: %) */
+  ber: number
+  /** PSNR (단위: dB) */
+  psnr: number
+  /** 처리 시간 (단위: 초) */
+  duration: number
+}
+
+/**
+ * 테스트 상세 - 공격 유형별 결과 (GET /robustness/tests/{test_id}/videos/{video_id}/attacks).
+ */
+export interface RobustnessVideoAttacks {
+  avgBer: number
+  avgPsnr: number
+  avgDuration: number
+  /** 종합 점수 (0~100). */
+  totalScore: number
+  attacks: RobustnessAttackResult[]
+}
+
+/**
+ * 강건성 테스트 상세 - 공격 유형별 결과 조회.
+ * GET /api/v1/robustness/tests/{test_id}/videos/{video_id}/attacks
+ */
+export async function getRobustnessVideoAttacks(
+  testId: number | string,
+  videoId: number | string,
+): Promise<RobustnessVideoAttacks> {
+  const res = await api.get<ApiResponse<RobustnessVideoAttacks>>(
+    `/robustness/tests/${encodeURIComponent(String(testId))}/videos/${encodeURIComponent(String(videoId))}/attacks`,
+  )
+  return res.data.data
+}

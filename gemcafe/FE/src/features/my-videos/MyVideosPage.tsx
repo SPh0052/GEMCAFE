@@ -39,10 +39,10 @@ export default function MyVideosPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="relative px-5 pb-24 pt-5">
+    <div className="relative px-5 pb-24 pt-5 md:pb-8">
       <h1 className="mb-4 text-xl font-bold">내 영상</h1>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
         {videos.map((v) => (
           <Link
             key={v.id}
@@ -69,10 +69,11 @@ export default function MyVideosPage() {
         ))}
       </div>
 
+      {/* 모바일 전용 FAB — 데스크톱은 사이드 네비의 "생성하기" 메뉴로 대체 */}
       <button
         type="button"
         onClick={() => navigate('/')}
-        className="fixed bottom-[88px] left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/30 active:scale-95"
+        className="fixed bottom-[88px] left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/30 active:scale-95 md:hidden"
       >
         <Plus className="h-4 w-4" />새 영상 만들기
       </button>
