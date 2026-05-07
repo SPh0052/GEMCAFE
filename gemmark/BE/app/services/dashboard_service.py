@@ -1,4 +1,4 @@
-from sqlalchemy import case, desc, func, literal, select
+from sqlalchemy import case, desc, distinct, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.robustness import (
@@ -9,10 +9,13 @@ from app.models.robustness import (
 )
 from app.models.video import VideoWatermarked
 from app.schemas.dashboard import (
+    AttackSuccessRateData,
+    AttackSuccessRateItem,
     DashboardSummaryData,
     PsnrDistributionBin,
     PsnrDistributionData,
 )
+from app.services.watermark.attacks import ATTACK_TYPES
 
 
 _RECENT_PROCESSING_LIMIT = 50
@@ -140,3 +143,79 @@ async def get_psnr_distribution(db: AsyncSession) -> PsnrDistributionData:
     total_videos = sum(b.count for b in bins)
 
     return PsnrDistributionData(bins=bins, totalVideos=total_videos)
+
+
+async def get_attack_success_rate(db: AsyncSession) -> AttackSuccessRateData:
+    row_number_col = (
+        func.row_number()
+        .over(
+            partition_by=(
+                RobustnessAttackDetail.attack_type_id,
+                RobustnessTestVideo.video_watermarked_id,
+            ),
+            order_by=desc(RobustnessAttackDetail.created_at),
+        )
+        .label("rn")
+    )
+
+    ranked = (
+        select(
+            RobustnessAttackDetail.attack_type_id.label("attack_type_id"),
+            RobustnessTestVideo.video_watermarked_id.label("video_watermarked_id"),
+            RobustnessAttackDetail.ber.label("ber"),
+            RobustnessAttackDetail.psnr.label("psnr"),
+            row_number_col,
+        )
+        .select_from(RobustnessAttackDetail)
+        .join(
+            RobustnessTestVideo,
+            RobustnessTestVideo.id == RobustnessAttackDetail.robustness_test_video_id,
+        )
+        .join(
+            RobustnessTest,
+            RobustnessTest.id == RobustnessTestVideo.robustness_test_id,
+        )
+        .where(RobustnessTest.status == RobustnessTestStatus.COMPLETED)
+        .subquery()
+    )
+
+    passed_expr = case(
+        ((ranked.c.ber <= 0.3) & (ranked.c.psnr >= 30.0), 1),
+        else_=0,
+    )
+
+    agg_stmt = (
+        select(
+            ranked.c.attack_type_id,
+            func.sum(passed_expr).label("passed"),
+            func.count().label("total"),
+        )
+        .where(ranked.c.rn == 1)
+        .group_by(ranked.c.attack_type_id)
+    )
+    rows = (await db.execute(agg_stmt)).all()
+    counts_by_id: dict[str, tuple[int, int]] = {
+        row.attack_type_id: (int(row.passed or 0), int(row.total or 0)) for row in rows
+    }
+
+    total_videos_stmt = select(
+        func.count(distinct(ranked.c.video_watermarked_id))
+    ).where(ranked.c.rn == 1)
+    total_videos_raw = (await db.execute(total_videos_stmt)).scalar()
+    total_videos = int(total_videos_raw) if total_videos_raw is not None else 0
+
+    items: list[AttackSuccessRateItem] = []
+    for attack_id in sorted(ATTACK_TYPES.keys()):
+        passed, total = counts_by_id.get(attack_id, (0, 0))
+        pass_rate = round(passed / total * 100, 1) if total > 0 else 0.0
+        items.append(
+            AttackSuccessRateItem(
+                attackTypeId=attack_id,
+                attackType=ATTACK_TYPES[attack_id],
+                passRate=pass_rate,
+                passedCount=passed,
+                totalCount=total,
+            )
+        )
+
+    return AttackSuccessRateData(attackTypes=items, totalVideos=total_videos)
