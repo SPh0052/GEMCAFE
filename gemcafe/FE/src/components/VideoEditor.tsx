@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { Link } from 'react-router-dom'
-import * as fabric from 'fabric'
 import {
-  ChevronLeft,
-  Download,
+  Home,
   Loader2,
   Music,
   Pause,
   Play,
   Plus,
   Trash2,
+  Type,
   Upload,
+  UploadCloud,
 } from 'lucide-react'
+import BottomNav from '@/layout/BottomNav'
 
-const CANVAS_WIDTH = 540
-const CANVAS_HEIGHT = 960
+// 디자인 기준 캔버스 크기 — 텍스트 위치/사이즈는 모두 이 기준으로 정규화.
+// 표시 시: displayHeight 비율로 스케일. 녹화 시: composeHeight 비율로 스케일.
+const DESIGN_HEIGHT = 960
 
 const FONTS = [
   { label: '나눔고딕', family: 'Nanum Gothic' },
@@ -24,34 +27,77 @@ const FONTS = [
   { label: '블랙한산스', family: 'Black Han Sans' },
 ]
 
+// 자주 쓰일 5개 사이즈 프리셋 (DESIGN_HEIGHT 960 기준 px)
+const FONT_SIZE_PRESETS = [
+  { label: '작게', value: 32 },
+  { label: '보통', value: 48 },
+  { label: '크게', value: 64 },
+  { label: '더 크게', value: 84 },
+  { label: '최대', value: 110 },
+]
+
+// 컬러 팔레트 — 흰/검 + 적당히 선명하지만 쨍하지 않은 8색.
+// (Tailwind 400 대 톤 위주 → 둔하지 않으면서도 비비드하지 않음)
+const COLOR_PALETTE = [
+  '#FFFFFF', // 화이트
+  '#1F2937', // 차콜 (gray-800)
+  '#F87171', // 살구빨강 (red-400)
+  '#FB923C', // 머스크오렌지 (orange-400)
+  '#FBBF24', // 머스타드 (amber-400)
+  '#A3E635', // 라임 (lime-400)
+  '#34D399', // 민트 (emerald-400)
+  '#60A5FA', // 스카이 (blue-400)
+  '#A78BFA', // 라벤더 (violet-400)
+  '#F472B6', // 핑크 (pink-400)
+]
+
+// 카페 홍보 숏츠에 어울리는 BGM — 밝고 편안하고 쾌활한 톤.
 const BGM_LIST = [
   {
-    title: 'Peaceful Morning',
+    title: '맑은 아침의 카페',
     url: 'https://cdn.pixabay.com/audio/2022/08/02/audio_884fe92c21.mp3',
   },
   {
-    title: 'Happy Ukulele',
+    title: '햇살 우쿨렐레',
     url: 'https://cdn.pixabay.com/audio/2022/10/30/audio_b6e8a44f97.mp3',
   },
   {
-    title: 'Cinematic Ambient',
+    title: '아늑한 라운지',
     url: 'https://cdn.pixabay.com/audio/2023/03/09/audio_c6ccf25a68.mp3',
   },
   {
-    title: 'Soft Piano',
+    title: '라떼 한 잔의 여유',
     url: 'https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3',
   },
 ]
 
+interface TextItem {
+  id: string
+  text: string
+  /** 가로 위치 — 캔버스 너비 대비 비율 (0~1, 0.5 = 가운데) */
+  x: number
+  /** 세로 위치 — 캔버스 높이 대비 비율 */
+  y: number
+  /** 폰트 사이즈 — DESIGN_HEIGHT(960) 기준 px. 표시/녹화 시 자동 스케일. */
+  fontSize: number
+  fontFamily: string
+  color: string
+  bold: boolean
+  italic: boolean
+  outline: boolean
+}
+
+const newId = () => Math.random().toString(36).slice(2, 9)
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, v))
+
 export default function VideoEditor() {
-  // canvas / video refs
-  const canvasElRef = useRef<HTMLCanvasElement | null>(null)
-  const canvasWrapRef = useRef<HTMLDivElement | null>(null)
-  const fabricRef = useRef<fabric.Canvas | null>(null)
+  // refs
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const fabricVideoRef = useRef<fabric.FabricImage | null>(null)
-  const rafRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const composeCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const composeRafRef = useRef<number | null>(null)
 
   // audio refs
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -67,7 +113,6 @@ export default function VideoEditor() {
   const chunksRef = useRef<Blob[]>([])
 
   // state
-  const [fabricReady, setFabricReady] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [videoLoaded, setVideoLoaded] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -75,261 +120,97 @@ export default function VideoEditor() {
   const [fontFamily, setFontFamily] = useState(FONTS[0].family)
   const [fontSize, setFontSize] = useState(48)
   const [textColor, setTextColor] = useState('#ffffff')
+  const [bold, setBold] = useState(false)
+  const [italic, setItalic] = useState(false)
+  const [outline, setOutline] = useState(false)
   const [bgmUrl, setBgmUrl] = useState<string | null>(null)
   const [bgmVolume, setBgmVolume] = useState(0.5)
   const [previewBgmUrl, setPreviewBgmUrl] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState(false)
+  const [activeTab, setActiveTab] = useState<'text' | 'bgm' | null>(null)
   const [progress, setProgress] = useState(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
-  // 1) 캔버스는 즉시 초기화. 폰트는 비동기로 백그라운드에서 로드.
+  // 텍스트 오버레이 — React state 로 관리 (fabric 미사용)
+  const [texts, setTexts] = useState<TextItem[]>([])
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
+  // 컨테이너 dim 추적 — DraggableText 가 표시 사이즈 계산할 때 사용
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+
+  // 녹화 중 텍스트 그리려면 최신 texts 가 필요 → ref 동기화
+  const textsRef = useRef<TextItem[]>([])
   useEffect(() => {
-    if (!canvasElRef.current || fabricRef.current) return
-    const canvas = new fabric.Canvas(canvasElRef.current, {
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
-      backgroundColor: '#000',
-      preserveObjectStacking: true,
-    })
-    fabricRef.current = canvas
-    setFabricReady(true)
+    textsRef.current = texts
+  }, [texts])
 
-    // 폰트는 index.html 의 <link> 로 이미 로드됨.
-    // CSS Font Loading API 로 ready 가 되면 기존 텍스트 재렌더만 트리거
-    if (document.fonts?.ready) {
-      document.fonts.ready.then(() => canvas.requestRenderAll()).catch(() => {})
+  // isRecording 도 ref 로 동기화 — onTimeUpdate 핸들러에서 stale closure 회피
+  const isRecordingRef = useRef(false)
+  useEffect(() => {
+    isRecordingRef.current = isRecording
+  }, [isRecording])
+
+  // 컨테이너 크기 추적
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => {
+      const r = el.getBoundingClientRect()
+      setContainerSize({ width: r.width, height: r.height })
     }
-
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    window.addEventListener('resize', update)
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      fabricRef.current?.dispose()
-      fabricRef.current = null
+      ro.disconnect()
+      window.removeEventListener('resize', update)
     }
   }, [])
 
-  // 1-1) 캔버스 wrapper 리사이즈 → fabric CSS 차원 동기화
-  // (텍스트 드래그 좌표가 displayed 사이즈와 맞으려면 fabric이 CSS dims 를 알아야 함)
-  useEffect(() => {
-    if (!fabricReady) return
-    const wrap = canvasWrapRef.current
-    const canvas = fabricRef.current
-    if (!wrap || !canvas) return
-
-    const sync = () => {
-      const rect = wrap.getBoundingClientRect()
-      if (rect.width === 0 || rect.height === 0) return
-      canvas.setDimensions(
-        { width: `${rect.width}px`, height: `${rect.height}px` },
-        { cssOnly: true },
-      )
-    }
-
-    sync()
-    const ro = new ResizeObserver(sync)
-    ro.observe(wrap)
-    window.addEventListener('resize', sync)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', sync)
-    }
-  }, [fabricReady])
-
-  // 1-2) 두 손가락 핀치 → 활성 텍스트 fontSize 조절
-  useEffect(() => {
-    if (!fabricReady) return
-    const wrap = canvasWrapRef.current
-    const canvas = fabricRef.current
-    if (!wrap || !canvas) return
-
-    let pinching = false
-    let initialDistance = 0
-    let initialFontSize = 0
-    let target: fabric.IText | null = null
-
-    const dist = (t1: Touch, t2: Touch) =>
-      Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 2) return
-
-      let active = canvas.getActiveObject() as fabric.IText | null
-      // 활성 텍스트가 없으면 최상단의 IText 자동 선택
-      if (!active || (active as fabric.Object).type !== 'i-text') {
-        const texts = canvas
-          .getObjects()
-          .filter((o) => (o as fabric.Object).type === 'i-text')
-        active = (texts[texts.length - 1] as fabric.IText) ?? null
-        if (active) {
-          canvas.setActiveObject(active)
-          canvas.requestRenderAll()
-        }
-      }
-      if (!active) return
-
-      e.preventDefault()
-      pinching = true
-      target = active
-      initialDistance = dist(e.touches[0], e.touches[1])
-      initialFontSize = active.fontSize ?? 48
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!pinching || e.touches.length !== 2 || !target) return
-      e.preventDefault()
-      const d = dist(e.touches[0], e.touches[1])
-      const ratio = d / initialDistance
-      const newSize = Math.max(12, Math.min(220, initialFontSize * ratio))
-      target.set({ fontSize: newSize })
-      canvas.requestRenderAll()
-    }
-
-    const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) {
-        if (pinching && target) {
-          // 슬라이더 UI 동기화
-          setFontSize(Math.round(target.fontSize ?? 48))
-        }
-        pinching = false
-        target = null
-      }
-    }
-
-    wrap.addEventListener('touchstart', onTouchStart, { passive: false })
-    wrap.addEventListener('touchmove', onTouchMove, { passive: false })
-    wrap.addEventListener('touchend', onTouchEnd)
-    wrap.addEventListener('touchcancel', onTouchEnd)
-
-    return () => {
-      wrap.removeEventListener('touchstart', onTouchStart)
-      wrap.removeEventListener('touchmove', onTouchMove)
-      wrap.removeEventListener('touchend', onTouchEnd)
-      wrap.removeEventListener('touchcancel', onTouchEnd)
-    }
-  }, [fabricReady])
-
-  // 2) 매 프레임 fabric 재렌더 (비디오 프레임 갱신용)
-  useEffect(() => {
-    const tick = () => {
-      fabricRef.current?.requestRenderAll()
-      const v = videoRef.current
-      if (v && isRecording && v.duration) {
-        setProgress(Math.min(100, (v.currentTime / v.duration) * 100))
-      }
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
-  }, [isRecording])
-
-  // 3) 영상 업로드 핸들러
+  // 영상 업로드
   const handleUpload = (file: File) => {
-    if (videoUrl) URL.revokeObjectURL(videoUrl)
     setVideoUrl(URL.createObjectURL(file))
     setVideoLoaded(false)
+    setLoadError(null)
   }
 
-  // 4) videoUrl 바뀌면 fabric 에 비디오 추가 + 첫 프레임 표시
+  // videoUrl 변경 시 — JSX 의 <video> 엘리먼트(videoRef) 에 listener 부착
   useEffect(() => {
-    if (!videoUrl || !fabricReady || !fabricRef.current) return
-    const canvas = fabricRef.current
+    if (!videoUrl) return
+    const v = videoRef.current
+    if (!v) return
 
-    // 기존 비디오 정리
-    if (fabricVideoRef.current) {
-      canvas.remove(fabricVideoRef.current)
-      fabricVideoRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.pause()
-    }
+    setVideoLoaded(false)
+    setLoadError(null)
     videoSourceConnectedRef.current = false
 
-    const v = document.createElement('video')
-    // crossOrigin 은 외부 도메인 영상에만 필요. blob URL 에서는 오히려 로드 실패 유발.
-    v.muted = false
-    v.playsInline = true
-    v.preload = 'auto'
-    // iOS/Safari 호환: 비디오를 DOM 에 hidden 으로 붙여놔야 frame 디코드가 안정적
-    v.style.position = 'fixed'
-    v.style.top = '-9999px'
-    v.style.left = '-9999px'
-    v.style.width = '1px'
-    v.style.height = '1px'
-    v.style.opacity = '0'
-    v.style.pointerEvents = 'none'
-    document.body.appendChild(v)
-    v.src = videoUrl
-    videoRef.current = v
-    v.load()
-    console.log('[VideoEditor] 영상 로드 시작', videoUrl)
-
-    let added = false
-
-    const addToCanvas = () => {
-      if (added) return
-      if (!v.videoWidth || !v.videoHeight) {
-        console.log('[VideoEditor] addToCanvas skip — dims 미준비', {
-          w: v.videoWidth,
-          h: v.videoHeight,
-          readyState: v.readyState,
-        })
-        return
-      }
-      added = true
+    const onMeta = async () => {
       try {
-        console.log('[VideoEditor] FabricImage 생성', {
-          w: v.videoWidth,
-          h: v.videoHeight,
-        })
-        const fabricImg = new fabric.FabricImage(v, {
-          objectCaching: false,
-          selectable: false,
-          evented: false,
-        })
-        const scale = Math.min(
-          CANVAS_WIDTH / v.videoWidth,
-          CANVAS_HEIGHT / v.videoHeight,
-        )
-        fabricImg.scaleX = scale
-        fabricImg.scaleY = scale
-        fabricImg.left = (CANVAS_WIDTH - v.videoWidth * scale) / 2
-        fabricImg.top = (CANVAS_HEIGHT - v.videoHeight * scale) / 2
-        canvas.add(fabricImg)
-        canvas.sendObjectToBack(fabricImg)
-        fabricVideoRef.current = fabricImg
-        setVideoLoaded(true)
-        canvas.requestRenderAll()
-        console.log('[VideoEditor] 캔버스 추가 완료')
-      } catch (err) {
-        console.error('[VideoEditor] FabricImage 생성 실패', err)
-        added = false
-      }
-    }
-
-    // loadedmetadata: 사이즈 확보, 첫 프레임 디코드 트리거
-    const onMeta = () => {
-      console.log('[VideoEditor] loadedmetadata', {
-        w: v.videoWidth,
-        h: v.videoHeight,
-        duration: v.duration,
-      })
-      if (v.readyState >= 2) addToCanvas()
-      try {
-        v.currentTime = 0.05
+        await v.play()
+        v.pause()
+        v.currentTime = 0
       } catch {
-        /* noop */
+        try {
+          v.currentTime = 0.05
+        } catch {
+          /* noop */
+        }
       }
-    }
-
-    // loadeddata / canplay / seeked 어느 쪽이든 들어오면 추가
-    const onReady = (e: Event) => {
-      console.log('[VideoEditor] ready', e.type, { readyState: v.readyState })
-      addToCanvas()
-      canvas.requestRenderAll()
+      setVideoLoaded(true)
     }
 
     const onError = () => {
       console.error('[VideoEditor] 영상 로드 실패', v.error)
+      const code = v.error?.code
+      if (code === 4) {
+        setLoadError(
+          '브라우저가 지원하지 않는 영상 코덱입니다. H.264(MP4) 또는 VP9(WebM) 영상으로 변환해 다시 시도해주세요.',
+        )
+      } else if (code === 3) {
+        setLoadError('영상 디코드에 실패했습니다. 다른 영상으로 시도해주세요.')
+      } else {
+        setLoadError('영상을 불러올 수 없습니다. 다른 영상으로 시도해주세요.')
+      }
     }
 
     const onEnded = () => {
@@ -340,37 +221,42 @@ export default function VideoEditor() {
       }
     }
 
-    v.addEventListener('loadedmetadata', onMeta)
-    v.addEventListener('loadeddata', onReady)
-    v.addEventListener('canplay', onReady)
-    v.addEventListener('seeked', onReady)
-    v.addEventListener('ended', onEnded)
-    v.addEventListener('error', onError)
-
-    // 안전망: 어떤 이벤트도 안 떨어진 상태에서 일정 시간 뒤에도 readyState 가 충분하면 강제 추가
-    const fallback = window.setTimeout(() => {
-      if (!added && v.videoWidth && v.videoHeight) {
-        addToCanvas()
+    const onTimeUpdate = () => {
+      if (isRecordingRef.current && v.duration) {
+        setProgress(Math.min(100, (v.currentTime / v.duration) * 100))
       }
-    }, 1500)
+    }
+
+    v.addEventListener('loadedmetadata', onMeta)
+    v.addEventListener('error', onError)
+    v.addEventListener('ended', onEnded)
+    v.addEventListener('timeupdate', onTimeUpdate)
+
+    if (v.readyState >= 1 && v.videoWidth > 0) {
+      onMeta()
+    }
 
     return () => {
-      window.clearTimeout(fallback)
       v.removeEventListener('loadedmetadata', onMeta)
-      v.removeEventListener('loadeddata', onReady)
-      v.removeEventListener('canplay', onReady)
-      v.removeEventListener('seeked', onReady)
-      v.removeEventListener('ended', onEnded)
       v.removeEventListener('error', onError)
-      if (v.parentNode) v.parentNode.removeChild(v)
+      v.removeEventListener('ended', onEnded)
+      v.removeEventListener('timeupdate', onTimeUpdate)
     }
-  }, [videoUrl, fabricReady])
+  }, [videoUrl])
 
-  // 5) 재생/일시정지
+  // unmount cleanup
+  useEffect(() => {
+    return () => {
+      if (videoUrl) URL.revokeObjectURL(videoUrl)
+    }
+  }, [videoUrl])
+
+  // 재생/일시정지
   const togglePlay = async () => {
     const v = videoRef.current
     if (!v) return
     if (v.paused) {
+      v.muted = false
       try {
         await v.play()
         setIsPlaying(true)
@@ -387,49 +273,83 @@ export default function VideoEditor() {
     }
   }
 
-  // 6) 텍스트 추가
+  // 텍스트 추가
   const addText = () => {
-    if (!fabricRef.current) return
-    const text = new fabric.IText(textInput || '텍스트를 입력하세요', {
-      left: CANVAS_WIDTH / 2,
-      top: CANVAS_HEIGHT / 2,
-      originX: 'center',
-      originY: 'center',
-      fontFamily,
+    const id = newId()
+    const item: TextItem = {
+      id,
+      text: textInput || '텍스트를 입력하세요',
+      x: 0.5,
+      y: 0.5,
       fontSize,
-      fill: textColor,
-      stroke: '#000',
-      strokeWidth: 1,
-      paintFirst: 'stroke',
-    })
-    fabricRef.current.add(text)
-    fabricRef.current.setActiveObject(text)
-    fabricRef.current.requestRenderAll()
+      fontFamily,
+      color: textColor,
+      bold,
+      italic,
+      outline,
+    }
+    setTexts((prev) => [...prev, item])
+    setSelectedTextId(id)
     setTextInput('')
   }
 
-  // 7) 활성 텍스트 속성 동기화
-  useEffect(() => {
-    const canvas = fabricRef.current
-    if (!canvas) return
-    const active = canvas.getActiveObject()
-    if (active && (active as fabric.IText).type === 'i-text') {
-      active.set({ fontFamily, fontSize, fill: textColor })
-      canvas.requestRenderAll()
-    }
-  }, [fontFamily, fontSize, textColor])
-
-  const deleteSelected = () => {
-    const canvas = fabricRef.current
-    if (!canvas) return
-    canvas.getActiveObjects().forEach((o) => {
-      if (o !== fabricVideoRef.current) canvas.remove(o)
-    })
-    canvas.discardActiveObject()
-    canvas.requestRenderAll()
+  // 텍스트 일부 속성 업데이트
+  const updateText = (id: string, patch: Partial<TextItem>) => {
+    setTexts((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
   }
 
-  // 8) BGM
+  // 텍스트 삭제
+  const deleteText = (id: string) => {
+    setTexts((prev) => prev.filter((t) => t.id !== id))
+    if (selectedTextId === id) setSelectedTextId(null)
+  }
+
+  // 선택된 텍스트의 속성을 패널 컨트롤과 연동
+  useEffect(() => {
+    if (!selectedTextId) return
+    setTexts((prev) =>
+      prev.map((t) =>
+        t.id === selectedTextId
+          ? {
+              ...t,
+              fontFamily,
+              fontSize,
+              color: textColor,
+              bold,
+              italic,
+              outline,
+            }
+          : t,
+      ),
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fontFamily, fontSize, textColor, bold, italic, outline])
+
+  // 텍스트 선택 시 패널 컨트롤도 그 값으로 동기화
+  useEffect(() => {
+    if (!selectedTextId) return
+    const t = texts.find((x) => x.id === selectedTextId)
+    if (t) {
+      setFontFamily(t.fontFamily)
+      setFontSize(t.fontSize)
+      setTextColor(t.color)
+      setBold(t.bold)
+      setItalic(t.italic)
+      setOutline(t.outline)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTextId])
+
+  // 빈 영역(영상/배경) 클릭 → 선택 해제 + 재생 토글
+  const onContainerPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    if (target.closest('[data-text-overlay]')) return
+    if (target.closest('[data-overlay-btn]')) return
+    setSelectedTextId(null)
+    togglePlay()
+  }
+
+  // BGM ────────────────────────────────────────────────────────────
   const ensureAudio = () => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioContext()
@@ -495,17 +415,18 @@ export default function VideoEditor() {
     if (bgmGainRef.current) bgmGainRef.current.gain.value = bgmVolume
   }, [bgmVolume])
 
-  // 9) 저장 (녹화)
+  // 녹화 ───────────────────────────────────────────────────────────
   const startRecording = async () => {
     const v = videoRef.current
-    const canvasEl = canvasElRef.current
-    if (!v || !canvasEl || !videoLoaded || isRecording) return
+    const compose = composeCanvasRef.current
+    if (!v || !compose || !videoLoaded || isRecording) return
+
+    v.muted = false
 
     ensureAudio()
     const ctx = audioCtxRef.current!
     if (ctx.state === 'suspended') await ctx.resume()
 
-    // 비디오 자체 오디오를 녹화 destination 에 한 번만 연결
     if (!videoSourceConnectedRef.current) {
       try {
         const src = ctx.createMediaElementSource(v)
@@ -513,26 +434,71 @@ export default function VideoEditor() {
         if (audioDestRef.current) src.connect(audioDestRef.current)
         videoSourceConnectedRef.current = true
       } catch (err) {
-        // 같은 element 로 두 번 만들면 throw — 무시 가능
         console.warn('video → audioCtx 연결 스킵', err)
       }
     }
 
+    compose.width = v.videoWidth || 1080
+    compose.height = v.videoHeight || 1920
+    const composeCtx = compose.getContext('2d')
+    if (!composeCtx) {
+      console.error('compose 2d context 생성 실패')
+      return
+    }
+
+    const composeTick = () => {
+      composeCtx.clearRect(0, 0, compose.width, compose.height)
+      if (v.readyState >= 2) {
+        composeCtx.drawImage(v, 0, 0, compose.width, compose.height)
+      }
+      // 텍스트 오버레이 합성 — 디자인 기준(960) 으로 정규화돼 있어 compose 높이 기준 스케일.
+      const scale = compose.height / DESIGN_HEIGHT
+      composeCtx.textAlign = 'center'
+      composeCtx.textBaseline = 'middle'
+      for (const t of textsRef.current) {
+        const fs = t.fontSize * scale
+        const weight = t.bold ? '700' : '400'
+        const style = t.italic ? 'italic' : 'normal'
+        composeCtx.font = `${style} ${weight} ${fs}px "${t.fontFamily}", sans-serif`
+        const x = t.x * compose.width
+        const y = t.y * compose.height
+        // 외곽선 옵션이 켜진 경우만 검은 stroke 추가
+        if (t.outline) {
+          composeCtx.lineWidth = Math.max(2, fs * 0.08)
+          composeCtx.strokeStyle = '#000000'
+          composeCtx.lineJoin = 'round'
+          composeCtx.strokeText(t.text, x, y)
+        }
+        composeCtx.fillStyle = t.color
+        composeCtx.fillText(t.text, x, y)
+      }
+      composeRafRef.current = requestAnimationFrame(composeTick)
+    }
+    composeTick()
+
     chunksRef.current = []
 
-    const videoStream = canvasEl.captureStream(30)
+    const videoStream = compose.captureStream(30)
     const audioStream = audioDestRef.current?.stream
     const combined = new MediaStream()
     videoStream.getVideoTracks().forEach((t) => combined.addTrack(t))
     audioStream?.getAudioTracks().forEach((t) => combined.addTrack(t))
 
+    // MP4 우선 시도 → 미지원 브라우저는 webm 으로 fallback.
+    // (Chromium 기반 최신 브라우저는 MP4 H.264+AAC 녹화 지원, Firefox 는 webm 만)
     const mimeCandidates = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
     ]
     const mimeType =
       mimeCandidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? ''
+    const isMp4 = mimeType.includes('mp4')
+    const ext = isMp4 ? 'mp4' : 'webm'
+    console.log('[VideoEditor] 녹화 mimeType:', mimeType || '(default)')
 
     const recorder = new MediaRecorder(
       combined,
@@ -544,13 +510,18 @@ export default function VideoEditor() {
       if (e.data.size > 0) chunksRef.current.push(e.data)
     }
     recorder.onstop = () => {
+      if (composeRafRef.current) {
+        cancelAnimationFrame(composeRafRef.current)
+        composeRafRef.current = null
+      }
+
       const blob = new Blob(chunksRef.current, {
         type: mimeType || 'video/webm',
       })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `gem-cafe-edit-${Date.now()}.webm`
+      a.download = `gem-cafe-edit-${Date.now()}.${ext}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -578,349 +549,648 @@ export default function VideoEditor() {
     }
   }
 
-  // unmount cleanup
-  useEffect(() => {
-    return () => {
-      if (videoUrl) URL.revokeObjectURL(videoUrl)
-    }
-  }, [videoUrl])
+  const stopRecording = () => {
+    const r = recorderRef.current
+    if (r && r.state === 'recording') r.stop()
+    videoRef.current?.pause()
+    bgmAudioRef.current?.pause()
+  }
+
+  const editorTabs = [
+    { key: 'text' as const, label: '텍스트', Icon: Type },
+    { key: 'bgm' as const, label: '음악', Icon: Music },
+  ]
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex h-screen flex-col bg-gray-900 pb-[calc(5rem+env(safe-area-inset-bottom,0))] md:pb-0">
       {/* 상단 바 */}
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 md:px-6">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-800 bg-gray-900 px-4 py-3 md:px-6">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          aria-label="홈으로"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/10"
         >
-          <ChevronLeft className="h-4 w-4" />
-          돌아가기
+          <Home className="h-5 w-5" />
         </Link>
-        <h1 className="text-base font-bold text-gray-900 md:text-lg">
-          영상 편집
-        </h1>
-        <div className="w-20" /> {/* spacer for symmetry */}
+        <h1 className="text-base font-bold text-white">젬젬 에디터</h1>
+        <button
+          type="button"
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={!videoLoaded}
+          aria-label={isRecording ? '녹화 중지 및 저장' : '저장'}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-brand-400 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isRecording ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <UploadCloud className="h-5 w-5" />
+          )}
+        </button>
       </header>
 
-      {/* 본문 — 모바일은 column, 데스크톱은 row */}
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        {/* 캔버스 영역 */}
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-gray-100 p-4 md:p-8">
-          {/* 9:16 컨테이너 — 화면 크기에 맞춰 height 우선, aspect 로 width 결정 */}
-          <div
-            ref={canvasWrapRef}
-            className="relative aspect-9/16 h-[min(65vh,calc((100vw-2rem)*16/9))] max-h-full md:h-[min(calc(100vh-200px),calc((100vw-26rem)*16/9))] lg:h-[min(calc(100vh-200px),calc((100vw-28rem)*16/9))]"
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) handleUpload(f)
-                e.target.value = '' // 같은 파일 재선택 가능하도록
-              }}
-            />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 숨김 파일 인풋 */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleUpload(f)
+            e.target.value = ''
+          }}
+        />
 
-            {!videoLoaded && (
+        {/* 캔버스 영역 */}
+        <div className="relative flex min-h-0 flex-1 items-center justify-center bg-gray-900 p-3">
+          <div
+            ref={containerRef}
+            onPointerDown={onContainerPointerDown}
+            className="relative h-full max-h-full overflow-hidden rounded-2xl shadow-lg"
+            style={{ aspectRatio: '9 / 16', touchAction: 'none' }}
+          >
+            {/* 영상 */}
+            {videoUrl && (
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                className="absolute inset-0 h-full w-full bg-black object-contain"
+                playsInline
+                muted
+                preload="auto"
+              />
+            )}
+
+            {/* 빈 상태 */}
+            {!videoUrl && (
               <button
                 type="button"
+                data-overlay-btn
                 onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  e.currentTarget.classList.add(
-                    'border-brand-400',
-                    'bg-brand-50/40',
-                  )
-                }}
-                onDragLeave={(e) => {
-                  e.currentTarget.classList.remove(
-                    'border-brand-400',
-                    'bg-brand-50/40',
-                  )
-                }}
+                onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault()
-                  e.currentTarget.classList.remove(
-                    'border-brand-400',
-                    'bg-brand-50/40',
-                  )
                   const f = e.dataTransfer.files?.[0]
                   if (f && f.type.startsWith('video/')) handleUpload(f)
                 }}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white p-6 text-center transition hover:border-brand-400 hover:bg-brand-50/40"
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-700 bg-gray-800 p-6 text-center transition hover:border-brand-400 hover:bg-gray-700/60"
               >
-                <Upload className="h-10 w-10 text-gray-400" />
-                <p className="mt-3 text-sm font-semibold text-gray-700">
+                <Upload className="h-10 w-10 text-gray-500" />
+                <p className="mt-3 text-sm font-semibold text-gray-200">
                   영상을 업로드해주세요
                 </p>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-400">
                   클릭하거나 영상 파일을 드래그하세요
                 </p>
+                {loadError && (
+                  <p className="mt-3 max-w-56 rounded-lg bg-rose-900/40 px-3 py-2 text-[11px] leading-snug text-rose-300">
+                    {loadError}
+                  </p>
+                )}
               </button>
             )}
-            <canvas
-              ref={canvasElRef}
-              className={`h-full w-full rounded-2xl bg-black shadow-lg ${
-                videoLoaded ? '' : 'invisible'
-              }`}
-            />
-          </div>
 
-          {/* 재생/녹화 컨트롤 */}
-          {videoLoaded && !isRecording && (
-            <button
-              type="button"
-              onClick={togglePlay}
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50"
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              {isPlaying ? '일시정지' : '미리보기 재생'}
-            </button>
-          )}
-
-          {isRecording && (
-            <div className="w-full max-w-md">
-              <div className="flex items-center justify-between text-sm text-gray-700">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />
-                  녹화 중
-                </span>
-                <span className="font-bold text-brand-600">
-                  {Math.round(progress)}%
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full bg-brand-500 transition-all"
-                  style={{ width: `${progress}%` }}
+            {/* 텍스트 오버레이 */}
+            {videoLoaded &&
+              texts.map((t) => (
+                <DraggableText
+                  key={t.id}
+                  item={t}
+                  containerSize={containerSize}
+                  selected={selectedTextId === t.id}
+                  onSelect={() => setSelectedTextId(t.id)}
+                  onChange={(patch) => updateText(t.id, patch)}
+                  onDelete={() => deleteText(t.id)}
                 />
-              </div>
-            </div>
-          )}
-        </div>
+              ))}
 
-        {/* 컨트롤 패널 */}
-        <aside className="flex w-full flex-col overflow-y-auto border-t border-gray-200 bg-white md:w-96 md:border-l md:border-t-0 lg:w-105">
-          <div className="space-y-6 p-5 md:p-6">
-            {videoLoaded && (
+            {/* 우상단 재생/일시정지 버튼 */}
+            {videoLoaded && !isRecording && (
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                data-overlay-btn
+                onClick={togglePlay}
+                aria-label={isPlaying ? '일시정지' : '재생'}
+                className="absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white shadow-lg transition hover:bg-black/75"
               >
-                <Upload className="h-3.5 w-3.5" />
-                다른 영상으로 변경
+                {isPlaying ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="ml-0.5 h-4 w-4 fill-white" />
+                )}
               </button>
             )}
 
-            <Section title="텍스트 추가">
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  placeholder="추가할 문구를 입력하세요"
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                />
-
-                <div>
-                  <label className="text-xs font-medium text-gray-500">
-                    폰트
-                  </label>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {FONTS.map((f) => (
-                      <button
-                        key={f.family}
-                        type="button"
-                        onClick={() => setFontFamily(f.family)}
-                        style={{ fontFamily: f.family }}
-                        className={`rounded-lg border px-3 py-2 text-xs transition ${
-                          fontFamily === f.family
-                            ? 'border-brand-500 bg-brand-50 text-brand-700'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
+            {/* 녹화 진행 바 */}
+            {isRecording && (
+              <div className="absolute left-3 right-3 top-3 z-30 rounded-lg bg-black/70 px-3 py-2 text-white">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-rose-400" />
+                    녹화 중
+                  </span>
+                  <span className="font-bold">{Math.round(progress)}%</span>
                 </div>
-
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-gray-500">
-                      크기
-                    </label>
-                    <span className="text-xs font-bold text-gray-700">
-                      {fontSize}px
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={16}
-                    max={120}
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Number(e.target.value))}
-                    className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-brand-500"
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/20">
+                  <div
+                    className="h-full bg-brand-400 transition-all"
+                    style={{ width: `${progress}%` }}
                   />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-gray-500">
-                    색상
-                  </label>
-                  <input
-                    type="color"
-                    value={textColor}
-                    onChange={(e) => setTextColor(e.target.value)}
-                    className="mt-2 h-10 w-full cursor-pointer rounded-xl border border-gray-200 bg-white p-1"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={addText}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
-                  >
-                    <Plus className="h-4 w-4" />
-                    텍스트 추가
-                  </button>
-                  <button
-                    type="button"
-                    onClick={deleteSelected}
-                    aria-label="선택 삭제"
-                    className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-white px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
-            </Section>
+            )}
+          </div>
+        </div>
 
-            <Section title="배경음악" icon={<Music className="h-4 w-4" />}>
-              <div className="space-y-2">
-                {BGM_LIST.map((bgm) => {
-                  const isSelected = bgmUrl === bgm.url
-                  const isPreviewing = previewBgmUrl === bgm.url
-                  return (
-                    <div
-                      key={bgm.url}
-                      className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition ${
-                        isSelected
-                          ? 'border-brand-500 bg-brand-50'
-                          : 'border-gray-200 bg-white'
-                      }`}
-                    >
-                      <span
-                        className={`min-w-0 flex-1 truncate text-sm ${
-                          isSelected
-                            ? 'font-bold text-brand-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        {bgm.title}
-                      </span>
-                      <div className="flex items-center gap-1">
+        {/* 활성 탭 패널 — 화면의 약 1/3 만 차지하도록 고정 */}
+        {activeTab && (
+          <div className="h-[33vh] shrink-0 overflow-y-auto border-t border-gray-800 bg-gray-900 text-gray-100">
+            <div className="p-4 md:p-5">
+              {activeTab === 'text' && (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder="추가할 문구를 입력하세요"
+                    className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  />
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-400">
+                      폰트
+                    </label>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {FONTS.map((f) => (
                         <button
+                          key={f.family}
                           type="button"
-                          onClick={() => togglePreviewBgm(bgm.url)}
-                          aria-label="미리듣기"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100"
-                        >
-                          {isPreviewing ? (
-                            <Pause className="h-3.5 w-3.5" />
-                          ) : (
-                            <Play className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => selectBgm(bgm.url)}
-                          className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-                            isSelected
-                              ? 'bg-brand-500 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          onClick={() => setFontFamily(f.family)}
+                          style={{ fontFamily: f.family }}
+                          className={`rounded-lg border px-3 py-2 text-xs transition ${
+                            fontFamily === f.family
+                              ? 'border-brand-500 bg-brand-500/15 text-brand-300'
+                              : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'
                           }`}
                         >
-                          {isSelected ? '선택됨' : '선택'}
+                          {f.label}
                         </button>
-                      </div>
+                      ))}
                     </div>
-                  )
-                })}
-
-                {bgmUrl && (
-                  <div className="pt-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-gray-500">
-                        볼륨
-                      </label>
-                      <span className="text-xs font-bold text-gray-700">
-                        {Math.round(bgmVolume * 100)}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={bgmVolume}
-                      onChange={(e) => setBgmVolume(Number(e.target.value))}
-                      className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-brand-500"
-                    />
                   </div>
-                )}
-              </div>
-            </Section>
 
-            <button
-              type="button"
-              onClick={startRecording}
-              disabled={!videoLoaded || isRecording}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isRecording ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  저장 중 {Math.round(progress)}%
-                </>
-              ) : (
-                <>
-                  <Download className="h-5 w-5" />
-                  영상 저장하기
-                </>
+                  <div>
+                    <label className="text-xs font-medium text-gray-400">
+                      크기
+                    </label>
+                    <div className="mt-2 grid grid-cols-5 gap-1.5">
+                      {FONT_SIZE_PRESETS.map((p) => {
+                        const active = fontSize === p.value
+                        return (
+                          <button
+                            key={p.value}
+                            type="button"
+                            onClick={() => setFontSize(p.value)}
+                            className={`rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
+                              active
+                                ? 'border-brand-500 bg-brand-500/15 text-brand-300'
+                                : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-400">
+                      색상
+                    </label>
+                    <div className="mt-2 grid grid-cols-10 gap-1.5">
+                      {COLOR_PALETTE.map((c) => {
+                        const active = textColor.toLowerCase() === c.toLowerCase()
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setTextColor(c)}
+                            aria-label={`색상 ${c}`}
+                            className={`aspect-square rounded-full border-2 transition ${
+                              active
+                                ? 'border-brand-400 ring-2 ring-brand-400/30'
+                                : 'border-gray-600 hover:border-gray-400'
+                            }`}
+                            style={{ backgroundColor: c }}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-400">
+                      스타일
+                    </label>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setBold((b) => !b)}
+                        aria-pressed={bold}
+                        className={`rounded-lg border px-2 py-2 text-sm font-bold transition ${
+                          bold
+                            ? 'border-brand-500 bg-brand-500/15 text-brand-300'
+                            : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setItalic((b) => !b)}
+                        aria-pressed={italic}
+                        className={`rounded-lg border px-2 py-2 text-sm italic transition ${
+                          italic
+                            ? 'border-brand-500 bg-brand-500/15 text-brand-300'
+                            : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        I
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOutline((b) => !b)}
+                        aria-pressed={outline}
+                        className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
+                          outline
+                            ? 'border-brand-500 bg-brand-500/15 text-brand-300'
+                            : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        외곽선
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={addText}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+                    >
+                      <Plus className="h-4 w-4" />
+                      텍스트 추가
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        selectedTextId && deleteText(selectedTextId)
+                      }
+                      disabled={!selectedTextId}
+                      aria-label="선택 삭제"
+                      className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-sm font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
+
+              {activeTab === 'bgm' && (
+                <div className="space-y-2">
+                  {BGM_LIST.map((bgm) => {
+                    const isSelected = bgmUrl === bgm.url
+                    const isPreviewing = previewBgmUrl === bgm.url
+                    return (
+                      <div
+                        key={bgm.url}
+                        className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition ${
+                          isSelected
+                            ? 'border-brand-500 bg-brand-500/15'
+                            : 'border-gray-700 bg-gray-800'
+                        }`}
+                      >
+                        <span
+                          className={`min-w-0 flex-1 truncate text-sm ${
+                            isSelected
+                              ? 'font-bold text-brand-300'
+                              : 'text-gray-200'
+                          }`}
+                        >
+                          {bgm.title}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => togglePreviewBgm(bgm.url)}
+                            aria-label="미리듣기"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition hover:bg-gray-700"
+                          >
+                            {isPreviewing ? (
+                              <Pause className="h-3.5 w-3.5" />
+                            ) : (
+                              <Play className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => selectBgm(bgm.url)}
+                            className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                              isSelected
+                                ? 'bg-brand-500 text-white'
+                                : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                            }`}
+                          >
+                            {isSelected ? '선택됨' : '선택'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {bgmUrl && (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-gray-400">
+                          볼륨
+                        </label>
+                        <span className="text-xs font-bold text-gray-200">
+                          {Math.round(bgmVolume * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={bgmVolume}
+                        onChange={(e) => setBgmVolume(Number(e.target.value))}
+                        className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-700 accent-brand-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </aside>
+        )}
+
+        {/* 에디터 탭바 */}
+        <nav className="flex shrink-0 items-stretch border-t border-gray-800 bg-gray-900">
+          {editorTabs.map(({ key, label, Icon }) => {
+            const isActive = activeTab === key
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveTab(isActive ? null : key)}
+                className={`flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-medium transition ${
+                  isActive
+                    ? 'text-brand-400'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <Icon className="h-6 w-6" />
+                {label}
+              </button>
+            )
+          })}
+        </nav>
       </div>
+
+      <BottomNav />
+
+      {/* 녹화용 hidden compose canvas */}
+      <canvas ref={composeCanvasRef} className="hidden" />
     </div>
   )
 }
 
-function Section({
-  title,
-  icon,
-  children,
-}: {
-  title: string
-  icon?: React.ReactNode
-  children: React.ReactNode
-}) {
+// ─── DraggableText 서브컴포넌트 ──────────────────────────────────
+interface DraggableTextProps {
+  item: TextItem
+  containerSize: { width: number; height: number }
+  selected: boolean
+  onSelect: () => void
+  onChange: (patch: Partial<TextItem>) => void
+  onDelete: () => void
+}
+
+function DraggableText({
+  item,
+  containerSize,
+  selected,
+  onSelect,
+  onChange,
+  onDelete,
+}: DraggableTextProps) {
+  const elRef = useRef<HTMLDivElement | null>(null)
+  const dragRef = useRef<{
+    active: boolean
+    pointerId: number
+    startX: number
+    startY: number
+    origX: number
+    origY: number
+  } | null>(null)
+  const resizeRef = useRef<{
+    active: boolean
+    pointerId: number
+    cx: number
+    cy: number
+    initialDist: number
+    initialFontSize: number
+  } | null>(null)
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    onSelect()
+    dragRef.current = {
+      active: true,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: item.x,
+      origY: item.y,
+    }
+    try {
+      elRef.current?.setPointerCapture(e.pointerId)
+    } catch {
+      /* noop */
+    }
+  }
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current
+    if (!d || !d.active || d.pointerId !== e.pointerId) return
+    if (containerSize.width === 0 || containerSize.height === 0) return
+    const dx = (e.clientX - d.startX) / containerSize.width
+    const dy = (e.clientY - d.startY) / containerSize.height
+    onChange({
+      x: clamp(d.origX + dx, 0, 1),
+      y: clamp(d.origY + dy, 0, 1),
+    })
+  }
+
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current
+    if (!d || d.pointerId !== e.pointerId) return
+    d.active = false
+    try {
+      elRef.current?.releasePointerCapture(e.pointerId)
+    } catch {
+      /* noop */
+    }
+  }
+
+  // ─── 리사이즈 핸들러 (우하단 핸들) ───
+  const onResizeDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const rect = elRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const initialDist = Math.hypot(e.clientX - cx, e.clientY - cy) || 1
+    resizeRef.current = {
+      active: true,
+      pointerId: e.pointerId,
+      cx,
+      cy,
+      initialDist,
+      initialFontSize: item.fontSize,
+    }
+    try {
+      ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+    } catch {
+      /* noop */
+    }
+  }
+
+  const onResizeMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const r = resizeRef.current
+    if (!r || !r.active || r.pointerId !== e.pointerId) return
+    const newDist = Math.hypot(e.clientX - r.cx, e.clientY - r.cy)
+    const ratio = newDist / r.initialDist
+    const newSize = clamp(r.initialFontSize * ratio, 16, 220)
+    onChange({ fontSize: newSize })
+  }
+
+  const onResizeUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const r = resizeRef.current
+    if (!r || r.pointerId !== e.pointerId) return
+    r.active = false
+    try {
+      ;(e.currentTarget as Element).releasePointerCapture(e.pointerId)
+    } catch {
+      /* noop */
+    }
+  }
+
+  // 표시 폰트 사이즈 — 컨테이너 높이에 맞춰 스케일
+  const scale = containerSize.height
+    ? containerSize.height / DESIGN_HEIGHT
+    : 1
+  const displayFontSize = item.fontSize * scale
+
   return (
-    <section>
-      <h3 className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-        {icon}
-        {title}
-      </h3>
-      {children}
-    </section>
+    <div
+      ref={elRef}
+      data-text-overlay
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      style={{
+        position: 'absolute',
+        left: `${item.x * 100}%`,
+        top: `${item.y * 100}%`,
+        transform: 'translate(-50%, -50%)',
+        fontFamily: `"${item.fontFamily}", sans-serif`,
+        fontSize: `${displayFontSize}px`,
+        fontWeight: item.bold ? 700 : 400,
+        fontStyle: item.italic ? 'italic' : 'normal',
+        color: item.color,
+        WebkitTextStroke: item.outline
+          ? `${Math.max(1, displayFontSize * 0.05)}px black`
+          : '0',
+        whiteSpace: 'nowrap',
+        userSelect: 'none',
+        cursor: 'grab',
+        touchAction: 'none',
+        padding: '6px 12px',
+        zIndex: selected ? 25 : 20,
+        lineHeight: 1.1,
+        ...(selected
+          ? {
+              outline: '2px dashed rgba(255,255,255,0.85)',
+              outlineOffset: 2,
+              borderRadius: 6,
+            }
+          : {}),
+      }}
+    >
+      {item.text}
+      {selected && (
+        <>
+          {/* 삭제 X 버튼 (우상단) */}
+          <button
+            type="button"
+            aria-label="텍스트 삭제"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            style={{
+              position: 'absolute',
+              top: -10,
+              right: -10,
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: 'rgb(220, 38, 38)',
+              color: 'white',
+              border: '2px solid white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 'bold',
+              lineHeight: 1,
+              padding: 0,
+              zIndex: 1,
+            }}
+          >
+            ×
+          </button>
+          {/* 리사이즈 핸들 (우하단) — 드래그하면 폰트 사이즈 조절 */}
+          <button
+            type="button"
+            aria-label="크기 조절"
+            onPointerDown={onResizeDown}
+            onPointerMove={onResizeMove}
+            onPointerUp={onResizeUp}
+            onPointerCancel={onResizeUp}
+            style={{
+              position: 'absolute',
+              bottom: -10,
+              right: -10,
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.95)',
+              border: '2px solid rgb(59, 130, 246)',
+              cursor: 'nwse-resize',
+              touchAction: 'none',
+              padding: 0,
+              zIndex: 1,
+            }}
+          />
+        </>
+      )}
+    </div>
   )
 }
