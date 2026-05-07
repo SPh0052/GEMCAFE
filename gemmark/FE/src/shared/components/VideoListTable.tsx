@@ -3,6 +3,8 @@ import Thumbnail from './Thumbnail'
 
 export interface VideoRow {
   no: number
+  /** 백엔드 식별자 (예: contentUuid). 상세 이동에 사용. 없으면 no가 fallback. */
+  uuid?: string
   name: string
   createdAt: string
   type: string

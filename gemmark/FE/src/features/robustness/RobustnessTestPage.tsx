@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronsUpDown, Play, RotateCw } from 'lucide-react'
+import { Play, RotateCw } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Badge from '@/shared/components/Badge'
 
@@ -123,14 +123,11 @@ export default function RobustnessTest() {
           <thead>
             <tr className="border-y border-gray-100 bg-gray-50/40 text-left">
               {columns.map((col) => (
-                <th key={col.key} className="px-6 py-3.5">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-800 transition hover:text-brand-600"
-                  >
-                    <span>{col.label}</span>
-                    <ChevronsUpDown className="h-3 w-3 text-gray-300" />
-                  </button>
+                <th
+                  key={col.key}
+                  className="px-6 py-3.5 text-sm font-semibold text-gray-800"
+                >
+                  {col.label}
                 </th>
               ))}
             </tr>

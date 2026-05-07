@@ -4,7 +4,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import Header
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -13,6 +14,7 @@ from app.core.exceptions import InvalidTokenError
 
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # ──────────────────────────────────────────────────────
@@ -67,7 +69,9 @@ def decode_token(token: str) -> dict[str, Any]:
 # ──────────────────────────────────────────────────────
 # verify_token (FastAPI Dependency)
 # ──────────────────────────────────────────────────────
-async def verify_token(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+async def verify_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+) -> dict[str, Any]:
     """Authorization 헤더에서 access token 검증.
 
     - 헤더 누락/형식 오류 → AUTH-003
@@ -80,10 +84,10 @@ async def verify_token(authorization: str | None = Header(default=None)) -> dict
     # 지연 import — 순환 참조 방지
     from app.services.token_blacklist import is_blacklisted
 
-    if not authorization or not authorization.startswith("Bearer "):
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise InvalidTokenError()
 
-    token = authorization[len("Bearer "):]
+    token = credentials.credentials
 
     try:
         payload = decode_token(token)
