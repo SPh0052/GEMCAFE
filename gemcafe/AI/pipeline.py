@@ -19,6 +19,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 import fal_client
 import requests
 from dotenv import load_dotenv
@@ -34,45 +35,25 @@ ENDPOINT_EDIT = "fal-ai/nano-banana-pro/edit"                  # I2I (instructio
 ENDPOINT_I2V = "fal-ai/veo3.1/first-last-frame-to-video"       # I2V (start+end 보간, Veo 3.1)
 
 # =====================================================================
-# 입력 (지금은 하드코딩 — 나중에 함수 인자로 빼면 됨)
+# 입력 (지금은 하드코딩 — 나중에 BE/FE 입력으로 받게 변경)
 # =====================================================================
 INPUT_IMAGE_PATH = "./test_cake.jpg"
 
-# nano-banana-pro/edit에게 부여할 "역할/페르소나" — 자유 재해석 억제용.
-# (스키마의 system_prompt 필드. 비워두려면 "" 로.)
-SYSTEM_PROMPT = (
-    "You are a precise photo editor. Your only job is to preserve the input image "
-    "pixel-by-pixel and apply ONLY the specific edit requested in the user prompt. "
-    "Never regenerate, replace, or reinterpret existing elements. "
-    "Treat the input image as immutable except for the explicit additions requested."
-)
+# 시뮬레이션 종류 (prompt_builder.SIMULATIONS의 키)
+#   "cross_section_cut"  단면 자르기
+#   "lift_slice"         한 조각 들어올리기
+#   "topping_fall"       토핑 위에서 떨어지기
+SIMULATION = "cross_section_cut"
 
-# nano-banana-pro/edit에 넘길 자연어 지시문 (영어 권장).
-# ⚠️ Instruction 모델은 종종 전체 장면을 새로 그려버림 (= "다른 케이크" 문제).
-# 보존을 강하게 잠그는 프롬프트 패턴:
-#   1) 원본 보존을 첫 문장에 명시 ("DO NOT REGENERATE")
-#   2) 유지할 요소를 구체적으로 나열
-#   3) 변경할 것을 "단 하나의 ADD" 형태로 좁게 표현
-#   4) 마지막에 또 한 번 보존 강조
-INSTRUCTION_PROMPT = (
-    "DO NOT regenerate or replace the cake. Use the exact input image as the base "
-    "and only ADD one new object on top. "
-    "Preserve the input image pixel-by-pixel: the exact same cake shape, "
-    "the exact strawberry on top, the exact cream pattern, the exact sponge layers, "
-    "the cupcake liner, the wooden table, the lighting, and the camera angle — "
-    "all must remain identical to the input. "
-    "ADD ONLY this single new element: a metal fork descending from above and "
-    "pressed into the top of the cake, with the tines partially embedded in the cream. "
-    "Keep cream squeezing out slightly around the fork tines as the only deformation. "
-    "Do not alter, replace, or redraw anything else. "
-    "Match the original photo's lighting, color tone, and resolution exactly."
-)
+# 강조할 요소 — None이면 outputs/analyze_* 폴더의 최신 analysis.json에서
+# suggested_focus[0]을 자동으로 가져옴. 직접 지정하려면 문자열로 박기.
+#   None              → 자동 (분석 결과 첫 번째 요소)
+#   "strawberry"      → 수동 지정
+FOCUS = None
 
-# Veo 3.1에 넘길 영상 프롬프트 (start → end 사이의 동작 묘사)
-VIDEO_PROMPT = (
-    "A metal fork descends from above and slowly presses down into the cake, "
-    "deforming the soft surface as cream squeezes out around the tines."
-)
+# 배경 / 사용자 추가 힌트 (선택)
+BACKGROUND = None       # 예: "wooden table" / "white marble"
+USER_HINT = None        # 예: "고급스러운 분위기로"
 
 # Veo 3.1 옵션 (duration: "4s"/"6s"/"8s" 만 가능, 문자열)
 VIDEO_DURATION = "6s"           # ⚠️ 정수 아니라 문자열. 4/6/8초만 허용.
@@ -99,6 +80,53 @@ def on_queue_update(update):
 # =====================================================================
 # 단계별 함수
 # =====================================================================
+def load_latest_analysis() -> dict:
+    """outputs/ 안의 가장 최근 analyze_* 폴더에서 analysis.json 로드."""
+    analyze_dirs = sorted(
+        [p for p in Path(OUTPUT_DIR).glob("analyze_*") if p.is_dir()],
+        reverse=True,
+    )
+    if not analyze_dirs:
+        raise SystemExit(
+            "analyze 결과 폴더를 찾을 수 없습니다.\n"
+            "먼저 'python analyze.py' 를 실행해서 이미지를 분석하세요.\n"
+            "(또는 FOCUS = '...' 로 수동 지정해도 됩니다)"
+        )
+    latest = analyze_dirs[0]
+    analysis_path = latest / "analysis.json"
+    if not analysis_path.exists():
+        raise SystemExit(f"{analysis_path} 파일이 없습니다.")
+
+    with open(analysis_path, encoding="utf-8") as f:
+        analysis = json.load(f)
+
+    print(f"[분석 로드] {analysis_path}")
+    return analysis
+
+
+def resolve_focus(focus_setting: Optional[str]) -> tuple[str, Optional[dict]]:
+    """
+    FOCUS 설정값을 해석:
+      - 문자열로 박혀있으면 → 그대로 사용 (analysis는 None)
+      - None이면 → 최신 analysis.json 로드해서 suggested_focus[0] 사용
+    Returns: (focus_key, analysis_dict_or_None)
+    """
+    if focus_setting is not None:
+        print(f"[FOCUS] 수동 지정: '{focus_setting}'")
+        return focus_setting, None
+
+    analysis = load_latest_analysis()
+    options = analysis.get("suggested_focus") or []
+    if not options:
+        raise SystemExit(
+            "분석 결과에 suggested_focus가 비어있습니다.\n"
+            "analysis.json 확인하거나 FOCUS = '...' 로 수동 지정하세요."
+        )
+    chosen = options[0]
+    print(f"[FOCUS] 자동 선택: '{chosen}' (suggested_focus 후보: {options})")
+    return chosen, analysis
+
+
 def step1_upload(path: str) -> str:
     print(f"[1/3] 이미지 업로드: {path}")
     url = fal_client.upload_file(path)
@@ -106,7 +134,7 @@ def step1_upload(path: str) -> str:
     return url
 
 
-def step2_edit(image_url: str, instruction: str) -> str:
+def step2_edit(image_url: str, instruction: str, system_prompt: str) -> str:
     """
     nano-banana-pro/edit로 instruction-based 이미지 편집. 편집된 이미지 URL 반환.
     """
@@ -116,7 +144,7 @@ def step2_edit(image_url: str, instruction: str) -> str:
         arguments={
             "prompt": instruction,
             "image_urls": [image_url],
-            "system_prompt": SYSTEM_PROMPT,
+            "system_prompt": system_prompt,
             "aspect_ratio": "auto",          # 입력 이미지 비율 그대로 유지
             "resolution": "2K",              # 1K / 2K / 4K (해상도 ↑ = 디테일 ↑, 비용 ↑)
             "output_format": "png",
@@ -178,26 +206,53 @@ def main():
     if not os.path.exists(INPUT_IMAGE_PATH):
         raise SystemExit(f"입력 이미지가 없습니다: {INPUT_IMAGE_PATH}")
 
-    # 이번 실행 결과물을 모아둘 폴더 만들기 (timestamp별)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = Path(OUTPUT_DIR) / ts
-    run_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\n결과물 저장 폴더: {run_dir}\n")
+    # FOCUS 해석 — None이면 최신 analysis.json에서 자동 로드
+    resolved_focus, loaded_analysis = resolve_focus(FOCUS)
 
-    # [1/3] 입력 이미지 (= START 프레임)
+    # 시뮬레이션 + focus 조합으로 프롬프트 동적 생성
+    prompts = prompt_builder.build_prompts(
+        simulation=SIMULATION,
+        focus=resolved_focus,
+        background=BACKGROUND,
+        hint=USER_HINT,
+    )
+    print(f"\n[시뮬레이션] {SIMULATION} ({prompts['label_kr']}) × focus='{resolved_focus}'")
+    print(f"[frame_strategy] {prompts['frame_strategy']}")
+
+    # 이번 실행 결과물을 모아둘 폴더 만들기 (timestamp + 시뮬레이션 라벨)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = Path(OUTPUT_DIR) / f"{ts}_{SIMULATION}_{resolved_focus}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    print(f"결과물 저장 폴더: {run_dir}\n")
+
+    # [1/3] 입력 이미지 업로드
     input_local = run_dir / "1_input.jpg"
     shutil.copy(INPUT_IMAGE_PATH, input_local)
     image_url = step1_upload(INPUT_IMAGE_PATH)
     print(f"      → 저장: {input_local}")
 
-    # [2/3] nano-banana-pro 편집 결과 (= END 프레임)
-    end_frame_url = step2_edit(image_url, INSTRUCTION_PROMPT)
-    end_frame_local = run_dir / "2_end_frame.jpg"
-    download_file(end_frame_url, str(end_frame_local))
-    print(f"      → 저장: {end_frame_local}")
+    # [2/3] nano-banana-pro/edit으로 키프레임 생성
+    edited_url = step2_edit(
+        image_url,
+        prompts["instruction_prompt"],
+        prompts["system_prompt"],
+    )
+    edited_local = run_dir / "2_keyframe.jpg"
+    download_file(edited_url, str(edited_local))
+    print(f"      → 저장: {edited_local}")
 
-    # [3/3] Veo 3.1 first-last-frame 영상 (원본 = START, 편집된 이미지 = END)
-    video_url = step3_animate(image_url, end_frame_url, VIDEO_PROMPT)
+    # [3/3] Veo 3.1 first-last-frame 영상
+    # frame_strategy에 따라 start/end 결정:
+    #   "i2i_is_end"   → 원본을 START, 편집본을 END  (자르기/들어올리기)
+    #   "i2i_is_start" → 편집본을 START, 원본을 END  (토핑 떨어지기)
+    if prompts["frame_strategy"] == "i2i_is_end":
+        start_url, end_url = image_url, edited_url
+    else:  # "i2i_is_start"
+        start_url, end_url = edited_url, image_url
+    print(f"\n[start frame] {start_url}")
+    print(f"[end   frame] {end_url}")
+
+    video_url = step3_animate(start_url, end_url, prompts["video_prompt"])
     video_local = run_dir / "3_video.mp4"
     download_file(video_url, str(video_local))
     print(f"      → 저장: {video_local}")
@@ -206,14 +261,24 @@ def main():
     meta = {
         "timestamp": ts,
         "input_image": INPUT_IMAGE_PATH,
-        "instruction_prompt": INSTRUCTION_PROMPT,
-        "video_prompt": VIDEO_PROMPT,
+        "simulation": SIMULATION,
+        "focus": resolved_focus,
+        "focus_setting": FOCUS,                  # None이면 자동 선택, 문자열이면 수동
+        "focus_source": "auto" if FOCUS is None else "manual",
+        "background": BACKGROUND,
+        "user_hint": USER_HINT,
+        "frame_strategy": prompts["frame_strategy"],
+        "instruction_prompt": prompts["instruction_prompt"],
+        "video_prompt": prompts["video_prompt"],
         "video_duration": VIDEO_DURATION,
         "i2i_model": ENDPOINT_EDIT,
         "i2v_model": ENDPOINT_I2V,
+        "loaded_analysis": loaded_analysis,      # 자동 모드일 때 로드한 분석 결과 (수동이면 None)
         "urls": {
-            "uploaded_image_start": image_url,
-            "end_frame": end_frame_url,
+            "input": image_url,
+            "keyframe": edited_url,
+            "start_frame": start_url,
+            "end_frame": end_url,
             "video": video_url,
         },
     }
@@ -224,10 +289,10 @@ def main():
     print("\n" + "=" * 60)
     print(f"완료 — 모든 결과물이 {run_dir}/ 에 저장됨")
     print("=" * 60)
-    print(f"  1_input.jpg         (원본 = 영상 START 프레임)")
-    print(f"  2_end_frame.jpg     (nano-banana-pro 편집 = 영상 END 프레임)")
-    print(f"  3_video.mp4         (Veo 3.1 first-last-frame으로 START → END 보간)")
-    print(f"  metadata.json       (URL/프롬프트 기록)")
+    print(f"  1_input.jpg         (원본 이미지)")
+    print(f"  2_keyframe.jpg      (nano-banana-pro/edit 키프레임)")
+    print(f"  3_video.mp4         (Veo 3.1 first-last-frame 영상)")
+    print(f"  metadata.json       (선택값 + 프롬프트 + URL 기록)")
     print("=" * 60)
 
 
