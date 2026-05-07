@@ -129,10 +129,17 @@ export default function CreateVideoPage() {
         />
       </Section>
 
-      <Button size="lg" fullWidth onClick={handleCreate}>
-        <Sparkles className="h-4 w-4" />
-        영상 생성하기 (1 젬)
-      </Button>
+      {/*
+        '영상 생성하기' CTA — sticky 로 main 스크롤 컨테이너 하단에 고정.
+        모바일에선 BottomNav 가 main 의 sibling 이라 sticky bottom-0 가
+        자연스럽게 BottomNav 바로 위 위치에 멈춤. 데스크톱은 viewport 하단.
+      */}
+      <div className="sticky bottom-0 -mx-5 mt-2 border-t border-gray-100 bg-white/95 px-5 py-3 backdrop-blur">
+        <Button size="lg" fullWidth onClick={handleCreate}>
+          <Sparkles className="h-4 w-4" />
+          영상 생성하기 (1 젬)
+        </Button>
+      </div>
     </div>
   )
 }

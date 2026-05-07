@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Play, RotateCw } from 'lucide-react'
+import { Loader2, Play } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Badge from '@/shared/components/Badge'
+import { extractErrorMessage } from '@/shared/lib/errors'
 import {
   listRobustnessHistory,
   type RobustnessHistoryItem,
@@ -37,7 +38,6 @@ export default function RobustnessTest() {
   const [items, setItems] = useState<RobustnessHistoryItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState<number>(0)
 
   useEffect(() => {
     let cancelled = false
@@ -53,10 +53,7 @@ export default function RobustnessTest() {
       .catch((err) => {
         console.error('[GET /robustness/history] error:', err)
         if (cancelled) return
-        setError(
-          err?.response?.data?.message ??
-            '테스트 이력을 불러오지 못했습니다.',
-        )
+        setError(extractErrorMessage(err, '테스트 이력을 불러오지 못했습니다.'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -65,13 +62,12 @@ export default function RobustnessTest() {
     return () => {
       cancelled = true
     }
-  }, [reloadKey])
+  }, [])
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="강건성 테스트"
-        description="포렌식 워터마킹을 위한 편집 강건성 분석."
         actions={
           <button
             type="button"
@@ -84,44 +80,26 @@ export default function RobustnessTest() {
         }
       />
 
-      <div className="rounded-2xl bg-white shadow-sm">
-        <div className="flex items-center justify-between px-6 pt-5 pb-4">
-          <h2 className="text-base font-bold text-gray-900">테스트 실행 내역</h2>
-          <div className="flex items-center gap-3 text-sm text-gray-600">
-            {loading && (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
-                불러오는 중...
-              </span>
-            )}
-            {!loading && !error && (
-              <span>
-                총 <strong className="text-gray-900">{items.length}</strong>건
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setReloadKey((k) => k + 1)}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-sm font-medium text-brand-500 transition hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RotateCw
-                className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
-              />
-              목록 업데이트
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="border-y border-rose-200 bg-rose-50 px-6 py-3 text-sm text-rose-700">
-            {error}
-          </div>
+      {/* 상태 표시 */}
+      <div className="flex items-center gap-3 text-sm text-gray-600">
+        {loading && (
+          <span className="inline-flex items-center gap-1.5">
+            <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+            불러오는 중...
+          </span>
         )}
+        {!loading && !error && (
+          <span>
+            총 <strong className="text-gray-900">{items.length}</strong>건
+          </span>
+        )}
+        {error && <span className="text-rose-600">{error}</span>}
+      </div>
 
+      <div className="rounded-2xl bg-white shadow-sm">
         <table className="w-full">
           <thead>
-            <tr className="border-y border-gray-100 bg-gray-50/40 text-left">
+            <tr className="border-b border-gray-100 bg-gray-50/40 text-left">
               {columns.map((col) => (
                 <th
                   key={col.label}

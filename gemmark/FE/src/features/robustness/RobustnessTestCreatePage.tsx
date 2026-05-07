@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronsUpDown, Loader2, Play } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
+import { extractErrorMessage } from '@/shared/lib/errors'
 import {
   listRobustnessVideos,
   runRobustnessTest,
@@ -61,8 +62,7 @@ export default function RobustnessTestCreatePage() {
           console.error('[GET /robustness] error:', err)
           if (cancelled) return
           setError(
-            err?.response?.data?.message ??
-              '영상 목록을 불러오지 못했습니다.',
+            extractErrorMessage(err, '영상 목록을 불러오지 못했습니다.'),
           )
           setVideos([])
           setTotal(null)
