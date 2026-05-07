@@ -33,6 +33,20 @@ spring:
     redis:
       url: ${SPRING_DATA_REDIS_URL:redis://localhost:6379/1}
 
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    virtual-host: ${SPRING_RABBITMQ_VHOST:/}
+
+app-mq:
+  exchange: ${MQ_EXCHANGE:gemcafe.exchange}
+  queue:
+    video-generate: ${MQ_QUEUE_VIDEO_GENERATE:gemcafe.video.generate}
+  routing-key:
+    video-generate: ${MQ_ROUTING_VIDEO_GENERATE:gemcafe.video.generate}
+
 jwt:
   secret: ${JWT_SECRET:CHANGE_ME_IN_PROD_min_32_chars_required_for_HS256}
   access-expire-minutes: ${JWT_ACCESS_EXPIRE_MINUTES:60}
