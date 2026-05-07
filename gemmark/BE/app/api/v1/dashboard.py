@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.security import verify_token
-from app.schemas.dashboard import DashboardSummaryResponse
-from app.services.dashboard_service import get_dashboard_summary
+from app.schemas.dashboard import DashboardSummaryResponse, PsnrDistributionResponse
+from app.services.dashboard_service import get_dashboard_summary, get_psnr_distribution
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -20,3 +20,16 @@ async def get_dashboard_summary_endpoint(
 ) -> DashboardSummaryResponse:
     data = await get_dashboard_summary(db)
     return DashboardSummaryResponse(data=data)
+
+
+@router.get(
+    "/psnr-distribution",
+    response_model=PsnrDistributionResponse,
+    summary="PSNR 분포별 영상 수 조회",
+)
+async def get_psnr_distribution_endpoint(
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> PsnrDistributionResponse:
+    data = await get_psnr_distribution(db)
+    return PsnrDistributionResponse(data=data)

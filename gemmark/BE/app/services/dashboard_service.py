@@ -1,4 +1,4 @@
-from sqlalchemy import desc, func, select
+from sqlalchemy import case, desc, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.robustness import (
@@ -8,10 +8,22 @@ from app.models.robustness import (
     RobustnessTestVideo,
 )
 from app.models.video import VideoWatermarked
-from app.schemas.dashboard import DashboardSummaryData
+from app.schemas.dashboard import (
+    DashboardSummaryData,
+    PsnrDistributionBin,
+    PsnrDistributionData,
+)
 
 
 _RECENT_PROCESSING_LIMIT = 50
+
+_PSNR_BIN_DEFS: list[tuple[str, float, float | None]] = [
+    ("0~10", 0.0, 10.0),
+    ("10~20", 10.0, 20.0),
+    ("20~30", 20.0, 30.0),
+    ("30~40", 30.0, 40.0),
+    ("40이상", 40.0, None),
+]
 
 
 async def get_dashboard_summary(db: AsyncSession) -> DashboardSummaryData:
@@ -65,3 +77,66 @@ async def get_dashboard_summary(db: AsyncSession) -> DashboardSummaryData:
         avgBer=avg_ber,
         avgPsnr=avg_psnr,
     )
+
+
+async def get_psnr_distribution(db: AsyncSession) -> PsnrDistributionData:
+    row_number_col = (
+        func.row_number()
+        .over(
+            partition_by=RobustnessTestVideo.video_watermarked_id,
+            order_by=(desc(RobustnessTest.created_at), desc(RobustnessTestVideo.id)),
+        )
+        .label("rn")
+    )
+
+    latest_per_video = (
+        select(
+            RobustnessTestVideo.avg_psnr.label("avg_psnr"),
+            row_number_col,
+        )
+        .join(
+            RobustnessTest,
+            RobustnessTest.id == RobustnessTestVideo.robustness_test_id,
+        )
+        .join(
+            VideoWatermarked,
+            VideoWatermarked.id == RobustnessTestVideo.video_watermarked_id,
+        )
+        .where(
+            RobustnessTest.status == RobustnessTestStatus.COMPLETED,
+            VideoWatermarked.deleted_at.is_(None),
+        )
+        .subquery()
+    )
+
+    latest_psnr = latest_per_video.c.avg_psnr
+    bucket_col = case(
+        (latest_psnr < 10, literal("0~10")),
+        (latest_psnr < 20, literal("10~20")),
+        (latest_psnr < 30, literal("20~30")),
+        (latest_psnr < 40, literal("30~40")),
+        else_=literal("40이상"),
+    ).label("bucket")
+
+    distribution_stmt = (
+        select(bucket_col, func.count().label("cnt"))
+        .select_from(latest_per_video)
+        .where(latest_per_video.c.rn == 1)
+        .group_by(bucket_col)
+    )
+
+    rows = (await db.execute(distribution_stmt)).all()
+    counts_by_label: dict[str, int] = {row.bucket: int(row.cnt) for row in rows}
+
+    bins = [
+        PsnrDistributionBin(
+            label=label,
+            min=lo,
+            max=hi,
+            count=counts_by_label.get(label, 0),
+        )
+        for label, lo, hi in _PSNR_BIN_DEFS
+    ]
+    total_videos = sum(b.count for b in bins)
+
+    return PsnrDistributionData(bins=bins, totalVideos=total_videos)
