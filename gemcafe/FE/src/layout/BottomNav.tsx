@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { Home, PlusCircle, Video, User } from 'lucide-react'
+import { Home, PlusCircle, Scissors, Video, User } from 'lucide-react'
 
 const tabs = [
   { to: '/', label: '홈', icon: Home, end: true },
   { to: '/create', label: '생성하기', icon: PlusCircle },
+  { to: '/editor', label: '편집', icon: Scissors },
   { to: '/videos', label: '내 영상', icon: Video },
   { to: '/me', label: '마이페이지', icon: User },
 ]

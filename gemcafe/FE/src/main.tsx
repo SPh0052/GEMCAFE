@@ -6,7 +6,7 @@ import '@/index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter basename="/dev/gemcafe">
+    <BrowserRouter basename={import.meta.env.BASE_URL || "/dev/gemcafe"}>
       <App />
     </BrowserRouter>
   </StrictMode>,
