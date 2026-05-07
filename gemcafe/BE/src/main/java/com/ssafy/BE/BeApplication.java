@@ -12,7 +12,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @OpenAPIDefinition(
 		info = @Info(title = "gemcafe API", version = "v1", description = "gemcafe 백엔드 API 문서"),
 		servers = {
-				@Server(url = "/", description = "current"),
+				@Server(url = "https://k14s307.p.ssafy.io/dev/be/gemcafe", description = "dev (배포)"),
+				@Server(url = "http://localhost:8002", description = "local"),
 		},
 		security = @SecurityRequirement(name = "bearerAuth")
 )
