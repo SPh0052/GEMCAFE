@@ -5,5 +5,6 @@ venv/
 .env
 _tmp_*.png
 outputs/
+uploads/
 output_test.mp4
 test_*.jpg
