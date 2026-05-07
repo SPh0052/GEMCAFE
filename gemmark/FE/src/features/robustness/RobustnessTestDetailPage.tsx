@@ -15,6 +15,7 @@ import {
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
+import { extractErrorMessage } from '@/shared/lib/errors'
 import TestSummaryReportTemplate, {
   type FailedVideoEntry,
   type TestSummaryReportData,
@@ -54,8 +55,7 @@ export default function RobustnessTestDetailPage() {
         console.error('[GET /robustness/tests/{id}] error:', err)
         if (cancelled) return
         setError(
-          err?.response?.data?.message ??
-            '테스트 상세 정보를 불러오지 못했습니다.',
+          extractErrorMessage(err, '테스트 상세 정보를 불러오지 못했습니다.'),
         )
       })
       .finally(() => {

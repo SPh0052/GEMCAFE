@@ -6,7 +6,7 @@ import VideoListTable, {
   type VideoRow,
 } from '@/shared/components/VideoListTable'
 import Pagination from '@/shared/components/Pagination'
-import SearchInput from '@/shared/components/SearchInput'
+import { extractErrorMessage } from '@/shared/lib/errors'
 import { listVideos, type VideoListItem } from './api'
 
 const PAGE_SIZE = 20
@@ -17,7 +17,6 @@ export default function WatermarkInsert() {
 
   // URL을 단일 진실 원천(single source of truth)으로 사용
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1)
-  const q = searchParams.get('q') ?? ''
 
   const [rows, setRows] = useState<VideoRow[]>([])
   const [total, setTotal] = useState<number>(0)
@@ -29,7 +28,7 @@ export default function WatermarkInsert() {
     setLoading(true)
     setError(null)
 
-    listVideos({ page, size: PAGE_SIZE, q })
+    listVideos({ page, size: PAGE_SIZE })
       .then((res) => {
         console.log('[GET /videos] response:', res)
         if (cancelled) return
@@ -39,10 +38,7 @@ export default function WatermarkInsert() {
       .catch((err) => {
         console.error('[GET /videos] error:', err)
         if (cancelled) return
-        setError(
-          err?.response?.data?.message ??
-            '영상 목록을 불러오지 못했습니다.',
-        )
+        setError(extractErrorMessage(err, '영상 목록을 불러오지 못했습니다.'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -51,34 +47,18 @@ export default function WatermarkInsert() {
     return () => {
       cancelled = true
     }
-  }, [page, q])
+  }, [page])
 
-  // URL 헬퍼 — page/q 변경 시 다른 파라미터는 보존
-  const updateParams = (next: { page?: number; q?: string }) => {
+  const handlePageChange = (newPage: number) => {
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev)
-        if (next.page !== undefined) {
-          if (next.page === 1) params.delete('page')
-          else params.set('page', String(next.page))
-        }
-        if (next.q !== undefined) {
-          if (!next.q) params.delete('q')
-          else params.set('q', next.q)
-        }
+        if (newPage === 1) params.delete('page')
+        else params.set('page', String(newPage))
         return params
       },
       { replace: false },
     )
-  }
-
-  const handleSearchChange = (newQ: string) => {
-    // 검색어 바뀌면 page=1 로 리셋
-    updateParams({ q: newQ, page: 1 })
-  }
-
-  const handlePageChange = (newPage: number) => {
-    updateParams({ page: newPage })
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -98,35 +78,20 @@ export default function WatermarkInsert() {
         }
       />
 
-      {/* 검색 + 상태 */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SearchInput
-          value={q}
-          onChange={handleSearchChange}
-          placeholder="파일명으로 검색"
-          className="w-full sm:w-80"
-        />
-
-        <div className="text-sm text-gray-600">
-          {loading && (
-            <span className="inline-flex items-center gap-1.5">
-              <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
-              불러오는 중...
-            </span>
-          )}
-          {!loading && !error && (
-            <span>
-              총 <strong className="text-gray-900">{total}</strong>건
-              {q && (
-                <>
-                  {' · 검색어 '}
-                  <span className="font-medium text-brand-600">"{q}"</span>
-                </>
-              )}
-            </span>
-          )}
-          {error && <span className="text-rose-600">{error}</span>}
-        </div>
+      {/* 상태 표시 */}
+      <div className="flex items-center gap-3 text-sm text-gray-600">
+        {loading && (
+          <span className="inline-flex items-center gap-1.5">
+            <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+            불러오는 중...
+          </span>
+        )}
+        {!loading && !error && (
+          <span>
+            총 <strong className="text-gray-900">{total}</strong>건
+          </span>
+        )}
+        {error && <span className="text-rose-600">{error}</span>}
       </div>
 
       <VideoListTable

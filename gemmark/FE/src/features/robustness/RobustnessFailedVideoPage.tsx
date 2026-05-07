@@ -20,6 +20,7 @@ import {
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
+import { extractErrorMessage } from '@/shared/lib/errors'
 import RadarChart from './components/RadarChart'
 import {
   getRobustnessVideoAttacks,
@@ -28,6 +29,13 @@ import {
   type RobustnessVideoAttacks,
   type RobustnessVideoInfo,
 } from './api'
+
+/** BE 가 testPassed 필드로 내려줄 수 있는 "통과" 의미 enum 값들. */
+const PASSED_VALUES: ReadonlySet<string> = new Set([
+  'SUCCESS',
+  'PASS',
+  'PASSED',
+])
 
 export default function RobustnessFailedVideoPage() {
   const { id, videoId } = useParams<{ id: string; videoId: string }>()
@@ -65,8 +73,7 @@ export default function RobustnessFailedVideoPage() {
         console.error('[failed video detail] error:', err)
         if (cancelled) return
         setError(
-          err?.response?.data?.message ??
-            '영상 상세 정보를 불러오지 못했습니다.',
+          extractErrorMessage(err, '영상 상세 정보를 불러오지 못했습니다.'),
         )
       })
       .finally(() => {
@@ -340,12 +347,8 @@ function AttackDetailsTable({
 /* ───── 헬퍼 ───── */
 
 function isTestPassed(testPassed: string): boolean {
-  const v = (testPassed ?? '').toUpperCase()
-  return v === 'SUCCESS' || v === 'PASS' || v === 'PASSED'
+  return PASSED_VALUES.has((testPassed ?? '').toUpperCase())
 }
-
-/** BE 가 'SUCCESS'/'FAILED' 등 enum 줘서 화면 표시. 통과 여부는 isTestPassed 로 분리 판정. */
-// (현재는 isTestPassed 직접 사용 — 별도 라벨 함수 불필요)
 
 /** BER 값 기준으로 통과/경고/실패 판정. */
 function attackStatus(
