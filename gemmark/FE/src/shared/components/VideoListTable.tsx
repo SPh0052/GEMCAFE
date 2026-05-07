@@ -1,8 +1,10 @@
-import { ChevronsUpDown, RotateCw } from 'lucide-react'
+import { ChevronsUpDown } from 'lucide-react'
 import Thumbnail from './Thumbnail'
 
 export interface VideoRow {
   no: number
+  /** 백엔드 식별자 (예: contentUuid). 상세 이동에 사용. 없으면 no가 fallback. */
+  uuid?: string
   name: string
   createdAt: string
   type: string
@@ -27,32 +29,19 @@ const columns: { key: keyof VideoRow; label: string; sub: string }[] = [
 ]
 
 interface Props {
-  title?: string
   rows?: VideoRow[]
   onRowClick?: (row: VideoRow) => void
 }
 
 export default function VideoListTable({
-  title = '워터마크 삽입',
   rows = mockVideos,
   onRowClick,
 }: Props) {
   return (
     <div className="rounded-2xl bg-white shadow-sm">
-      <div className="flex items-center justify-between px-6 pt-5 pb-4">
-        <h2 className="text-base font-bold text-gray-900">{title}</h2>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-sm font-medium text-brand-500 hover:underline"
-        >
-          <RotateCw className="h-3.5 w-3.5" />
-          목록 업데이트
-        </button>
-      </div>
-
       <table className="w-full">
         <thead>
-          <tr className="border-y border-gray-100 bg-gray-50/40 text-left">
+          <tr className="border-b border-gray-100 bg-gray-50/40 text-left">
             {columns.map((col) => (
               <th key={col.key} className="px-6 py-3.5">
                 <button
@@ -95,4 +84,3 @@ export default function VideoListTable({
     </div>
   )
 }
-

@@ -1,44 +1,70 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, Loader2, RotateCw } from 'lucide-react'
+import { Download, Loader2 } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Card from '@/shared/components/Card'
 import Badge from '@/shared/components/Badge'
 import Thumbnail from '@/shared/components/Thumbnail'
-import { downloadWatermarkedVideo, triggerBrowserDownload } from './api'
+import {
+  downloadWatermarkedVideo,
+  getVideoDetail,
+  triggerBrowserDownload,
+  type VideoDetail,
+} from './api'
 
 export default function WatermarkInsertDetailPage() {
-  // URL의 :id를 videoId로 사용 (실제 앱에선 별도 조회 필요)
+  // URL의 :id가 곧 백엔드 path의 {uuid} (목록 응답의 item.id 값)
   const { id } = useParams<{ id: string }>()
-  const videoId = id ?? ''
+  const uuid = id ?? ''
+
+  const [detail, setDetail] = useState<VideoDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
 
-  const result = {
-    fileName: 'sample_video_001.mp4',
-    status: '성공' as const,
-    processingTime: '4.82초',
-    fps: '28.4 FPS',
-    psnr: '44.2 dB',
-    psnrNote: '열화 없음',
-    payload: {
-      bits: 144,
-      businessId: 'gemgem (0x01)',
-      uuid: 'a3f2e9c1-b847-4d21-9f3a',
-      timestamp: '2026-04-15 14:32:17',
-      hex: 'E8B7B503',
-    },
-  }
+  useEffect(() => {
+    if (!uuid) {
+      setError('잘못된 접근입니다. 영상 ID가 없습니다.')
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    getVideoDetail(uuid)
+      .then((res) => {
+        console.log('[GET /videos/{uuid}] response:', res)
+        if (cancelled) return
+        setDetail(res)
+      })
+      .catch((err) => {
+        console.error('[GET /videos/{uuid}] error:', err)
+        if (cancelled) return
+        setError(
+          err?.response?.data?.message ??
+            '영상 상세 정보를 불러오지 못했습니다.',
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [uuid])
 
   const handleDownload = async () => {
-    if (!videoId) {
-      alert('videoId 정보가 없습니다.')
+    if (!uuid) {
+      alert('영상 ID 정보가 없습니다.')
       return
     }
     setDownloading(true)
     try {
-      const blob = await downloadWatermarkedVideo(videoId)
-      const baseName = result.fileName.replace(/\.[^.]+$/, '')
-      const ext = result.fileName.match(/\.[^.]+$/)?.[0] ?? '.mp4'
+      const blob = await downloadWatermarkedVideo(uuid)
+      const baseName = (detail?.name ?? 'video').replace(/\.[^.]+$/, '')
+      const ext = detail?.name?.match(/\.[^.]+$/)?.[0] ?? '.mp4'
       triggerBrowserDownload(blob, `${baseName}_watermarked${ext}`)
     } catch (err) {
       console.error('다운로드 실패', err)
@@ -52,30 +78,33 @@ export default function WatermarkInsertDetailPage() {
     <div className="space-y-6">
       <PageHeader title="워터마크 삽입 내역" backTo="/insert" />
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-gray-700">
-            생성된 영상 목록
-          </h2>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-sm font-medium text-brand-500 hover:underline"
-          >
-            <RotateCw className="h-3.5 w-3.5" />
-            목록 업데이트
-          </button>
-        </div>
+      {loading && (
+        <Card className="flex flex-col items-center justify-center gap-3 py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
+          <p className="text-sm text-gray-500">상세 정보를 불러오는 중...</p>
+        </Card>
+      )}
 
+      {!loading && error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && detail && (
         <Card className="p-0">
           {/* 결과 헤더 */}
           <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
             <div className="flex min-w-0 items-center gap-3">
-              <Thumbnail className="h-32 w-48" />
+              <Thumbnail
+                src={detail.thumbnailUrl ?? undefined}
+                className="h-32 w-48"
+              />
               <h3 className="truncate text-base font-bold text-gray-900">
-                삽입 결과 — {result.fileName}
+                삽입 결과 — {detail.name}
               </h3>
             </div>
-            <Badge tone="success">{result.status}</Badge>
+            <Badge tone="success">성공</Badge>
           </div>
 
           {/* 핵심 메트릭 2개 */}
@@ -83,17 +112,27 @@ export default function WatermarkInsertDetailPage() {
             <div>
               <div className="text-xs text-gray-500">처리 시간</div>
               <div className="mt-1 text-2xl font-bold text-gray-900">
-                {result.processingTime}
+                {detail.processingTime.toFixed(2)}초
               </div>
-              <div className="mt-0.5 text-xs text-gray-400">{result.fps}</div>
+              <div className="mt-0.5 text-xs text-gray-400">
+                {detail.processingFps.toFixed(1)} FPS
+              </div>
             </div>
             <div>
               <div className="text-xs text-gray-500">삽입 PSNR (화질 열화)</div>
               <div className="mt-1 text-2xl font-bold text-gray-900">
-                {result.psnr}
+                {detail.embedPsnr.toFixed(1)} dB
               </div>
-              <div className="mt-0.5 text-xs font-medium text-emerald-600">
-                {result.psnrNote}
+              <div
+                className={`mt-0.5 text-xs font-medium ${
+                  detail.embedPsnr >= 40
+                    ? 'text-emerald-600'
+                    : detail.embedPsnr >= 30
+                      ? 'text-amber-600'
+                      : 'text-rose-600'
+                }`}
+              >
+                {psnrNote(detail.embedPsnr)}
               </div>
             </div>
           </div>
@@ -101,15 +140,19 @@ export default function WatermarkInsertDetailPage() {
           {/* 페이로드 섹션 */}
           <div className="border-t border-gray-100 px-6 pt-4 pb-1">
             <div className="text-sm font-semibold text-gray-700">
-              삽입된 페이로드 ({result.payload.bits} bit)
+              삽입된 페이로드 ({detail.payloadBits} bit)
             </div>
           </div>
 
           <dl className="px-6">
-            <Row label="사업자 ID" value={result.payload.businessId} />
-            <Row label="콘텐츠 UUID" value={result.payload.uuid} mono />
-            <Row label="생성 타임스탬프" value={result.payload.timestamp} mono />
-            <Row label="워터마크 HEX" value={result.payload.hex} mono />
+            <Row label="사업자 ID" value={detail.businessId} />
+            <Row label="콘텐츠 UUID" value={detail.contentUuid} mono />
+            <Row
+              label="생성 타임스탬프"
+              value={formatDateTime(detail.createdAt)}
+              mono
+            />
+            <Row label="워터마크 HEX" value={detail.watermarkHex} mono />
           </dl>
 
           {/* 다운로드 버튼 */}
@@ -129,7 +172,7 @@ export default function WatermarkInsertDetailPage() {
             </button>
           </div>
         </Card>
-      </section>
+      )}
     </div>
   )
 }
@@ -153,4 +196,27 @@ function Row({
       </dd>
     </div>
   )
+}
+
+function psnrNote(psnr: number): string {
+  if (psnr >= 40) return '열화 없음'
+  if (psnr >= 30) return '열화 미세'
+  return '열화 큼'
+}
+
+function formatDateTime(iso: string): string {
+  if (!iso) return '-'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return iso
+  }
 }

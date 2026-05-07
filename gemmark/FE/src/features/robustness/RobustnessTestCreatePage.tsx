@@ -1,86 +1,102 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Check, ChevronsUpDown, Play } from 'lucide-react'
+import { ChevronsUpDown, Loader2, Play } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
+import { extractErrorMessage } from '@/shared/lib/errors'
+import {
+  listRobustnessVideos,
+  runRobustnessTest,
+  type RobustnessVideoItem,
+} from './api'
 
-interface VideoItem {
-  id: string
-  fileName: string
-  createdAt: string
-  size: string
-  format: 'MP4' | 'MOV'
-  lastTestResult: '성공' | '실패' | null
+const columns: { label: string }[] = [
+  { label: '영상 파일명' },
+  { label: '생성 일자' },
+  { label: '크기' },
+  { label: '형식' },
+]
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10)
 }
 
-const mockVideos: VideoItem[] = [
-  { id: 'v001', fileName: 'video_001.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v002', fileName: 'video_002.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v003', fileName: 'video_003.mov', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MOV', lastTestResult: '성공' },
-  { id: 'v004', fileName: 'video_004.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v005', fileName: 'video_005.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v006', fileName: 'video_006.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v007', fileName: 'video_007.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v008', fileName: 'video_008.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v009', fileName: 'video_009.mov', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MOV', lastTestResult: '성공' },
-  { id: 'v010', fileName: 'video_010.mp4', createdAt: '2024.03.15 11:00', size: '120MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v011', fileName: 'video_011.mov', createdAt: '2024.03.16 09:30', size: '95MB', format: 'MOV', lastTestResult: '성공' },
-  { id: 'v012', fileName: 'video_012.mp4', createdAt: '2024.03.16 09:31', size: '210MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v013', fileName: 'video_013.mp4', createdAt: '2024.03.16 09:32', size: '180MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v014', fileName: 'video_014.mov', createdAt: '2024.03.16 10:05', size: '305MB', format: 'MOV', lastTestResult: '성공' },
-  { id: 'v015', fileName: 'video_015.mp4', createdAt: '2024.03.16 10:06', size: '155MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v016', fileName: 'video_016.mp4', createdAt: '2024.03.17 13:12', size: '142MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v017', fileName: 'video_017.mp4', createdAt: '2024.03.17 13:14', size: '165MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v018', fileName: 'video_018.mp4', createdAt: '2024.03.17 13:15', size: '198MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v019', fileName: 'video_019.mov', createdAt: '2024.03.17 13:16', size: '275MB', format: 'MOV', lastTestResult: '성공' },
-  { id: 'v020', fileName: 'video_020.mp4', createdAt: '2024.03.17 13:18', size: '150MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v021', fileName: 'video_021.mp4', createdAt: '2024.03.18 09:00', size: '125MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v022', fileName: 'video_022.mp4', createdAt: '2024.03.18 09:02', size: '130MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v023', fileName: 'video_023.mp4', createdAt: '2024.03.18 09:05', size: '140MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v024', fileName: 'video_024.mp4', createdAt: '2024.03.18 09:10', size: '145MB', format: 'MP4', lastTestResult: '성공' },
-  { id: 'v025', fileName: 'video_025.mp4', createdAt: '2024.03.18 09:12', size: '160MB', format: 'MP4', lastTestResult: '성공' },
-]
-
-const columns: { key: keyof VideoItem; label: string }[] = [
-  { key: 'fileName', label: '영상 파일명' },
-  { key: 'createdAt', label: '생성 일자' },
-  { key: 'size', label: '크기' },
-  { key: 'format', label: '형식' },
-  { key: 'lastTestResult', label: '마지막 테스트 결과' },
-]
+function daysAgoISO(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  return d.toISOString().slice(0, 10)
+}
 
 export default function RobustnessTestCreatePage() {
   const navigate = useNavigate()
-  const [startAt, setStartAt] = useState('2024-03-14T09:00')
-  const [endAt, setEndAt] = useState('2024-03-18T16:30')
-  const [videos] = useState<VideoItem[]>(mockVideos)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const allSelected = useMemo(
-    () => videos.length > 0 && selectedIds.size === videos.length,
-    [videos, selectedIds],
-  )
+  // 기본값: 최근 30일
+  const [startAt, setStartAt] = useState<string>(() => daysAgoISO(30))
+  const [endAt, setEndAt] = useState<string>(() => todayISO())
 
-  const toggleAll = () => {
-    if (allSelected) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(videos.map((v) => v.id)))
+  const [videos, setVideos] = useState<RobustnessVideoItem[]>([])
+  const [total, setTotal] = useState<number | null>(null)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [startError, setStartError] = useState<string | null>(null)
+
+  // 기간 변경 시 자동으로 필터링된 목록 재조회 (300ms 디바운스)
+  useEffect(() => {
+    let cancelled = false
+    const t = setTimeout(() => {
+      setLoading(true)
+      setError(null)
+      listRobustnessVideos({
+        page: 1,
+        size: 20,
+        startDate: startAt || undefined,
+        endDate: endAt || undefined,
+      })
+        .then((res) => {
+          console.log('[GET /robustness] response:', res)
+          if (cancelled) return
+          setVideos(res.items)
+          setTotal(res.total)
+        })
+        .catch((err) => {
+          console.error('[GET /robustness] error:', err)
+          if (cancelled) return
+          setError(
+            extractErrorMessage(err, '영상 목록을 불러오지 못했습니다.'),
+          )
+          setVideos([])
+          setTotal(null)
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+    }, 300)
+
+    return () => {
+      cancelled = true
+      clearTimeout(t)
     }
-  }
-
-  const toggleOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+  }, [startAt, endAt])
 
   const handleStart = () => {
-    if (selectedIds.size === 0) return
-    // TODO: 실제 강건성 테스트 시작 API 연결 — 새 testId를 백엔드에서 받아서 이동
-    navigate('/robustness/T-2024-006')
+    if (!startAt || !endAt) {
+      setStartError('테스트 기간을 모두 선택해주세요.')
+      return
+    }
+    if (videos.length === 0) {
+      setStartError('해당 기간에 테스트할 영상이 없습니다.')
+      return
+    }
+    setStartError(null)
+
+    // Fire-and-forget — BE 가 테스트를 백그라운드에서 처리하므로 응답을 기다리지 않음.
+    // 사용자는 즉시 목록 페이지로 이동, 새 테스트가 이력 상단에 표시됨.
+    // (응답/에러는 콘솔에만 남김 — 필요시 토스트 시스템 추가 검토)
+    runRobustnessTest({ startDate: startAt, endDate: endAt })
+      .then((res) => console.log('[POST /robustness/run] response:', res))
+      .catch((err) => console.error('[POST /robustness/run] error:', err))
+
+    navigate('/robustness')
   }
 
   return (
@@ -91,25 +107,22 @@ export default function RobustnessTestCreatePage() {
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-medium text-gray-700">테스트 기간 설정</span>
         <input
-          type="datetime-local"
+          type="date"
           value={startAt}
           onChange={(e) => setStartAt(e.target.value)}
           className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-brand-500 focus:outline-none"
         />
         <span className="text-gray-400">-</span>
-        <div className="relative">
-          <input
-            type="datetime-local"
-            value={endAt}
-            onChange={(e) => setEndAt(e.target.value)}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 pr-9 text-sm text-gray-700 shadow-sm focus:border-brand-500 focus:outline-none"
-          />
-          <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        </div>
+        <input
+          type="date"
+          value={endAt}
+          onChange={(e) => setEndAt(e.target.value)}
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-brand-500 focus:outline-none"
+        />
         <button
           type="button"
           onClick={handleStart}
-          disabled={selectedIds.size === 0}
+          disabled={videos.length === 0 || !startAt || !endAt}
           className="ml-auto inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Play className="h-4 w-4" />
@@ -117,22 +130,37 @@ export default function RobustnessTestCreatePage() {
         </button>
       </div>
 
-      {/* 영상 선택 테이블 */}
+      {/* 테스트 시작 실패 시 에러 */}
+      {startError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {startError}
+        </div>
+      )}
+
+      {/* 디버그 상태 */}
+      <div className="flex items-center gap-3 text-sm text-gray-600">
+        {loading && (
+          <span className="inline-flex items-center gap-1.5">
+            <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+            영상 목록 불러오는 중...
+          </span>
+        )}
+        {!loading && !error && total !== null && (
+          <span>
+            총 <strong className="text-gray-900">{total}</strong>건
+            (이번 페이지 {videos.length}건 표시)
+          </span>
+        )}
+        {error && <span className="text-rose-600">{error}</span>}
+      </div>
+
+      {/* 영상 목록 테이블 */}
       <div className="rounded-2xl bg-white shadow-sm">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/40 text-left">
-              <th className="w-12 px-6 py-3.5">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  aria-label="전체 선택"
-                  className="h-4 w-4 cursor-pointer rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                />
-              </th>
               {columns.map((col) => (
-                <th key={col.key} className="px-6 py-3.5">
+                <th key={col.label} className="px-6 py-3.5">
                   <button
                     type="button"
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-800 transition hover:text-brand-600"
@@ -145,70 +173,61 @@ export default function RobustnessTestCreatePage() {
             </tr>
           </thead>
           <tbody>
-            {videos.map((video) => {
-              const checked = selectedIds.has(video.id)
-              return (
-                <tr
-                  key={video.id}
-                  onClick={() => toggleOne(video.id)}
-                  className="cursor-pointer border-b border-gray-100 last:border-b-0 transition hover:bg-gray-50/60"
+            {!loading && videos.length === 0 && (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-6 py-10 text-center text-sm text-gray-400"
                 >
-                  <td className="px-6 py-4">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleOne(video.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={`${video.fileName} 선택`}
-                      className="h-4 w-4 cursor-pointer rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                    />
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{video.fileName}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{video.createdAt}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{video.size}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{video.format}</td>
-                  <td className="px-6 py-4">
-                    {video.lastTestResult === '성공' && (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500">
-                          <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                        </span>
-                        성공
-                      </span>
-                    )}
-                    {video.lastTestResult === '실패' && (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-500">
-                          <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                        </span>
-                        실패
-                      </span>
-                    )}
-                    {video.lastTestResult === null && (
-                      <span className="text-sm text-gray-400">—</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
+                  해당 기간에 조회된 영상이 없습니다.
+                </td>
+              </tr>
+            )}
+            {videos.map((video) => (
+              <tr
+                key={video.id}
+                className="border-b border-gray-100 last:border-b-0 transition hover:bg-gray-50/60"
+              >
+                <td className="px-6 py-4 text-sm text-gray-800">{video.name}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {formatDateTime(video.createdAt)}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {formatBytes(video.size)}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {video.type || '-'}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-
-      {/* 하단 액션 바 */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={toggleAll}
-          className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-        >
-          {allSelected ? '선택 해제' : '모두 선택'}
-        </button>
-        <span className="text-sm text-gray-700">
-          선택된 영상 수:{' '}
-          <span className="font-bold text-gray-900">{selectedIds.size}</span>개
-        </span>
-      </div>
     </div>
   )
+}
+
+function formatBytes(bytes?: number): string {
+  if (bytes == null) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+function formatDateTime(iso?: string): string {
+  if (!iso) return '-'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
 }

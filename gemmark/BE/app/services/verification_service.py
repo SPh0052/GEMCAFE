@@ -27,10 +27,10 @@ async def list_verifications(
     page: int,
     size: int,
 ) -> VerificationListData:
-    """본인이 시도한 검증 이력 목록 (최신순)."""
+    """본인이 시도한 검증 이력 목록 (최신순). NOT_DETECTED(vw_id NULL) 행도 포함."""
     base = (
         select(VerificationHistory, VideoWatermarked)
-        .join(
+        .outerjoin(
             VideoWatermarked,
             VerificationHistory.video_watermarked_id == VideoWatermarked.id,
         )
@@ -40,10 +40,6 @@ async def list_verifications(
     total_result = await db.execute(
         select(func.count())
         .select_from(VerificationHistory)
-        .join(
-            VideoWatermarked,
-            VerificationHistory.video_watermarked_id == VideoWatermarked.id,
-        )
         .where(VerificationHistory.admin_id == admin_id)
     )
     total = int(total_result.scalar_one())
@@ -59,11 +55,11 @@ async def list_verifications(
         VerificationListItem(
             id=v.id,
             videoWatermarkedId=v.video_watermarked_id,
-            status=v.status.value if hasattr(v.status, "value") else str(v.status),
-            originalFileName=w.original_file_name,
-            fileSize=w.file_size,
-            durationSec=w.duration_sec,
-            thumbnailUrl=_thumbnail_url(w.thumbnail_name),
+            status=_status_value(v.status),
+            originalFileName=w.original_file_name if w is not None else "",
+            fileSize=w.file_size if w is not None else 0,
+            durationSec=w.duration_sec if w is not None else 0.0,
+            thumbnailUrl=_thumbnail_url(w.thumbnail_name) if w is not None else None,
             createdAt=v.created_at,
         )
         for v, w in rows

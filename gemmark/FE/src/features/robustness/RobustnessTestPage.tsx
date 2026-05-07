@@ -1,100 +1,73 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronsUpDown, Play, RotateCw } from 'lucide-react'
+import { Loader2, Play } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import Badge from '@/shared/components/Badge'
+import { extractErrorMessage } from '@/shared/lib/errors'
+import {
+  listRobustnessHistory,
+  type RobustnessHistoryItem,
+} from './api'
 
-type TestStatus = '완료' | '오류' | '진행중'
-
-interface RobustnessTestRow {
-  id: string
-  startedAt: string
-  endedAt: string | null
-  status: TestStatus
-  totalCount: number
-  successCount: number
-  failureCount: number
-}
-
-const mockTests: RobustnessTestRow[] = [
-  {
-    id: 'T-2024-001',
-    startedAt: '2024.03.14 09:00',
-    endedAt: '2024.03.14 11:30',
-    status: '완료',
-    totalCount: 50,
-    successCount: 48,
-    failureCount: 2,
-  },
-  {
-    id: 'T-2024-002',
-    startedAt: '2024.03.15 13:00',
-    endedAt: '2024.03.15 15:45',
-    status: '완료',
-    totalCount: 75,
-    successCount: 70,
-    failureCount: 5,
-  },
-  {
-    id: 'T-2024-003',
-    startedAt: '2024.03.16 10:15',
-    endedAt: '2024.03.16 13:20',
-    status: '오류',
-    totalCount: 100,
-    successCount: 85,
-    failureCount: 15,
-  },
-  {
-    id: 'T-2024-004',
-    startedAt: '2024.03.17 08:30',
-    endedAt: '2024.03.17 10:50',
-    status: '완료',
-    totalCount: 60,
-    successCount: 45,
-    failureCount: 15,
-  },
-  {
-    id: 'T-2024-005',
-    startedAt: '2024.03.18 14:00',
-    endedAt: '2024.03.18 16:30',
-    status: '완료',
-    totalCount: 40,
-    successCount: 38,
-    failureCount: 2,
-  },
-  {
-    id: 'T-2024-006',
-    startedAt: '2024.03.18 17:00',
-    endedAt: null,
-    status: '진행중',
-    totalCount: 100,
-    successCount: 0,
-    failureCount: 0,
-  },
+const columns: { label: string }[] = [
+  { label: '검색 기간 (시작~종료)' },
+  { label: '실행 시각' },
+  { label: '관리자' },
+  { label: '상태' },
+  { label: '영상 갯수' },
+  { label: '성공' },
+  { label: '실패' },
 ]
 
-const columns: { key: string; label: string }[] = [
-  { key: 'id', label: '테스트 ID' },
-  { key: 'period', label: '지정 일자 (시작~종료)' },
-  { key: 'status', label: '상태' },
-  { key: 'totalCount', label: '영상 갯수' },
-  { key: 'successCount', label: '성공 갯수' },
-  { key: 'failureCount', label: '실패 갯수' },
-]
-
-const statusToneMap: Record<TestStatus, 'success' | 'danger' | 'warning'> = {
-  완료: 'success',
-  오류: 'danger',
-  진행중: 'warning',
+/**
+ * 처리된 영상 수(success + fail)가 전체와 같으면 완료, 아니면 진행 중.
+ * BE 가 별도 status 필드를 안 주므로 카운트 비교로 추론.
+ */
+function deriveStatus(row: RobustnessHistoryItem): {
+  tone: 'success' | 'warning'
+  label: string
+} {
+  const processed = row.successCount + row.failCount
+  return processed === row.totalCount
+    ? { tone: 'success', label: '완료' }
+    : { tone: 'warning', label: '진행 중' }
 }
 
 export default function RobustnessTest() {
   const navigate = useNavigate()
+  const [items, setItems] = useState<RobustnessHistoryItem[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    listRobustnessHistory()
+      .then((res) => {
+        console.log('[GET /robustness/history] response:', res)
+        if (cancelled) return
+        setItems(res)
+      })
+      .catch((err) => {
+        console.error('[GET /robustness/history] error:', err)
+        if (cancelled) return
+        setError(extractErrorMessage(err, '테스트 이력을 불러오지 못했습니다.'))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="강건성 테스트"
-        description="포렌식 워터마킹을 위한 편집 강건성 분석."
         actions={
           <button
             type="button"
@@ -107,61 +80,111 @@ export default function RobustnessTest() {
         }
       />
 
-      <div className="rounded-2xl bg-white shadow-sm">
-        <div className="flex items-center justify-between px-6 pt-5 pb-4">
-          <h2 className="text-base font-bold text-gray-900">테스트 실행 내역</h2>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-sm font-medium text-brand-500 hover:underline"
-          >
-            <RotateCw className="h-3.5 w-3.5" />
-            목록 업데이트
-          </button>
-        </div>
+      {/* 상태 표시 */}
+      <div className="flex items-center gap-3 text-sm text-gray-600">
+        {loading && (
+          <span className="inline-flex items-center gap-1.5">
+            <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+            불러오는 중...
+          </span>
+        )}
+        {!loading && !error && (
+          <span>
+            총 <strong className="text-gray-900">{items.length}</strong>건
+          </span>
+        )}
+        {error && <span className="text-rose-600">{error}</span>}
+      </div>
 
+      <div className="rounded-2xl bg-white shadow-sm">
         <table className="w-full">
           <thead>
-            <tr className="border-y border-gray-100 bg-gray-50/40 text-left">
+            <tr className="border-b border-gray-100 bg-gray-50/40 text-left">
               {columns.map((col) => (
-                <th key={col.key} className="px-6 py-3.5">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-800 transition hover:text-brand-600"
-                  >
-                    <span>{col.label}</span>
-                    <ChevronsUpDown className="h-3 w-3 text-gray-300" />
-                  </button>
+                <th
+                  key={col.label}
+                  className="px-6 py-3.5 text-sm font-semibold text-gray-800"
+                >
+                  {col.label}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {mockTests.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => navigate(`/robustness/${row.id}`)}
-                className="cursor-pointer border-b border-gray-100 transition last:border-b-0 hover:bg-gray-50/60"
-              >
-                <td className="px-6 py-4 text-sm text-gray-700">{row.id}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {row.startedAt} ~{' '}
-                  {row.endedAt ?? (
-                    <span className="font-medium text-amber-600">(진행중)</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <Badge tone={statusToneMap[row.status]}>{row.status}</Badge>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700">{row.totalCount}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{row.successCount}</td>
-                <td className="px-6 py-4 text-sm font-medium text-rose-600">
-                  {row.failureCount}
+            {!loading && items.length === 0 && !error && (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-6 py-12 text-center text-sm text-gray-400"
+                >
+                  강건성 테스트 이력이 없습니다.
                 </td>
               </tr>
-            ))}
+            )}
+            {items.map((row) => {
+              const status = deriveStatus(row)
+              return (
+                <tr
+                  key={row.testId}
+                  onClick={() => navigate(`/robustness/${row.testId}`)}
+                  className="cursor-pointer border-b border-gray-100 transition last:border-b-0 hover:bg-gray-50/60"
+                >
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {formatDate(row.startDate)} ~ {formatDate(row.endDate)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {formatDateTime(row.testDate)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {row.admin}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge tone={status.tone} dot>
+                      {status.label}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {row.totalCount}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-emerald-600">
+                    {row.successCount}
+                  </td>
+                  <td
+                    className={`px-6 py-4 text-sm font-medium ${
+                      row.failCount > 0 ? 'text-rose-600' : 'text-gray-400'
+                    }`}
+                  >
+                    {row.failCount}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
     </div>
   )
+}
+
+/** 'YYYY-MM-DD' → 'YYYY.MM.DD' (날짜만, 시간 없음) */
+function formatDate(ymd?: string): string {
+  if (!ymd) return '-'
+  return ymd.replaceAll('-', '.')
+}
+
+/** ISO datetime → 한국어 로케일 'YYYY.MM.DD HH:mm' */
+function formatDateTime(iso?: string): string {
+  if (!iso) return '-'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
 }

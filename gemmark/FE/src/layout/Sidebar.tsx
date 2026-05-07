@@ -17,7 +17,7 @@ export default function Sidebar() {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white">
       <div className="px-6 pt-6 pb-8">
-        <img src="/logo.png" alt="gem.mark" className="h-12 w-auto" />
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="gem.mark" className="h-12 w-auto" />
       </div>
       <nav className="flex-1 space-y-1 px-4">
         {nav.map((item) => {

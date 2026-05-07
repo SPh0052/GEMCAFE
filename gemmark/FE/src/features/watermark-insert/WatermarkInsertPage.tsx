@@ -1,16 +1,25 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import PageHeader from '@/shared/components/PageHeader'
 import VideoListTable, {
   type VideoRow,
 } from '@/shared/components/VideoListTable'
+import Pagination from '@/shared/components/Pagination'
+import { extractErrorMessage } from '@/shared/lib/errors'
 import { listVideos, type VideoListItem } from './api'
+
+const PAGE_SIZE = 20
 
 export default function WatermarkInsert() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // URL을 단일 진실 원천(single source of truth)으로 사용
+  const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1)
+
   const [rows, setRows] = useState<VideoRow[]>([])
-  const [total, setTotal] = useState<number | null>(null)
+  const [total, setTotal] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,9 +28,8 @@ export default function WatermarkInsert() {
     setLoading(true)
     setError(null)
 
-    listVideos(1, 20)
+    listVideos({ page, size: PAGE_SIZE })
       .then((res) => {
-        // 디버깅용 — 응답 구조 콘솔에서 직접 확인
         console.log('[GET /videos] response:', res)
         if (cancelled) return
         setTotal(res.total)
@@ -30,10 +38,7 @@ export default function WatermarkInsert() {
       .catch((err) => {
         console.error('[GET /videos] error:', err)
         if (cancelled) return
-        setError(
-          err?.response?.data?.message ??
-            '영상 목록을 불러오지 못했습니다.',
-        )
+        setError(extractErrorMessage(err, '영상 목록을 불러오지 못했습니다.'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -42,7 +47,21 @@ export default function WatermarkInsert() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [page])
+
+  const handlePageChange = (newPage: number) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        if (newPage === 1) params.delete('page')
+        else params.set('page', String(newPage))
+        return params
+      },
+      { replace: false },
+    )
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <div className="space-y-6">
@@ -59,18 +78,17 @@ export default function WatermarkInsert() {
         }
       />
 
-      {/* 디버그 상태 표시 — API 응답 확인용 */}
+      {/* 상태 표시 */}
       <div className="flex items-center gap-3 text-sm text-gray-600">
         {loading && (
           <span className="inline-flex items-center gap-1.5">
             <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
-            목록 불러오는 중...
+            불러오는 중...
           </span>
         )}
-        {!loading && !error && total !== null && (
+        {!loading && !error && (
           <span>
             총 <strong className="text-gray-900">{total}</strong>건
-            (이번 페이지 {rows.length}건 표시)
           </span>
         )}
         {error && <span className="text-rose-600">{error}</span>}
@@ -78,8 +96,20 @@ export default function WatermarkInsert() {
 
       <VideoListTable
         rows={rows}
-        onRowClick={(row) => navigate(`/insert/${row.no}`)}
+        onRowClick={(row) => {
+          // contentUuid 가 있으면 그걸로 상세 조회. 없으면 no(=item.id) fallback.
+          const target = row.uuid ?? row.no
+          navigate(`/insert/${target}`)
+        }}
       />
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onChange={handlePageChange}
+        />
+      )}
     </div>
   )
 }
@@ -87,10 +117,12 @@ export default function WatermarkInsert() {
 function toVideoRow(item: VideoListItem): VideoRow {
   return {
     no: item.id,
+    uuid: item.contentUuid,
     name: item.name,
     createdAt: formatDateTime(item.createdAt),
     type: item.type || '-',
     size: formatBytes(item.size),
+    thumbnailUrl: item.thumbnailUrl ?? undefined,
   }
 }
 
