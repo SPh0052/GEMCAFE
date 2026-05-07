@@ -1,18 +1,17 @@
 """
-이미지 + 자연어 지시문 → 5초 영상 파이프라인 (instruction-based).
+이미지 + 시뮬레이션/focus/배경 선택 → 영상 파이프라인 (instruction-based).
 
-흐름:
+흐름 (4단계):
   1) 입력 이미지를 fal.ai 스토리지에 업로드
-  2) nano-banana-pro로 instruction-based 이미지 편집 (END 프레임 생성)
-  3) Veo 3.1 first-last-frame으로 START → END 보간 영상 생성
+  2) (선택) 배경 교체 — BACKGROUND 지정 시 nano-banana-pro/edit으로 배경만 교체
+  3) 시뮬레이션 키프레임 — nano-banana-pro/edit으로 자르기/들어올리기/토핑 적용
+  4) Veo 3.1 first-last-frame으로 START → END 보간 영상 생성
 
 실행:
   1) FAL_KEY 환경변수 설정 (또는 .env 파일에 FAL_KEY=...)
-  2) 아래 INPUT 블록의 변수들을 본인 케이스에 맞게 수정
-  3) python pipeline.py
-
-⚠️ fal.ai endpoint ID와 입력 필드명은 추정치입니다. fal.ai/models에서 확인 후
-   ENDPOINT_* 상수와 step2_edit 함수의 arguments를 갈아끼우세요.
+  2) 'python analyze.py'로 케이크 분석 (FOCUS=None일 때만 필요)
+  3) 아래 입력 블록의 SIMULATION/FOCUS/BACKGROUND 값을 케이스에 맞게 수정
+  4) python pipeline.py
 """
 import json
 import os
@@ -51,8 +50,14 @@ SIMULATION = "cross_section_cut"
 #   "strawberry"      → 수동 지정
 FOCUS = None
 
-# 배경 / 사용자 추가 힌트 (선택)
-BACKGROUND = None       # 예: "wooden table" / "white marble"
+# 배경 (선택). None이면 배경 교체 안 함 — 원본 사진 그대로 유지.
+#   None              → 배경 교체 skip
+#   "white_marble"    → 흰 대리석
+#   "cafe_interior"   → 카페 인테리어
+#   "outdoor"         → 야외
+BACKGROUND = "white_marble"
+
+# 사용자 추가 힌트 (선택). 시뮬레이션 프롬프트 끝에 붙음.
 USER_HINT = None        # 예: "고급스러운 분위기로"
 
 # Veo 3.1 옵션 (duration: "4s"/"6s"/"8s" 만 가능, 문자열)
@@ -127,40 +132,49 @@ def resolve_focus(focus_setting: Optional[str]) -> tuple[str, Optional[dict]]:
     return chosen, analysis
 
 
-def step1_upload(path: str) -> str:
-    print(f"[1/3] 이미지 업로드: {path}")
+def step_upload(path: str) -> str:
+    print(f"[1/4] 이미지 업로드: {path}")
     url = fal_client.upload_file(path)
     print(f"      → {url}")
     return url
 
 
-def step2_edit(image_url: str, instruction: str, system_prompt: str) -> str:
-    """
-    nano-banana-pro/edit로 instruction-based 이미지 편집. 편집된 이미지 URL 반환.
-    """
-    print(f"[2/3] nano-banana-pro/edit 이미지 편집")
+def call_nano_banana_edit(image_url: str, prompt: str, system_prompt: str) -> str:
+    """nano-banana-pro/edit 공통 호출 함수. 편집된 이미지 URL 반환."""
     result = fal_client.subscribe(
         ENDPOINT_EDIT,
         arguments={
-            "prompt": instruction,
+            "prompt": prompt,
             "image_urls": [image_url],
             "system_prompt": system_prompt,
             "aspect_ratio": "auto",          # 입력 이미지 비율 그대로 유지
-            "resolution": "2K",              # 1K / 2K / 4K (해상도 ↑ = 디테일 ↑, 비용 ↑)
+            "resolution": "2K",              # 1K / 2K / 4K
             "output_format": "png",
         },
         with_logs=True,
         on_queue_update=on_queue_update,
     )
-
-    # 응답에서 편집된 이미지 URL 추출
     if not result.get("images"):
         debug_dump = json.dumps(result, indent=2, ensure_ascii=False, default=str)
         raise RuntimeError(f"편집된 이미지 URL을 찾지 못함. 응답: {debug_dump[:1000]}")
+    return result["images"][0]["url"]
 
-    edited_url = result["images"][0]["url"]
-    print(f"      → 편집된 이미지: {edited_url}")
-    return edited_url
+
+def step_swap_background(image_url: str, background_key: str, system_prompt: str) -> str:
+    """배경/표면만 교체. 케이크는 보존. 배경 교체된 이미지 URL 반환."""
+    print(f"[2/4] 배경 교체: '{background_key}'")
+    bg_prompt = prompt_builder.build_background_prompt(background_key)
+    new_url = call_nano_banana_edit(image_url, bg_prompt, system_prompt)
+    print(f"      → 배경 교체된 이미지: {new_url}")
+    return new_url
+
+
+def step_keyframe(image_url: str, instruction: str, system_prompt: str) -> str:
+    """시뮬레이션 적용 (자르기/들어올리기/토핑 등). 키프레임 URL 반환."""
+    print(f"[3/4] 키프레임 생성 (시뮬레이션 I2I)")
+    new_url = call_nano_banana_edit(image_url, instruction, system_prompt)
+    print(f"      → 키프레임: {new_url}")
+    return new_url
 
 
 def download_file(url: str, save_path: str) -> str:
@@ -174,9 +188,9 @@ def download_file(url: str, save_path: str) -> str:
     return save_path
 
 
-def step3_animate(start_url: str, end_url: str, prompt: str) -> str:
+def step_animate(start_url: str, end_url: str, prompt: str) -> str:
     """Veo 3.1 first-last-frame으로 start→end 프레임 보간 영상 생성. 영상 URL 반환."""
-    print(f"[3/3] Veo 3.1 first-last-frame 영상 생성 (start → end 보간, 1~3분 소요)")
+    print(f"[4/4] Veo 3.1 first-last-frame 영상 생성 (start → end 보간, 1~3분 소요)")
     result = fal_client.subscribe(
         ENDPOINT_I2V,
         arguments={
@@ -225,35 +239,49 @@ def main():
     run_dir.mkdir(parents=True, exist_ok=True)
     print(f"결과물 저장 폴더: {run_dir}\n")
 
-    # [1/3] 입력 이미지 업로드
+    # [1/4] 입력 이미지 업로드
     input_local = run_dir / "1_input.jpg"
     shutil.copy(INPUT_IMAGE_PATH, input_local)
-    image_url = step1_upload(INPUT_IMAGE_PATH)
+    image_url = step_upload(INPUT_IMAGE_PATH)
     print(f"      → 저장: {input_local}")
 
-    # [2/3] nano-banana-pro/edit으로 키프레임 생성
-    edited_url = step2_edit(
-        image_url,
+    # [2/4] 배경 교체 (BACKGROUND 지정된 경우만 실행, 아니면 skip)
+    bg_swapped_url = None
+    if BACKGROUND:
+        bg_swapped_url = step_swap_background(
+            image_url, BACKGROUND, prompts["system_prompt"]
+        )
+        bg_local = run_dir / "2_background.jpg"
+        download_file(bg_swapped_url, str(bg_local))
+        print(f"      → 저장: {bg_local}")
+        base_url = bg_swapped_url   # 이후 단계에선 배경 교체된 이미지를 "원본" 취급
+    else:
+        print(f"[2/4] 배경 교체: skip (BACKGROUND=None)")
+        base_url = image_url
+
+    # [3/4] 시뮬레이션 키프레임 생성 (자르기/들어올리기/토핑)
+    keyframe_url = step_keyframe(
+        base_url,
         prompts["instruction_prompt"],
         prompts["system_prompt"],
     )
-    edited_local = run_dir / "2_keyframe.jpg"
-    download_file(edited_url, str(edited_local))
-    print(f"      → 저장: {edited_local}")
+    keyframe_local = run_dir / "3_keyframe.jpg"
+    download_file(keyframe_url, str(keyframe_local))
+    print(f"      → 저장: {keyframe_local}")
 
-    # [3/3] Veo 3.1 first-last-frame 영상
+    # [4/4] Veo 3.1 first-last-frame 영상
     # frame_strategy에 따라 start/end 결정:
-    #   "i2i_is_end"   → 원본을 START, 편집본을 END  (자르기/들어올리기)
-    #   "i2i_is_start" → 편집본을 START, 원본을 END  (토핑 떨어지기)
+    #   "i2i_is_end"   → base_url을 START, 키프레임을 END  (자르기/들어올리기)
+    #   "i2i_is_start" → 키프레임을 START, base_url을 END  (토핑 떨어지기)
     if prompts["frame_strategy"] == "i2i_is_end":
-        start_url, end_url = image_url, edited_url
+        start_url, end_url = base_url, keyframe_url
     else:  # "i2i_is_start"
-        start_url, end_url = edited_url, image_url
+        start_url, end_url = keyframe_url, base_url
     print(f"\n[start frame] {start_url}")
     print(f"[end   frame] {end_url}")
 
-    video_url = step3_animate(start_url, end_url, prompts["video_prompt"])
-    video_local = run_dir / "3_video.mp4"
+    video_url = step_animate(start_url, end_url, prompts["video_prompt"])
+    video_local = run_dir / "4_video.mp4"
     download_file(video_url, str(video_local))
     print(f"      → 저장: {video_local}")
 
@@ -265,7 +293,8 @@ def main():
         "focus": resolved_focus,
         "focus_setting": FOCUS,                  # None이면 자동 선택, 문자열이면 수동
         "focus_source": "auto" if FOCUS is None else "manual",
-        "background": BACKGROUND,
+        "background": BACKGROUND,                # None이면 배경 교체 안 함
+        "background_swapped": BACKGROUND is not None,
         "user_hint": USER_HINT,
         "frame_strategy": prompts["frame_strategy"],
         "instruction_prompt": prompts["instruction_prompt"],
@@ -276,7 +305,8 @@ def main():
         "loaded_analysis": loaded_analysis,      # 자동 모드일 때 로드한 분석 결과 (수동이면 None)
         "urls": {
             "input": image_url,
-            "keyframe": edited_url,
+            "background_swapped": bg_swapped_url,    # BACKGROUND=None일 때 None
+            "keyframe": keyframe_url,
             "start_frame": start_url,
             "end_frame": end_url,
             "video": video_url,
@@ -290,8 +320,12 @@ def main():
     print(f"완료 — 모든 결과물이 {run_dir}/ 에 저장됨")
     print("=" * 60)
     print(f"  1_input.jpg         (원본 이미지)")
-    print(f"  2_keyframe.jpg      (nano-banana-pro/edit 키프레임)")
-    print(f"  3_video.mp4         (Veo 3.1 first-last-frame 영상)")
+    if BACKGROUND:
+        print(f"  2_background.jpg    (배경 교체된 이미지 = 새 START)")
+    else:
+        print(f"  (2_background.jpg   skip — 배경 교체 안 함)")
+    print(f"  3_keyframe.jpg      (시뮬레이션 적용 키프레임)")
+    print(f"  4_video.mp4         (Veo 3.1 first-last-frame 영상)")
     print(f"  metadata.json       (선택값 + 프롬프트 + URL 기록)")
     print("=" * 60)
 

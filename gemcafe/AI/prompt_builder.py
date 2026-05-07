@@ -132,6 +132,47 @@ SYSTEM_PROMPT = (
 
 
 # =====================================================================
+# 배경 키 → 자연어 영어 표현
+# =====================================================================
+BACKGROUND_TEXT = {
+    "white_marble": (
+        "a clean white marble surface with soft natural diffused lighting and "
+        "subtle elegant shadow under the cake"
+    ),
+    "cafe_interior": (
+        "a cozy cafe interior with warm ambient lighting, wooden table surface, "
+        "and slightly blurred background showing soft bokeh of cafe ambience"
+    ),
+    "outdoor": (
+        "an outdoor garden setting with soft natural daylight, a light wooden "
+        "or stone surface, and blurred greenery in the background"
+    ),
+}
+
+
+# 배경 교체용 I2I 지시문 — 케이크는 보존하고 배경/면만 교체
+BACKGROUND_INSTRUCTION_TEMPLATE = (
+    "DO NOT change the cake itself. Use the exact input image as the base. "
+    "ONLY replace the background and the surface the cake sits on with: {bg_text}. "
+    "Preserve the cake pixel-by-pixel: the exact same cake shape, the exact toppings, "
+    "the exact cream pattern, the exact plate/liner, and the exact lighting on the cake. "
+    "Match the lighting direction of the new background so the cake looks naturally placed. "
+    "Do not redraw, recolor, or reinterpret any part of the cake itself. "
+    "Photorealistic, sharp focus."
+)
+
+
+def build_background_prompt(background_key: str) -> str:
+    """배경 교체용 I2I 지시문 생성."""
+    if background_key not in BACKGROUND_TEXT:
+        raise ValueError(
+            f"알 수 없는 background: {background_key}. "
+            f"가능한 값: {list(BACKGROUND_TEXT.keys())}"
+        )
+    return BACKGROUND_INSTRUCTION_TEMPLATE.format(bg_text=BACKGROUND_TEXT[background_key])
+
+
+# =====================================================================
 # 핵심 빌더 함수
 # =====================================================================
 def build_prompts(
