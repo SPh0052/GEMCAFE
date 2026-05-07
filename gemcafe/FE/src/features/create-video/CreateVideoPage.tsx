@@ -59,7 +59,7 @@ export default function CreateVideoPage() {
               key={sim.id}
               type="button"
               onClick={() => setSelectedSim(sim.id)}
-              className={`flex aspect-square flex-col items-center justify-end overflow-hidden rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 p-3 text-white transition ${
+              className={`flex aspect-square flex-col items-center justify-end overflow-hidden rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 p-3 text-white transition md:aspect-2/1 ${
                 selectedSim === sim.id
                   ? 'ring-2 ring-brand-500 ring-offset-2'
                   : ''
@@ -97,7 +97,7 @@ export default function CreateVideoPage() {
 
       {/* 배경 설정 */}
       <Section title="배경 설정">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {backgrounds.map((bg) => (
             <button
               key={bg.id}
@@ -129,10 +129,17 @@ export default function CreateVideoPage() {
         />
       </Section>
 
-      <Button size="lg" fullWidth onClick={handleCreate}>
-        <Sparkles className="h-4 w-4" />
-        영상 생성하기 (1 젬)
-      </Button>
+      {/*
+        '영상 생성하기' CTA — sticky 로 main 스크롤 컨테이너 하단에 고정.
+        모바일에선 BottomNav 가 main 의 sibling 이라 sticky bottom-0 가
+        자연스럽게 BottomNav 바로 위 위치에 멈춤. 데스크톱은 viewport 하단.
+      */}
+      <div className="sticky bottom-0 -mx-5 mt-2 border-t border-gray-100 bg-white/95 px-5 py-3 backdrop-blur">
+        <Button size="lg" fullWidth onClick={handleCreate}>
+          <Sparkles className="h-4 w-4" />
+          영상 생성하기 (1 젬)
+        </Button>
+      </div>
     </div>
   )
 }

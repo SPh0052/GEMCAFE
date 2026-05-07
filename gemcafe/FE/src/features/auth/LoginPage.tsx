@@ -1,25 +1,125 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, UtensilsCrossed } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { Mail, Lock, UtensilsCrossed, Loader2 } from 'lucide-react'
 import MobileShell from '@/shared/components/MobileShell'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
+import { signInWithGoogle } from './google'
+import { findUserBySub } from './userRegistry'
+import { login as loginApi } from './api'
+
+interface LoginLocationState {
+  /** 회원가입 직후 LoginPage 로 넘어올 때 SignupPage 가 prefill 용으로 보내주는 이메일. */
+  signupEmail?: string
+}
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const login = useAuthStore((s) => s.login)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
 
-  const handleLogin = () => {
-    // TODO: 실제 서버 로그인 — 지금은 mock
-    login({
-      nickname: '엄송현 사장',
-      email: email || 'gemma.kim@example.com',
-      gem: 45000,
-    })
-    navigate('/')
+  // 회원가입 직후라면 이메일이 미리 채워짐 (사용자는 비밀번호만 치면 됨)
+  const signupEmail = (location.state as LoginLocationState | null)
+    ?.signupEmail
+  const [email, setEmail] = useState(signupEmail ?? '')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleLogin = async () => {
+    if (submitting) return
+    if (!email.trim() || !password) {
+      setError('이메일과 비밀번호를 모두 입력해주세요.')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      const tokens = await loginApi({
+        email: email.trim(),
+        password,
+      })
+      console.log('[POST /auth/login] response:', tokens)
+      if (!tokens?.accessToken) {
+        setError('로그인 응답이 올바르지 않습니다.')
+        return
+      }
+      // 응답에는 토큰만 있고 이름/전화 등 사용자 프로필은 없음 — 폼 입력 기반 임시 user 생성.
+      // BE 가 /me 엔드포인트 추가하면 이 자리에 한 번 더 호출해서 채우면 됨.
+      const trimmed = email.trim()
+      login(
+        {
+          sub: trimmed,
+          nickname: trimmed.split('@')[0] || trimmed,
+          email: trimmed,
+          gem: 0,
+        },
+        tokens,
+      )
+      navigate('/', { replace: true })
+    } catch (err) {
+      console.error('[POST /auth/login] error:', err)
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status
+        const serverMsg = (err.response?.data as { message?: string })?.message
+        if (status === 401 || status === 400) {
+          setError('이메일 또는 비밀번호가 일치하지 않습니다.')
+          setPassword('')
+        } else if (status === 422) {
+          setError(serverMsg ?? '입력값이 올바르지 않습니다.')
+        } else if (err.code === 'ERR_NETWORK' || !err.response) {
+          setError('네트워크 연결을 확인해주세요.')
+        } else {
+          setError(serverMsg ?? '로그인에 실패했습니다.')
+        }
+      } else {
+        setError('로그인에 실패했습니다.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    if (googleLoading) return
+    setGoogleLoading(true)
+    setError(null)
+    try {
+      const { accessToken, user: googleUser } = await signInWithGoogle()
+      // 디버그용 — 실제로 잘 들어오는지 콘솔에서 확인
+      console.log('[Google] sign-in success', { accessToken, googleUser })
+
+      // BE 준비되기 전 임시: 로컬 레지스트리로 신규/기존 회원 판별.
+      // BE 붙이는 시점엔 이 블록 통째로 fetch('/auth/google', { accessToken }) 한 번으로 대체.
+      const existing = findUserBySub(googleUser.sub)
+
+      login({
+        sub: googleUser.sub,
+        nickname: googleUser.name,
+        email: googleUser.email,
+        picture: googleUser.picture,
+        phone: existing?.phone,
+        gem: existing ? 0 : 0, // BE 붙으면 실제 잔액으로
+      })
+
+      if (existing) {
+        // 기존 회원 → 메인으로
+        navigate('/')
+      } else {
+        // 신규 회원 → 전화번호 입력 단계로
+        navigate('/signup/phone')
+      }
+    } catch (err) {
+      console.error('[Google] sign-in failed', err)
+      setError(
+        err instanceof Error ? err.message : '구글 로그인에 실패했습니다.',
+      )
+    } finally {
+      setGoogleLoading(false)
+    }
   }
 
   return (
@@ -64,8 +164,14 @@ export default function LoginPage() {
             }
           />
 
-          <Button size="lg" fullWidth onClick={handleLogin}>
-            로그인
+          <Button
+            size="lg"
+            fullWidth
+            onClick={handleLogin}
+            disabled={submitting}
+          >
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {submitting ? '로그인 중...' : '로그인'}
           </Button>
 
           <div className="relative flex items-center py-3">
@@ -74,10 +180,24 @@ export default function LoginPage() {
             <div className="flex-1 border-t border-gray-200" />
           </div>
 
-          <Button variant="outline" size="lg" fullWidth>
-            <GoogleIcon />
-            구글로 시작하기
+          <Button
+            variant="outline"
+            size="lg"
+            fullWidth
+            onClick={handleGoogleLogin}
+            disabled={googleLoading}
+          >
+            {googleLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            {googleLoading ? '구글 로그인 중...' : '구글로 시작하기'}
           </Button>
+
+          {error && (
+            <p className="text-center text-sm text-rose-600">{error}</p>
+          )}
         </div>
 
         <p className="mt-8 text-center text-sm text-gray-500">

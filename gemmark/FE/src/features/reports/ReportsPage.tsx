@@ -88,7 +88,7 @@ function PreviewPanel() {
       <div className="mb-4 flex items-center justify-between">
         <div className="text-sm font-semibold">실시간 미리보기</div>
       </div>
-      <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-gray-50 to-white p-6">
+      <div className="rounded-2xl border border-gray-100 bg-linear-to-br from-gray-50 to-white p-6">
         <div className="flex items-start justify-between text-xs text-gray-400">
           <span className="font-semibold text-gray-500">GemGem</span>
           <span>

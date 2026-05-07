@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { Check, Loader2 } from 'lucide-react'
 import MobileShell from '@/shared/components/MobileShell'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
-import { useAuthStore } from '@/shared/stores/useAuthStore'
-import { Check } from 'lucide-react'
+import { signup } from './api'
 
 export default function SignupPage() {
   const navigate = useNavigate()
-  const login = useAuthStore((s) => s.login)
 
   const [form, setForm] = useState({
-    nickname: '',
+    name: '',
     email: '',
+    phone: '',
     password: '',
     passwordConfirm: '',
   })
@@ -20,22 +21,55 @@ export default function SignupPage() {
     service: false,
     privacy: false,
   })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const canSubmit =
-    form.nickname &&
+    form.name &&
     form.email &&
+    form.phone &&
     form.password &&
     form.password === form.passwordConfirm &&
     agreements.service &&
     agreements.privacy
 
-  const handleSignup = () => {
-    login({
-      nickname: form.nickname,
-      email: form.email,
-      gem: 10000,
-    })
-    navigate('/')
+  const handleSignup = async () => {
+    if (!canSubmit || submitting) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await signup({
+        email: form.email.trim(),
+        password: form.password,
+        name: form.name.trim(),
+        phone: form.phone.replace(/[^0-9]/g, ''),
+      })
+      console.log('[POST /auth/signup] response:', res)
+      // 가입 성공 — userId 만 옴, 토큰 X. 로그인 페이지로 보내서 직접 로그인하게 함.
+      navigate('/login', {
+        replace: true,
+        state: { signupEmail: form.email },
+      })
+    } catch (err) {
+      console.error('[POST /auth/signup] error:', err)
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status
+        const serverMsg = (err.response?.data as { message?: string })?.message
+        if (status === 409) {
+          setError('이미 가입된 이메일입니다.')
+        } else if (status === 422 || status === 400) {
+          setError(serverMsg ?? '입력값을 다시 확인해주세요.')
+        } else if (err.code === 'ERR_NETWORK' || !err.response) {
+          setError('네트워크 연결을 확인해주세요.')
+        } else {
+          setError(serverMsg ?? '회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.')
+        }
+      } else {
+        setError('회원가입에 실패했습니다.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -50,10 +84,10 @@ export default function SignupPage() {
 
         <div className="space-y-4">
           <TextField
-            label="닉네임"
-            placeholder="닉네임을 입력해주세요"
-            value={form.nickname}
-            onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+            label="이름"
+            placeholder="이름을 입력해주세요"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <TextField
             label="이메일"
@@ -61,6 +95,15 @@ export default function SignupPage() {
             placeholder="이메일을 입력해주세요"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
+            autoComplete="email"
+          />
+          <TextField
+            label="전화번호"
+            type="tel"
+            inputMode="numeric"
+            placeholder="01012345678"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
           <TextField
             label="비밀번호"
@@ -68,6 +111,7 @@ export default function SignupPage() {
             placeholder="비밀번호를 입력해주세요"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
+            autoComplete="new-password"
           />
           <TextField
             label="비밀번호 확인"
@@ -77,6 +121,7 @@ export default function SignupPage() {
             onChange={(e) =>
               setForm({ ...form, passwordConfirm: e.target.value })
             }
+            autoComplete="new-password"
           />
 
           <div className="space-y-2 pt-2">
@@ -96,14 +141,19 @@ export default function SignupPage() {
             />
           </div>
 
+          {error && (
+            <p className="text-center text-sm text-rose-600">{error}</p>
+          )}
+
           <Button
             size="lg"
             fullWidth
             onClick={handleSignup}
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
             className="mt-2"
           >
-            가입하기
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {submitting ? '가입 중...' : '가입하기'}
           </Button>
 
           <div className="relative flex items-center py-3">

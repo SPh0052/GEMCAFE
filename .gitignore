@@ -38,6 +38,26 @@ env/
 .env.*
 !.env.example
 
+# Spring Boot — 로컬 dev 비밀값 (절대 commit X)
+**/src/main/resources/application-local.yaml
+**/src/main/resources/application-local.yml
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ========================
+# 프로젝트 아티팩트
+# ========================
+**/uploads/
+
 # ========================
 # 기타
 # ========================
