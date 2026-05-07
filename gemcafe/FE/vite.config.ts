@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 
 export default defineConfig({
-  base: process.env.VITE_BASE || '/dev/',
+  base: process.env.VITE_BASE || '/dev/gemcafe/',
   plugins: [
     react(),
     tailwindcss(),
