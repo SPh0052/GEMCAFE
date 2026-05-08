@@ -38,6 +38,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/cakes/sessions/*/keyframes").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cakes/sessions/*/select-keyframe").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/videos/*/status").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/videos/*/download").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/videos/*/share").permitAll()
                         .requestMatchers("/error", "/actuator/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
