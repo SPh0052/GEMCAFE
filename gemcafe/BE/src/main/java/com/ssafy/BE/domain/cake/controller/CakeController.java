@@ -1,15 +1,23 @@
 package com.ssafy.BE.domain.cake.controller;
 
 import com.ssafy.BE.domain.cake.dto.CakeAnalyzeResponse;
+import com.ssafy.BE.domain.cake.dto.KeyframeGenerateRequest;
+import com.ssafy.BE.domain.cake.dto.KeyframeGenerateResponse;
+import com.ssafy.BE.domain.cake.dto.KeyframeSelectRequest;
+import com.ssafy.BE.domain.cake.dto.KeyframeSelectResponse;
 import com.ssafy.BE.domain.cake.service.CakeAnalyzeService;
+import com.ssafy.BE.domain.cake.service.CakeKeyframeService;
 import com.ssafy.BE.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class CakeController {
 
     private final CakeAnalyzeService cakeAnalyzeService;
+    private final CakeKeyframeService cakeKeyframeService;
 
     @Operation(summary = "케이크 이미지 분석 (Step 2). video_session 생성 후 분석 결과 반환")
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -30,5 +39,25 @@ public class CakeController {
         Integer userId = 1;
         CakeAnalyzeResponse data = cakeAnalyzeService.analyze(userId, image);
         return ApiResponse.ok("이미지 분석 완료", data);
+    }
+
+    @Operation(summary = "키프레임 생성 (Step 7). 재생성 시 동일 엔드포인트 재호출. 최대 3회.")
+    @PostMapping("/sessions/{sessionId}/keyframes")
+    public ApiResponse<KeyframeGenerateResponse> generateKeyframe(
+            @PathVariable Integer sessionId,
+            @Valid @RequestBody KeyframeGenerateRequest request
+    ) {
+        KeyframeGenerateResponse data = cakeKeyframeService.generate(sessionId, request);
+        return ApiResponse.ok("키프레임 생성 완료", data);
+    }
+
+    @Operation(summary = "키프레임 선택 (Step 7-③). 영상 생성 단계로 진입할 키프레임 확정")
+    @PostMapping("/sessions/{sessionId}/select-keyframe")
+    public ApiResponse<KeyframeSelectResponse> selectKeyframe(
+            @PathVariable Integer sessionId,
+            @Valid @RequestBody KeyframeSelectRequest request
+    ) {
+        KeyframeSelectResponse data = cakeKeyframeService.select(sessionId, request);
+        return ApiResponse.ok("키프레임 선택 완료", data);
     }
 }
