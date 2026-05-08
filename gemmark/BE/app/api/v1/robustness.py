@@ -10,6 +10,7 @@ from app.schemas.robustness import (
     RobustnessHistoryResponse,
     RobustnessRunRequest,
     RobustnessRunResponse,
+    RobustnessStatusResponse,
     RobustnessTargetListResponse,
     RobustnessTestDetailResponse,
     RobustnessVideoInfoResponse,
@@ -17,6 +18,7 @@ from app.schemas.robustness import (
 from app.services.robustness_service import (
     get_robustness_attack_results,
     get_robustness_test_detail,
+    get_robustness_test_status,
     get_robustness_test_video_info,
     list_robustness_history,
     list_robustness_target_videos,
@@ -50,6 +52,20 @@ async def list_robustness_target_videos_endpoint(
         db, admin_id, page, size, startDate, endDate
     )
     return RobustnessTargetListResponse(data=data)
+
+
+@router.get(
+    "/tests/{test_id}/status",
+    response_model=RobustnessStatusResponse,
+    summary="강건성 테스트 진행 상태 조회 (폴링용)",
+)
+async def get_robustness_test_status_endpoint(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessStatusResponse:
+    data = await get_robustness_test_status(db, test_id)
+    return RobustnessStatusResponse(data=data)
 
 
 @router.get(
