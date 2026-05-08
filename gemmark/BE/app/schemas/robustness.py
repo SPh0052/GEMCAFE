@@ -79,6 +79,7 @@ class RobustnessAttackItem(BaseModel):
     ber: float
     psnr: float
     duration: float
+    passed: bool
 
 
 class RobustnessAttackResultData(BaseModel):

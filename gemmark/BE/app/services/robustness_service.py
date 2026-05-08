@@ -61,7 +61,8 @@ from app.services.watermark.metrics import ber as calc_ber, psnr as calc_psnr
 from app.services.watermark.payload import PAYLOAD_BITS
 
 
-_PASS_BER_THRESHOLD = 0.1
+_PASS_BER_THRESHOLD = 0.3
+_PASS_PSNR_THRESHOLD = 30.0
 _N_SAMPLE_FRAMES = 5
 _MAX_CONCURRENT_RUNS = 2
 _run_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_RUNS)
@@ -357,7 +358,18 @@ async def _execute_robustness_test_bg(
                     avg_duration = sum(d["duration"] for d in details.values()) / len(
                         details
                     )
-                    passed = avg_ber < _PASS_BER_THRESHOLD
+
+                    attack_rows: list[tuple[str, dict, float, bool]] = []
+                    passed = True
+                    for attack_id, d in details.items():
+                        psnr_val = d["psnr"] if np.isfinite(d["psnr"]) else 0.0
+                        attack_passed = (
+                            d["ber"] <= _PASS_BER_THRESHOLD
+                            and psnr_val >= _PASS_PSNR_THRESHOLD
+                        )
+                        if not attack_passed:
+                            passed = False
+                        attack_rows.append((attack_id, d, psnr_val, attack_passed))
 
                     video_record = RobustnessTestVideo(
                         robustness_test_id=test_id,
@@ -370,8 +382,7 @@ async def _execute_robustness_test_bg(
                     session.add(video_record)
                     await session.flush()
 
-                    for attack_id, d in details.items():
-                        psnr_val = d["psnr"] if np.isfinite(d["psnr"]) else 0.0
+                    for attack_id, d, psnr_val, attack_passed in attack_rows:
                         session.add(
                             RobustnessAttackDetail(
                                 robustness_test_video_id=video_record.id,
@@ -379,6 +390,7 @@ async def _execute_robustness_test_bg(
                                 ber=round(d["ber"], 6),
                                 psnr=round(psnr_val, 4),
                                 duration=round(d["duration"], 4),
+                                passed=attack_passed,
                             )
                         )
 
@@ -561,6 +573,7 @@ async def get_robustness_attack_results(
             RobustnessAttackDetail.ber,
             RobustnessAttackDetail.psnr,
             RobustnessAttackDetail.duration,
+            RobustnessAttackDetail.passed,
         )
         .join(
             RobustnessAttackType,
@@ -577,6 +590,7 @@ async def get_robustness_attack_results(
             ber=row.ber,
             psnr=row.psnr,
             duration=row.duration,
+            passed=row.passed,
         )
         for row in rows
     ]
