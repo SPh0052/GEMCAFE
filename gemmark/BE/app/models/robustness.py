@@ -50,6 +50,7 @@ class RobustnessTest(Base):
         SQLEnum(RobustnessTestStatus), nullable=False
     )
     total_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    processed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     success_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     fail_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     avg_ber: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
