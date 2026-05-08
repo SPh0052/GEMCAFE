@@ -25,6 +25,9 @@ public enum ErrorCode {
     // AI
     AI_VIDEO_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI-001", "AI 영상 생성 서비스에 연결할 수 없습니다"),
     AI_VIDEO_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI-002", "AI 영상 생성에 실패했습니다"),
+    AI_ANALYZE_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI-003", "AI 분석 서비스에 연결할 수 없습니다"),
+    AI_ANALYZE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI-004", "AI 케이크 이미지 분석에 실패했습니다"),
+    AI_RESPONSE_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI-005", "AI 응답 파싱에 실패했습니다"),
 
     // Video
     VIDEO_NOT_FOUND(HttpStatus.NOT_FOUND, "VIDEO-001", "해당 영상을 찾을 수 없습니다"),
