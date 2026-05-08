@@ -22,6 +22,14 @@ public enum ErrorCode {
     IMAGE_NOT_ATTACHED(HttpStatus.BAD_REQUEST, "IMAGE-004", "파일이 첨부되지 않았습니다"),
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "IMAGE-005", "파일 업로드 중 오류가 발생했습니다"),
 
+    // AI
+    AI_VIDEO_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI-001", "AI 영상 생성 서비스에 연결할 수 없습니다"),
+    AI_VIDEO_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI-002", "AI 영상 생성에 실패했습니다"),
+
+    // Video
+    VIDEO_NOT_FOUND(HttpStatus.NOT_FOUND, "VIDEO-001", "해당 영상을 찾을 수 없습니다"),
+    VIDEO_FILE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "VIDEO-002", "영상 파일 처리 중 오류가 발생했습니다"),
+
     // Common
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "COM-001", "요청 형식이 올바르지 않습니다"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COM-500", "서버 오류가 발생했습니다");
