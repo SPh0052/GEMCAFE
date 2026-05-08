@@ -36,6 +36,8 @@ public class SecurityConfig {
                                 "/api/v1/videos/test-publish-real",
                                 "/api/v1/cakes/analyze"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cakes/sessions/*/keyframes").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cakes/sessions/*/select-keyframe").permitAll()
                         .requestMatchers("/error", "/actuator/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
