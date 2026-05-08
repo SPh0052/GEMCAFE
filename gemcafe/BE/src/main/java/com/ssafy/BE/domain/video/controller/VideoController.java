@@ -2,9 +2,12 @@ package com.ssafy.BE.domain.video.controller;
 
 import com.ssafy.BE.domain.video.dto.CreateVideoRequest;
 import com.ssafy.BE.domain.video.dto.CreateVideoResponse;
+import com.ssafy.BE.domain.video.dto.VideoDownloadResponse;
+import com.ssafy.BE.domain.video.dto.VideoShareResponse;
 import com.ssafy.BE.domain.video.dto.VideoStatusResponse;
 import com.ssafy.BE.domain.video.entity.Video;
 import com.ssafy.BE.domain.video.repository.VideoRepository;
+import com.ssafy.BE.domain.video.service.VideoAssetService;
 import com.ssafy.BE.domain.video.service.VideoGenerationService;
 import com.ssafy.BE.global.common.ApiResponse;
 import com.ssafy.BE.global.exception.BusinessException;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class VideoController {
 
     private final VideoGenerationService videoGenerationService;
+    private final VideoAssetService videoAssetService;
     private final VideoRepository videoRepository;
 
     @Operation(summary = "영상 생성 시작 (Step 8). 젬 6 차감 후 비동기 큐 발행")
@@ -52,5 +56,19 @@ public class VideoController {
                 video.getCreatedAt()
         );
         return ApiResponse.ok("영상 상태 조회 완료", data);
+    }
+
+    @Operation(summary = "영상 다운로드 정보 조회. 파일 URL + 원본 파일명 반환")
+    @GetMapping("/{videoId}/download")
+    public ApiResponse<VideoDownloadResponse> download(@PathVariable Integer videoId) {
+        VideoDownloadResponse data = videoAssetService.getDownload(videoId);
+        return ApiResponse.ok("다운로드 정보 조회 완료", data);
+    }
+
+    @Operation(summary = "영상 공유 정보 조회. 영상 URL + 썸네일 + 제목 반환")
+    @GetMapping("/{videoId}/share")
+    public ApiResponse<VideoShareResponse> share(@PathVariable Integer videoId) {
+        VideoShareResponse data = videoAssetService.getShare(videoId);
+        return ApiResponse.ok("공유 정보 조회 완료", data);
     }
 }

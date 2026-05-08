@@ -48,6 +48,7 @@ public enum ErrorCode {
     // Video
     VIDEO_NOT_FOUND(HttpStatus.NOT_FOUND, "VIDEO-001", "해당 영상을 찾을 수 없습니다"),
     VIDEO_FILE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "VIDEO-002", "영상 파일 처리 중 오류가 발생했습니다"),
+    VIDEO_NOT_READY(HttpStatus.BAD_REQUEST, "VIDEO-003", "영상이 아직 준비되지 않았습니다"),
 
     // Common
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "COM-001", "요청 형식이 올바르지 않습니다"),
