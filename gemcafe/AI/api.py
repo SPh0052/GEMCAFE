@@ -40,6 +40,7 @@ from dotenv import load_dotenv
 import analyze as analyze_module
 import generate_keyframe
 import generate_video
+import prompt_builder
 
 load_dotenv()
 
@@ -76,10 +77,65 @@ class HealthResponse(BaseModel):
 class VideoRequest(BaseModel):
     start_url: str = Field(..., description="영상 시작 프레임 URL")
     end_url: str = Field(..., description="영상 끝 프레임 URL")
-    video_prompt: str = Field(..., description="영상 동작을 묘사하는 프롬프트")
-    duration: str = Field("6s", description="'4s' / '6s' / '8s' 중 택1")
+    video_prompt: Optional[str] = Field(
+        None,
+        description=(
+            "영상 동작 묘사 (영어). "
+            "video_prompt_kr 가 있으면 무시되고 LLM이 한국어를 영어로 변환함."
+        ),
+    )
+    video_prompt_kr: Optional[str] = Field(
+        None,
+        description=(
+            "사장님이 한국어로 작성/편집한 영상 묘사. "
+            "지정 시 LLM(Gemini 3.1 Flash-Lite) 변환 후 잠금 라이브러리(카메라/기술/부정 프롬프트) 자동 결합."
+        ),
+    )
+    simulation: Optional[str] = Field(
+        None,
+        description=(
+            "video_prompt_kr 사용 시 필수. "
+            "잠금 라이브러리에서 카메라/부정 프롬프트/길이 조회용. "
+            "예: cross_section_cut / lift_slice / topping_fall"
+        ),
+    )
+    background: Optional[str] = Field(
+        None,
+        description="video_prompt_kr 사용 시 배경 키 (white_marble, cafe_interior, outdoor 등). 미지정 시 배경 묘사 생략.",
+    )
+    model_id: str = Field(
+        "veo-3.1",
+        description="영상 모델 식별자 (잠금 라이브러리에서 모델별 키워드 조회). veo-3.1 / kling-3.0-pro 등.",
+    )
+    duration: Optional[str] = Field(
+        None,
+        description="None이면 시뮬레이션 권장값 자동. '4s'/'6s'/'8s' 중 택1.",
+    )
     resolution: str = Field("720p", description="'720p' / '1080p' / '4k'")
     generate_audio: bool = Field(False, description="음성 생성 여부")
+
+
+class PreviewPromptsRequest(BaseModel):
+    simulation: str = Field(..., description="cross_section_cut / lift_slice / topping_fall")
+    focus: str = Field(..., description="강조 요소 키 (예: strawberry, whipped_cream)")
+    background: Optional[str] = Field(None, description="배경 키 (없으면 원본)")
+    hint: Optional[str] = Field(None, description="자유 한국어 힌트 (예: '고급스럽게')")
+    dessert_info: str = Field("케이크", description="디저트 종류 (분석 결과의 cake_type 등)")
+    cake_elements: Optional[list] = Field(
+        None,
+        description=(
+            "케이크 구성요소 키 리스트 (예: ['whipped_cream','sponge','strawberry']). "
+            "있으면 LLM이 요소별 정확한 질감/반응 묘사 사용. "
+            "없으면 일반적인 묘사만 생성."
+        ),
+    )
+    analysis: Optional[dict] = Field(
+        None,
+        description=(
+            "Moondream 분석 결과 dict. cake_elements가 비어있을 때 이걸로 자동 추출. "
+            "(creams, toppings, base, coating 필드 사용)"
+        ),
+    )
 
 
 # =====================================================================
@@ -190,28 +246,98 @@ async def keyframe_endpoint(
         raise HTTPException(status_code=500, detail=f"키프레임 생성 실패: {e}")
 
 
+@app.post("/preview-prompts", tags=["pipeline"])
+async def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
+    """
+    오토 프롬프팅 Phase 1 — 슬롯 → 자연스러운 한국어 미리보기.
+
+    Gemini 3.1 Flash-Lite가 사장님이 만들 영상의 모습을 한국어 2~3문장으로 묘사.
+    이 결과를 화면에 띄워서 사장님이 편집 가능. 편집된 한국어를 /video의 video_prompt_kr 로 전달.
+
+    AI 호출이지만 영상 생성은 안 하므로 비용은 거의 무시할 수준.
+    """
+    try:
+        korean_preview = prompt_builder.build_korean_preview(
+            simulation=req.simulation,
+            focus=req.focus,
+            background=req.background,
+            hint=req.hint,
+            dessert_info=req.dessert_info,
+            cake_elements=req.cake_elements,
+            analysis=req.analysis,
+        )
+        return {"korean_preview": korean_preview}
+    except RuntimeError as e:
+        # GEMINI_API_KEY 미설정 등
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"한국어 미리보기 생성 실패: {e}")
+
+
 @app.post("/video", tags=["pipeline"])
 async def video_endpoint(req: VideoRequest) -> dict:
     """
     영상 생성 (STEP 8).
 
-    /keyframe 응답에서 받은 keyframe_url, base_url, frame_strategy, video_prompt 를
-    조합해서 BE가 start_url/end_url을 결정한 뒤 호출.
+    두 가지 모드:
+      A) video_prompt_kr 지정 → LLM이 한→영 변환 + 잠금 라이브러리 자동 결합
+         (simulation 필수, background/model_id 권장)
+      B) video_prompt 지정    → 영어 그대로 사용 (잠금 결합 없음, 직접 호출용)
 
-    frame_strategy 처리 (BE에서):
+    /keyframe 응답에서 받은 keyframe_url, base_url, frame_strategy 를
+    조합해서 BE가 start_url/end_url을 결정한 뒤 호출:
       - "i2i_is_end"   → start_url = base_url,     end_url = keyframe_url
       - "i2i_is_start" → start_url = keyframe_url, end_url = base_url
     """
     require_fal_key()
+
+    # 모드 분기 — Korean 우선
+    if req.video_prompt_kr:
+        if not req.simulation:
+            raise HTTPException(
+                status_code=400,
+                detail="video_prompt_kr 사용 시 simulation 필수 (잠금 라이브러리 조회용).",
+            )
+        try:
+            assembled = prompt_builder.assemble_final_video_prompt(
+                user_korean_text=req.video_prompt_kr,
+                simulation=req.simulation,
+                background=req.background,
+                model_id=req.model_id,
+            )
+        except RuntimeError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        final_prompt = assembled["prompt"]
+        negative_prompt = assembled["negative_prompt"]
+        duration = req.duration or assembled["duration"]
+        debug_user_part = assembled["user_part_en"]
+    elif req.video_prompt:
+        final_prompt = req.video_prompt
+        negative_prompt = "blur, distort, low quality, deformed, ugly"
+        duration = req.duration or "6s"
+        debug_user_part = None
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="video_prompt 또는 video_prompt_kr 둘 중 하나는 필수.",
+        )
+
     try:
         result = generate_video.generate_video(
             start_url=req.start_url,
             end_url=req.end_url,
-            video_prompt=req.video_prompt,
-            duration=req.duration,
+            video_prompt=final_prompt,
+            duration=duration,
             resolution=req.resolution,
             generate_audio=req.generate_audio,
+            negative_prompt=negative_prompt,
         )
-        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"영상 생성 실패: {e}")
+
+    # 디버그용 — 무엇이 최종으로 나갔는지 응답에 포함
+    result["final_prompt_used"] = final_prompt
+    result["negative_prompt_used"] = negative_prompt
+    if debug_user_part:
+        result["llm_translated_user_part"] = debug_user_part
+    return result

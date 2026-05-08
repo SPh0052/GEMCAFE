@@ -15,19 +15,23 @@ from typing import Optional
 # =====================================================================
 # Focus 키 → 자연어 영어 표현 매핑
 # (Moondream의 suggested_focus가 snake_case로 와도 문장에 자연스럽게 박히도록)
+#
+# ⚠️ 색깔/구체적 외형 가정 금지: "white"/"red" 같은 단어 박지 말 것.
+#    실제 색/외형은 원본 사진(I2I/I2V가 직접 봄) + Moondream 분석이 제공.
+#    여기는 "어떤 종류의 요소인지"만 표현 (재료 자체의 정체성).
 # =====================================================================
 FOCUS_TEXT = {
-    # 딸기 / 토핑 류
-    "strawberry": "fresh strawberry on top",
-    "strawberries": "fresh strawberries",
-    "fresh_strawberries": "fresh strawberries on top",
-    "blueberry": "fresh blueberries",
-    "blueberries": "fresh blueberries",
-    # 크림 류
-    "cream": "white whipped cream",
-    "whipped_cream": "white whipped cream",
-    "fluffy_whipped_cream": "fluffy white whipped cream",
-    "mascarpone_cream": "mascarpone cream",
+    # 과일 / 토핑 류 (특정 과일은 색이 비교적 일정하지만 그래도 형용사 자제)
+    "strawberry": "the strawberry on top",
+    "strawberries": "the strawberries",
+    "fresh_strawberries": "the strawberries on top",
+    "blueberry": "the blueberries",
+    "blueberries": "the blueberries",
+    # 크림 류 (색 형용사 제거 — 흰크림/녹차크림/초콜릿크림 등 다 커버)
+    "cream": "the cream",
+    "whipped_cream": "the whipped cream",
+    "fluffy_whipped_cream": "the fluffy whipped cream",
+    "mascarpone_cream": "the mascarpone cream",
     # 시트 / 스펀지 류
     "sponge": "sponge cake layers",
     "sponge_layers": "sponge cake layers",
@@ -226,6 +230,114 @@ def build_prompts(
         "frame_strategy": sim["frame_strategy"],
         "system_prompt": SYSTEM_PROMPT,
         "label_kr": sim["label_kr"],
+    }
+
+
+# =====================================================================
+# 오토 프롬프팅 (LLM 기반) — Phase 1: 슬롯 → 한국어 미리보기
+# =====================================================================
+def build_korean_preview(
+    simulation: str,
+    focus: str,
+    background: Optional[str] = None,
+    hint: Optional[str] = None,
+    dessert_info: str = "케이크",
+    cake_elements: Optional[list] = None,
+    analysis: Optional[dict] = None,
+) -> str:
+    """
+    사장님 선택값을 LLM(Gemini 3.1 Flash-Lite)에 넘겨 자연스러운 한국어 미리보기 생성.
+
+    cake_elements: 분석 결과에서 추출된 요소 키 리스트
+                  (예: ["whipped_cream", "sponge", "strawberry"])
+                  → prompt_locks.TEXTURE_PROFILES와 매칭되어 LLM에 질감 가이드로 공급.
+    analysis:     Moondream 분석 결과 dict가 있으면 cake_elements를 자동 추출.
+                  cake_elements가 직접 주어지면 그게 우선.
+
+    /preview-prompts 엔드포인트가 이 결과를 사장님에게 보여주고 편집 가능하게 함.
+    """
+    # llm_client는 여기서 import (Gemini 키 없어도 다른 함수는 동작하도록)
+    from llm_client import generate_korean_preview
+    import prompt_locks
+
+    sim_label_kr = prompt_locks.get_simulation_label_kr(simulation)
+    bg_label_kr = prompt_locks.get_background_label_kr(background)
+    focus_kr = focus_phrase(focus)  # 영어지만 LLM이 알아서 처리
+
+    # cake_elements 결정 — 직접 받은 게 우선, 없으면 analysis에서 추출
+    if cake_elements is None and analysis is not None:
+        cake_elements = prompt_locks.collect_elements_from_analysis(analysis)
+
+    texture_guidance = (
+        prompt_locks.get_texture_guidance(cake_elements, simulation)
+        if cake_elements
+        else ""
+    )
+
+    return generate_korean_preview(
+        dessert_info=dessert_info,
+        focus_label_kr=focus_kr,
+        simulation_label_kr=sim_label_kr,
+        background_label_kr=bg_label_kr,
+        user_hint=hint,
+        texture_guidance=texture_guidance,
+    )
+
+
+# =====================================================================
+# 오토 프롬프팅 — Phase 2 + 잠금 라이브러리 결합 (최종 영어 영상 프롬프트)
+# =====================================================================
+def assemble_final_video_prompt(
+    user_korean_text: str,
+    simulation: str,
+    background: Optional[str] = None,
+    model_id: str = "veo-3.1",
+) -> dict:
+    """
+    사장님이 (편집한) 한국어 영상 묘사 → 영상 모델용 최종 영어 프롬프트로 변환.
+
+    1. LLM(Gemini 3.1 Flash-Lite)이 한국어 → 영어 영상 프롬프트로 의역
+    2. 시스템이 잠금 라이브러리(카메라/기술/모델별/배경/길이/부정)를 결합
+    3. fal.ai에 그대로 넘길 수 있는 dict 반환
+
+    Returns:
+        {
+          "prompt":            str,   # 최종 영어 영상 프롬프트
+          "negative_prompt":   str,   # 부정 프롬프트 (공통 + 시뮬레이션별)
+          "duration":          str,   # "4s" / "6s" / "8s"
+          "user_part_en":      str,   # 디버깅용: LLM이 변환한 사장님 부분만
+        }
+    """
+    from llm_client import translate_to_video_prompt
+    import prompt_locks
+
+    # 1) 사장님 한국어 → 영어 (LLM)
+    user_part_en = translate_to_video_prompt(user_korean_text)
+
+    # 2) 잠금 영역 조합
+    camera = prompt_locks.get_camera(simulation)
+    technical = prompt_locks.TECHNICAL_BASELINE
+    model_extras = prompt_locks.get_model_extras(model_id)
+    duration = prompt_locks.get_duration(simulation)
+    negative = prompt_locks.get_negative_prompt(simulation)
+
+    parts = [user_part_en]
+    if background:
+        bg_text = prompt_locks.get_mood_lighting(background)
+        if bg_text:
+            parts.append(f"Setting: {bg_text}")
+    parts.append(f"Camera: {camera}")
+    parts.append(technical)
+    parts.append(model_extras)
+
+    # 마침표로 안전하게 결합
+    final_prompt = ". ".join(p.rstrip(". ") for p in parts if p) + "."
+
+    return {
+        "prompt": final_prompt,
+        "negative_prompt": negative,
+        "duration": duration,
+        "user_part_en": user_part_en,
     }
 
 

@@ -107,10 +107,10 @@ def generate_video(
     end_url: str,
     video_prompt: str,
     save_dir: Optional[Path] = None,
-    duration: str = VIDEO_DURATION,
+    duration: Optional[str] = None,
     resolution: str = VIDEO_RESOLUTION,
     generate_audio: bool = VIDEO_GENERATE_AUDIO,
-    negative_prompt: str = VIDEO_NEGATIVE_PROMPT,
+    negative_prompt: Optional[str] = None,
 ) -> dict:
     """
     Veo 3.1 first-last-frame으로 영상 1편 생성.
@@ -130,6 +130,10 @@ def generate_video(
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     print(f"[저장 폴더] {save_dir}\n")
+
+    # 기본값 fallback (인자가 None일 때만)
+    duration = duration or VIDEO_DURATION
+    negative_prompt = negative_prompt or VIDEO_NEGATIVE_PROMPT
 
     print(f"[Veo 3.1 영상 생성] (1~3분 소요, ~$1.20)")
     print(f"      start = {start_url}")
