@@ -88,10 +88,11 @@ export async function runRobustnessTest(body: {
   startDate: string
   endDate: string
 }): Promise<RunRobustnessResponse> {
+  // BE 가 testId 와 IN_PROGRESS 상태를 즉시 반환하고 실제 처리는 백그라운드에서 진행 →
+  // 별도 timeout 늘리지 않고 axios 인스턴스 default(30초) 사용. 상세 페이지에서 폴링.
   const res = await api.post<ApiResponse<RunRobustnessResponse>>(
     '/robustness/run',
     body,
-    { timeout: 600_000 }, // 영상 처리 시작 응답이 늦게 올 수 있어 10분 대기
   )
   return res.data.data
 }

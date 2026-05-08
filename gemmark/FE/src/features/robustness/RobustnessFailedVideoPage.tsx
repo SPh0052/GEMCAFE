@@ -210,7 +210,7 @@ function RobustnessAnalysisSection({
           <div className="grid grid-cols-2 gap-6">
             <Metric
               label="평균 BER"
-              value={attacks.avgBer.toFixed(2)}
+              value={(attacks.avgBer * 100).toFixed(2)}
               unit="%"
               accentColor="bg-rose-400"
             />
@@ -308,7 +308,8 @@ function AttackDetailsTable({
           )}
           {attacks.map((row) => {
             const Icon = attackIcon(row.type)
-            const status = attackStatus(row.ber)
+            const berPct = row.ber * 100
+            const status = attackStatus(berPct)
             return (
               <tr key={row.type}>
                 <td className="px-6 py-4">
@@ -322,7 +323,7 @@ function AttackDetailsTable({
                   </div>
                 </td>
                 <td className="px-6 py-4 text-gray-800">
-                  {row.ber.toFixed(2)}%
+                  {berPct.toFixed(2)}%
                 </td>
                 <td className="px-6 py-4 text-gray-800">
                   {row.psnr.toFixed(1)} dB
