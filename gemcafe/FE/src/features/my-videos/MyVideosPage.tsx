@@ -45,7 +45,7 @@ export default function MyVideosPage() {
     <div className="relative px-5 pb-24 pt-5 md:pb-8">
       <h1 className="mb-4 text-xl font-bold">내 영상</h1>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
         {videos.map((v) => (
           <Link
             key={v.id}

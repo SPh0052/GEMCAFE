@@ -562,7 +562,7 @@ export default function VideoEditor() {
   ]
 
   return (
-    <div className="flex h-screen flex-col bg-gray-900 pb-[calc(5rem+env(safe-area-inset-bottom,0))] md:pb-0">
+    <div className="flex h-screen flex-col bg-gray-900 pb-[calc(5rem+env(safe-area-inset-bottom,0))]">
       {/* 상단 바 */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-800 bg-gray-900 px-4 py-3 md:px-6">
         <Link

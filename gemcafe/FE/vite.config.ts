@@ -45,8 +45,11 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
       },
+      // dev 모드에선 PWA 비활성 — service worker 와 HMR 캐시 충돌, 재시작 시
+      // dev-dist/sw.js, workbox-*.js 의 race condition 으로 인한 ENOENT 회피.
+      // PWA 동작 검증은 `npm run build && npm run preview` 로 운영 빌드에서 확인.
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     }),
   ],

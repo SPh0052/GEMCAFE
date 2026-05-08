@@ -39,7 +39,10 @@ export default function AppLayout() {
             </div>
           </main>
 
-          <BottomNav />
+          {/* AppLayout 에선 데스크톱에 SideNav 가 있으니 BottomNav 는 모바일만 */}
+          <div className="md:hidden">
+            <BottomNav />
+          </div>
         </div>
       </div>
     </div>

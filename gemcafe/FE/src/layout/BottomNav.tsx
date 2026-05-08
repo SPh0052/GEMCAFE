@@ -15,10 +15,19 @@ const tabs = [
 export const BOTTOM_NAV_HEIGHT_CLASS =
   'pb-[calc(5rem+env(safe-area-inset-bottom,0))]'
 
+/**
+ * BottomNav — 페이지 하단 고정 네비게이션.
+ *
+ * 모바일에선 항상 표시. 데스크톱에선 컨텍스트에 따라 다름:
+ *  - AppLayout 내부에서 SideNav 와 같이 쓸 땐 BottomNav 숨겨야 (AppLayout 에서 wrapper md:hidden)
+ *  - VideoEditor 처럼 SideNav 가 없는 풀스크린 페이지에선 BottomNav 가 데스크톱에도 보여야
+ *
+ * 컴포넌트 자체에는 md:hidden 을 박지 않고, 사용처에서 wrapping 으로 결정.
+ */
 export default function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur md:hidden">
-      <div className="flex items-center justify-around px-2 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0))]">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-3xl items-center justify-around px-2 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0))]">
         {tabs.map((t) => {
           const Icon = t.icon
           return (

@@ -72,9 +72,9 @@ export default function CreateVideoPage() {
         </button>
       </Section>
 
-      {/* 시뮬레이션 선택 — 단일 선택. 버튼 3개를 세로로 나란히 배치 */}
+      {/* 시뮬레이션 선택 — 모바일 세로 1열, 데스크톱 가로 3열 */}
       <Section title="시뮬레이션 선택">
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {simulations.map((sim) => {
             const isActive = selectedSim === sim.id
             return (
@@ -82,7 +82,7 @@ export default function CreateVideoPage() {
                 key={sim.id}
                 type="button"
                 onClick={() => setSelectedSim(sim.id)}
-                className={`relative flex h-24 w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-200 p-4 text-white transition ${
+                className={`relative flex h-24 w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-200 p-4 text-white transition md:h-32 ${
                   isActive ? 'ring-2 ring-brand-500 ring-offset-2' : ''
                 }`}
                 style={{
