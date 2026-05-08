@@ -40,6 +40,10 @@ public enum ErrorCode {
     KEYFRAME_SESSION_MISMATCH(HttpStatus.BAD_REQUEST, "SESSION-006", "키프레임이 해당 세션에 속하지 않습니다"),
     SIMULATION_NOT_FOUND(HttpStatus.NOT_FOUND, "SIM-001", "해당 시뮬레이션을 찾을 수 없습니다"),
     BACKGROUND_NOT_FOUND(HttpStatus.NOT_FOUND, "BG-001", "해당 배경을 찾을 수 없습니다"),
+    KEYFRAME_NOT_SELECTED(HttpStatus.BAD_REQUEST, "SESSION-007", "선택된 키프레임이 없습니다"),
+
+    // Gem
+    GEM_INSUFFICIENT(HttpStatus.BAD_REQUEST, "GEM-001", "젬이 부족합니다"),
 
     // Video
     VIDEO_NOT_FOUND(HttpStatus.NOT_FOUND, "VIDEO-001", "해당 영상을 찾을 수 없습니다"),
