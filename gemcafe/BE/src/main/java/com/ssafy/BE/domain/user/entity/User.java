@@ -72,4 +72,21 @@ public class User {
     public boolean isDeleted() {
         return deletedAt != null;
     }
+
+    public void deductGem(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must be non-negative");
+        }
+        if (this.gem < amount) {
+            throw new IllegalStateException("insufficient gem: have " + this.gem + ", need " + amount);
+        }
+        this.gem -= amount;
+    }
+
+    public void refundGem(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must be non-negative");
+        }
+        this.gem += amount;
+    }
 }

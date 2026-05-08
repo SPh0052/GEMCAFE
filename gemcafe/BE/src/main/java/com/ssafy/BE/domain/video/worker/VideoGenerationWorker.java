@@ -1,5 +1,7 @@
 package com.ssafy.BE.domain.video.worker;
 
+import com.ssafy.BE.domain.user.entity.User;
+import com.ssafy.BE.domain.user.repository.UserRepository;
 import com.ssafy.BE.domain.video.dto.VideoGenerationMessage;
 import com.ssafy.BE.domain.video.entity.Video;
 import com.ssafy.BE.domain.video.repository.VideoRepository;
@@ -21,6 +23,7 @@ public class VideoGenerationWorker {
     private final AiVideoClient aiVideoClient;
     private final VideoRepository videoRepository;
     private final VideoFileService videoFileService;
+    private final UserRepository userRepository;
 
     @RabbitListener(queues = "${app-mq.queue.video-generate}")
     public void onVideoGenerationMessage(VideoGenerationMessage message) {
@@ -51,8 +54,7 @@ public class VideoGenerationWorker {
 
         } catch (Exception e) {
             log.error("[VIDEO-FAIL] videoId={} reason={}", video.getId(), e.getMessage(), e);
-            failVideo(video.getId());
-            // TODO: 젬 환불 정책 추가
+            failVideoAndRefund(video.getId(), video.getUserId(), video.getGem());
         }
     }
 
@@ -63,7 +65,11 @@ public class VideoGenerationWorker {
     }
 
     @Transactional
-    protected void failVideo(Integer videoId) {
+    protected void failVideoAndRefund(Integer videoId, Integer userId, int gemAmount) {
         videoRepository.findById(videoId).ifPresent(Video::markFailed);
+        userRepository.findById(userId).ifPresent(user -> {
+            user.refundGem(gemAmount);
+            log.info("[GEM-REFUND] userId={} amount={}", userId, gemAmount);
+        });
     }
 }
