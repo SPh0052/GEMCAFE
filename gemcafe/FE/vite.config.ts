@@ -45,8 +45,10 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
       },
+      // dev 모드에선 PWA 비활성 — vite restart 시 dev-dist/sw.js 가 사라져
+      // 'ENOENT' 에러를 일으키는 이슈 회피. build 시점엔 정상 생성됨.
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     }),
   ],
