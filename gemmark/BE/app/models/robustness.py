@@ -110,6 +110,7 @@ class RobustnessAttackDetail(Base):
     ber: Mapped[float] = mapped_column(Float, nullable=False)
     psnr: Mapped[float] = mapped_column(Float, nullable=False)
     duration: Mapped[float] = mapped_column(Float, nullable=False)
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
