@@ -10,6 +10,7 @@ import CreatingPage from '@/features/create-video/CreatingPage'
 import MyVideosPage from '@/features/my-videos/MyVideosPage'
 import VideoDetailPage from '@/features/my-videos/VideoDetailPage'
 import MyPage from '@/features/my-page/MyPage'
+import VideoEditor from '@/components/VideoEditor'
 
 export default function App() {
   return (
@@ -32,6 +33,16 @@ export default function App() {
         element={
           <RequireAuth>
             <CreatingPage />
+          </RequireAuth>
+        }
+      />
+
+      {/* 영상 편집 페이지 — 풀스크린 단독 (헤더/네비 없음) */}
+      <Route
+        path="/editor"
+        element={
+          <RequireAuth>
+            <VideoEditor />
           </RequireAuth>
         }
       />

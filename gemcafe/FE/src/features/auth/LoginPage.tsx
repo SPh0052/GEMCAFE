@@ -6,6 +6,7 @@ import MobileShell from '@/shared/components/MobileShell'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
+import { validateEmail, validatePassword } from '@/shared/lib/validation'
 import { signInWithGoogle } from './google'
 import { findUserBySub } from './userRegistry'
 import { login as loginApi } from './api'
@@ -31,8 +32,15 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     if (submitting) return
-    if (!email.trim() || !password) {
-      setError('이메일과 비밀번호를 모두 입력해주세요.')
+    // 클라이언트 검증
+    const emailErr = validateEmail(email)
+    if (emailErr) {
+      setError(emailErr)
+      return
+    }
+    const pwErr = validatePassword(password)
+    if (pwErr) {
+      setError(pwErr)
       return
     }
     setSubmitting(true)

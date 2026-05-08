@@ -31,8 +31,15 @@ public class SecurityConfig {
                                 HttpMethod.POST,
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
-                                "/api/v1/auth/refresh"
+                                "/api/v1/auth/refresh",
+                                "/api/v1/cakes/analyze",
+                                "/api/v1/videos"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cakes/sessions/*/keyframes").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cakes/sessions/*/select-keyframe").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/videos/*/status").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/videos/*/download").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/videos/*/share").permitAll()
                         .requestMatchers("/error", "/actuator/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",

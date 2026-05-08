@@ -33,10 +33,16 @@ export default function MyPage() {
 
   return (
     <div className="flex flex-col gap-5 px-5 pb-6 pt-5">
+      <h1 className="text-xl font-bold text-gray-900">마이페이지</h1>
+
       {/* 프로필 */}
       <section className="flex flex-col items-center gap-2">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gray-100 to-gray-300 shadow">
-          <img src="/logo.png" alt="" className="h-12 w-12 object-contain" />
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt=""
+            className="h-12 w-12 object-contain"
+          />
         </div>
         <div className="text-center">
           <div className="font-semibold">

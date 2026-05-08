@@ -8,8 +8,16 @@ export default function AppHeader() {
         aria-label="gem.cafe 홈"
         className="flex items-center gap-2"
       >
-        <img src="/logo.png" alt="" className="h-9 w-auto" />
-        <img src="/logo_text.png" alt="gem.cafe" className="h-6 w-auto" />
+        <img
+          src={`${import.meta.env.BASE_URL}logo.png`}
+          alt=""
+          className="h-9 w-auto"
+        />
+        <img
+          src={`${import.meta.env.BASE_URL}logo_text.png`}
+          alt="gem.cafe"
+          className="h-6 w-auto"
+        />
       </Link>
     </header>
   )

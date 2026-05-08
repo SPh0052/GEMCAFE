@@ -6,6 +6,12 @@ import MobileShell from '@/shared/components/MobileShell'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
 import { signup } from './api'
+import {
+  validateEmail,
+  validateName,
+  validatePassword,
+  validatePhone,
+} from '@/shared/lib/validation'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -35,6 +41,33 @@ export default function SignupPage() {
 
   const handleSignup = async () => {
     if (!canSubmit || submitting) return
+
+    // 클라이언트 검증 — 한글/공백/길이/형식
+    const nameErr = validateName(form.name)
+    if (nameErr) {
+      setError(nameErr)
+      return
+    }
+    const emailErr = validateEmail(form.email)
+    if (emailErr) {
+      setError(emailErr)
+      return
+    }
+    const phoneErr = validatePhone(form.phone)
+    if (phoneErr) {
+      setError(phoneErr)
+      return
+    }
+    const pwErr = validatePassword(form.password)
+    if (pwErr) {
+      setError(pwErr)
+      return
+    }
+    if (form.password !== form.passwordConfirm) {
+      setError('비밀번호가 일치하지 않습니다.')
+      return
+    }
+
     setSubmitting(true)
     setError(null)
     try {
