@@ -1,6 +1,7 @@
-# Gemcafe AI Service — 내부 아키텍처
+# Gemcafe AI Service — 시스템 구조 다이어그램
 
-> 이 문서는 **AI 코드를 직접 수정할 때 어디를 봐야 하는지** 한눈에 파악하기 위한 내부 개발자용 문서입니다.<br/>
+> 이 문서는 **AI 시스템 구조를 다이어그램으로 한눈에 파악**하기 위한 내부 개발자용 문서입니다.<br/>
+> 코드 수정 시 함수/변수 레퍼런스, 데이터 매핑 표, 시뮬레이션 추가 체크리스트는 [DEVELOPER.md](./DEVELOPER.md) 참조.<br/>
 > 외부 통합(BE/FE)에 대한 설명은 [README.md](./README.md) 참조.<br/>
 > Mermaid Diagram 이므로 → Extensions → "Markdown Preview Mermaid Support" 설치할 것
 
@@ -140,6 +141,13 @@ sequenceDiagram
 
     PB-->>API: { prompt, negative_prompt, duration }
 
+    Note over BE: BE가 보관해둔 keyframe metadata 꺼냄<br/>(base_url, keyframe_url, frame_strategy)
+    alt frame_strategy == "i2i_is_end" (자르기/들어올리기)
+        Note over BE: start_url = base_url<br/>end_url = keyframe_url
+    else frame_strategy == "i2i_is_start" (토핑 떨어지기 — 역방향)
+        Note over BE: start_url = keyframe_url<br/>end_url = base_url
+    end
+
     API->>GV: generate_video(start, end,<br/>prompt, negative, duration)
     GV->>Veo: fal_client.subscribe(...)
     Note over Veo: 1~3분 처리
@@ -174,7 +182,14 @@ flowchart TD
     S3 --> S7
     S7 --> KF[/키프레임 이미지<br/>+ frame_strategy/]:::data
 
-    KF --> S8[STEP 8 - generate_video<br/>Veo 3.1 first-last-frame]
+    %% frame_strategy 분기 — 시뮬레이션마다 I2I 결과가 first-frame인지 last-frame인지 다름
+    KF --> BRANCH{frame_strategy?}:::decision
+    Start -.->|원본 이미지<br/>참조| BRANCH
+    BRANCH -->|i2i_is_end<br/>자르기 / 들어올리기| ASSIGN_A[start = 원본<br/>end = 키프레임]:::data
+    BRANCH -->|i2i_is_start<br/>토핑 떨어지기<br/>역방향!| ASSIGN_B[start = 키프레임<br/>end = 원본]:::data
+
+    ASSIGN_A --> S8[STEP 8 - generate_video<br/>Veo 3.1 first-last-frame]
+    ASSIGN_B --> S8
     P2_OUT --> S8
     S8 --> END([영상 mp4]):::output
 
@@ -182,6 +197,7 @@ flowchart TD
     classDef output fill:#ffccbc,stroke:#d84315,color:#000
     classDef data fill:#fff9c4,stroke:#f57f17,color:#000
     classDef user fill:#e1bee7,stroke:#6a1b9a,color:#000
+    classDef decision fill:#ffe0b2,stroke:#e65100,stroke-width:2px,color:#000
 ```
 
 ---
@@ -201,12 +217,3 @@ flowchart TD
 
 ---
 
-## 다음에 추가될 다이어그램 (예고)
-
-이 파일은 일단 호출 관계만 담았어요. 다음 단계로 추가할 예정:
-
-- 📊 파일별 함수/변수 상세 표
-- 🛠 "새 시뮬레이션 추가하려면 어디 수정?" 체크리스트
-- 🔄 데이터 형식 변환 표 (snake_case → 한국어 라벨 등)
-
-필요하시면 알려주세요.
