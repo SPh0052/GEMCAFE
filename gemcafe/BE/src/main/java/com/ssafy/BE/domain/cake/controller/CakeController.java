@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,10 +34,9 @@ public class CakeController {
     @Operation(summary = "케이크 이미지 분석 (Step 2). video_session 생성 후 분석 결과 반환")
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<CakeAnalyzeResponse> analyze(
+            @AuthenticationPrincipal Integer userId,
             @RequestParam("image") MultipartFile image
     ) {
-        // TODO: 인증 적용 후 SecurityContext 에서 userId 꺼내기
-        Integer userId = 1;
         CakeAnalyzeResponse data = cakeAnalyzeService.analyze(userId, image);
         return ApiResponse.ok("이미지 분석 완료", data);
     }
@@ -44,20 +44,22 @@ public class CakeController {
     @Operation(summary = "키프레임 생성 (Step 7). 재생성 시 동일 엔드포인트 재호출. 최대 3회.")
     @PostMapping("/sessions/{sessionId}/keyframes")
     public ApiResponse<KeyframeGenerateResponse> generateKeyframe(
+            @AuthenticationPrincipal Integer userId,
             @PathVariable Integer sessionId,
             @Valid @RequestBody KeyframeGenerateRequest request
     ) {
-        KeyframeGenerateResponse data = cakeKeyframeService.generate(sessionId, request);
+        KeyframeGenerateResponse data = cakeKeyframeService.generate(userId, sessionId, request);
         return ApiResponse.ok("키프레임 생성 완료", data);
     }
 
     @Operation(summary = "키프레임 선택 (Step 7-③). 영상 생성 단계로 진입할 키프레임 확정")
     @PostMapping("/sessions/{sessionId}/select-keyframe")
     public ApiResponse<KeyframeSelectResponse> selectKeyframe(
+            @AuthenticationPrincipal Integer userId,
             @PathVariable Integer sessionId,
             @Valid @RequestBody KeyframeSelectRequest request
     ) {
-        KeyframeSelectResponse data = cakeKeyframeService.select(sessionId, request);
+        KeyframeSelectResponse data = cakeKeyframeService.select(userId, sessionId, request);
         return ApiResponse.ok("키프레임 선택 완료", data);
     }
 }

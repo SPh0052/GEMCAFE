@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,18 +36,25 @@ public class VideoController {
 
     @Operation(summary = "영상 생성 시작 (Step 8). 젬 6 차감 후 비동기 큐 발행")
     @PostMapping
-    public ApiResponse<CreateVideoResponse> create(@Valid @RequestBody CreateVideoRequest request) {
-        // TODO: 인증 적용 후 SecurityContext 에서 userId 꺼내기
-        Integer userId = 1;
+    public ApiResponse<CreateVideoResponse> create(
+            @AuthenticationPrincipal Integer userId,
+            @Valid @RequestBody CreateVideoRequest request
+    ) {
         CreateVideoResponse data = videoGenerationService.create(userId, request);
         return ApiResponse.ok("영상 생성 요청 완료", data);
     }
 
     @Operation(summary = "영상 생성 진행 상태 조회 (폴링용)")
     @GetMapping("/{videoId}/status")
-    public ApiResponse<VideoStatusResponse> status(@PathVariable Integer videoId) {
+    public ApiResponse<VideoStatusResponse> status(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId
+    ) {
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VIDEO_NOT_FOUND));
+        if (userId == null || !video.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_RESOURCE);
+        }
         VideoStatusResponse data = new VideoStatusResponse(
                 video.getId(),
                 video.getStatus().name(),
@@ -60,15 +68,21 @@ public class VideoController {
 
     @Operation(summary = "영상 다운로드 정보 조회. 파일 URL + 원본 파일명 반환")
     @GetMapping("/{videoId}/download")
-    public ApiResponse<VideoDownloadResponse> download(@PathVariable Integer videoId) {
-        VideoDownloadResponse data = videoAssetService.getDownload(videoId);
+    public ApiResponse<VideoDownloadResponse> download(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId
+    ) {
+        VideoDownloadResponse data = videoAssetService.getDownload(userId, videoId);
         return ApiResponse.ok("다운로드 정보 조회 완료", data);
     }
 
     @Operation(summary = "영상 공유 정보 조회. 영상 URL + 썸네일 + 제목 반환")
     @GetMapping("/{videoId}/share")
-    public ApiResponse<VideoShareResponse> share(@PathVariable Integer videoId) {
-        VideoShareResponse data = videoAssetService.getShare(videoId);
+    public ApiResponse<VideoShareResponse> share(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId
+    ) {
+        VideoShareResponse data = videoAssetService.getShare(userId, videoId);
         return ApiResponse.ok("공유 정보 조회 완료", data);
     }
 }

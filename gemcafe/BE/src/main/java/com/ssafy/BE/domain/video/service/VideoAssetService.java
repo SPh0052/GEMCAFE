@@ -28,8 +28,8 @@ public class VideoAssetService {
     private String videoSubdir;
 
     @Transactional(readOnly = true)
-    public VideoDownloadResponse getDownload(Integer videoId) {
-        Video video = findCompleted(videoId);
+    public VideoDownloadResponse getDownload(Integer userId, Integer videoId) {
+        Video video = findCompletedOwnedBy(userId, videoId);
         String fileUrl = buildVideoUrl(video.getStoredFileName());
         return new VideoDownloadResponse(
                 video.getId(),
@@ -40,8 +40,8 @@ public class VideoAssetService {
     }
 
     @Transactional(readOnly = true)
-    public VideoShareResponse getShare(Integer videoId) {
-        Video video = findCompleted(videoId);
+    public VideoShareResponse getShare(Integer userId, Integer videoId) {
+        Video video = findCompletedOwnedBy(userId, videoId);
         String videoUrl = buildVideoUrl(video.getStoredFileName());
         String thumbnailUrl = buildThumbnailUrl(video.getThumbnailFileName());
         String title = (video.getUserPrompt() == null || video.getUserPrompt().isBlank())
@@ -50,9 +50,12 @@ public class VideoAssetService {
         return new VideoShareResponse(video.getId(), videoUrl, thumbnailUrl, title);
     }
 
-    private Video findCompleted(Integer videoId) {
+    private Video findCompletedOwnedBy(Integer userId, Integer videoId) {
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VIDEO_NOT_FOUND));
+        if (userId == null || !video.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_RESOURCE);
+        }
         if (video.getStatus() != VideoStatus.COMPLETED) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_READY);
         }

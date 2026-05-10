@@ -51,10 +51,11 @@ public class CakeKeyframeService {
     private String uploadDir;
 
     @Transactional
-    public KeyframeGenerateResponse generate(Integer sessionId, KeyframeGenerateRequest request) {
+    public KeyframeGenerateResponse generate(Integer userId, Integer sessionId, KeyframeGenerateRequest request) {
         VideoSession session = videoSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
+        validateSessionOwner(session, userId);
         validateSessionForKeyframe(session);
 
         Simulation simulation = simulationRepository.findById(request.simulationId())
@@ -103,9 +104,10 @@ public class CakeKeyframeService {
     }
 
     @Transactional
-    public KeyframeSelectResponse select(Integer sessionId, KeyframeSelectRequest request) {
+    public KeyframeSelectResponse select(Integer userId, Integer sessionId, KeyframeSelectRequest request) {
         VideoSession session = videoSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+        validateSessionOwner(session, userId);
         validateNotExpired(session);
 
         VideoKeyframe target = videoKeyframeRepository.findById(request.keyframeId())
@@ -143,6 +145,12 @@ public class CakeKeyframeService {
     private void validateNotExpired(VideoSession session) {
         if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.SESSION_EXPIRED);
+        }
+    }
+
+    private void validateSessionOwner(VideoSession session, Integer userId) {
+        if (userId == null || !session.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_RESOURCE);
         }
     }
 
