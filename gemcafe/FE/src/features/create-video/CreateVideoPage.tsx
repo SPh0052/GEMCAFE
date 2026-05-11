@@ -46,7 +46,6 @@ export default function CreateVideoPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Step 1: 이미지 + analyze ──
-  const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [sessionId, setSessionId] = useState<number | null>(null)
@@ -91,7 +90,6 @@ export default function CreateVideoPage() {
     if (!file) return
 
     // 새 이미지 선택 시 이전 결과 초기화
-    setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
     setAnalysis(null)
     setSessionId(null)
