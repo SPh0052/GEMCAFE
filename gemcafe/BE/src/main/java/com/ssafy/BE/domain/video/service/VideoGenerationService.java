@@ -116,4 +116,19 @@ public class VideoGenerationService {
         }
         return VideoGenerationMessage.of(videoId, userId, startUrl, endUrl, keyframe.getVideoPrompt());
     }
+
+    @Transactional
+    public void completeVideo(Integer videoId, VideoFileService.StoredVideo stored) {
+        Video video = videoRepository.findById(videoId).orElseThrow();
+        video.markCompleted(stored.storedFileName(), (int) stored.fileSize(), stored.thumbnailFileName());
+    }
+
+    @Transactional
+    public void failVideoAndRefund(Integer videoId, Integer userId, int gemAmount) {
+        videoRepository.findById(videoId).ifPresent(Video::markFailed);
+        userRepository.findById(userId).ifPresent(user -> {
+            user.refundGem(gemAmount);
+            log.info("[GEM-REFUND] userId={} amount={}", userId, gemAmount);
+        });
+    }
 }
