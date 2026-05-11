@@ -29,8 +29,18 @@ public class RabbitConfig {
     }
 
     @Bean
+    public TopicExchange watermarkExchange() {
+        return new TopicExchange(mq.watermarkExchange(), true, false);
+    }
+
+    @Bean
     public Queue videoGenerateQueue() {
         return new Queue(mq.queue().videoGenerate(), true);
+    }
+
+    @Bean
+    public Queue watermarkRequestQueue() {
+        return new Queue(mq.queue().watermarkRequest(), true);
     }
 
     @Bean
@@ -39,6 +49,14 @@ public class RabbitConfig {
                 .bind(videoGenerateQueue)
                 .to(gemcafeExchange)
                 .with(mq.routingKey().videoGenerate());
+    }
+
+    @Bean
+    public Binding watermarkRequestBinding(Queue watermarkRequestQueue, TopicExchange watermarkExchange) {
+        return BindingBuilder
+                .bind(watermarkRequestQueue)
+                .to(watermarkExchange)
+                .with(mq.routingKey().watermarkRequest());
     }
 
     @Bean

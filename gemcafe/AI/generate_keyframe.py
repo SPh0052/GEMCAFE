@@ -39,7 +39,8 @@ ENDPOINT_EDIT = "fal-ai/nano-banana-pro/edit"
 INPUT_IMAGE_PATH = "./test_cake.jpg"
 
 # 시뮬레이션 / focus / 배경 / 힌트 (pipeline.py 와 동일 의미)
-SIMULATION = "cross_section_cut"      # cross_section_cut | lift_slice | topping_fall
+SIMULATION = "cut_in_half"             # smash | fork_bite | cut_in_half | cream_scoop |
+                                       # strawberry_fall | strawberry_cascade
 FOCUS = None                           # None=자동, "strawberry" 등=수동
 BACKGROUND = None                      # None=교체 안 함, "white_marble" 등
 USER_HINT = None
@@ -65,33 +66,51 @@ def on_queue_update(update):
 # 헬퍼
 # =====================================================================
 def load_latest_analysis() -> dict:
-    """outputs/ 안의 가장 최근 analyze_* 폴더에서 analysis.json 로드."""
+    """outputs/ 안의 가장 최근 analyze_* 폴더에서 analysis.json 로드 (CLI 단독 실행용)."""
     analyze_dirs = sorted(
         [p for p in Path(OUTPUT_DIR).glob("analyze_*") if p.is_dir()],
         reverse=True,
     )
     if not analyze_dirs:
-        raise SystemExit(
+        raise FileNotFoundError(
             "analyze 결과 폴더 없음. 먼저 'python analyze.py' 실행하거나 "
             "FOCUS = '...' 로 수동 지정하세요."
         )
     analysis_path = analyze_dirs[0] / "analysis.json"
     if not analysis_path.exists():
-        raise SystemExit(f"{analysis_path} 없음")
+        raise FileNotFoundError(f"{analysis_path} 없음")
     with open(analysis_path, encoding="utf-8") as f:
         analysis = json.load(f)
     print(f"[분석 로드] {analysis_path}")
     return analysis
 
 
-def resolve_focus(focus_setting: Optional[str]) -> tuple[str, Optional[dict]]:
+def resolve_focus(
+    focus_setting: Optional[str],
+    analysis: Optional[dict] = None,
+) -> tuple[str, Optional[dict]]:
+    """
+    Focus 값 결정.
+      - focus_setting 직접 지정 → 그대로 사용 (analysis 무시)
+      - focus_setting=None + analysis 제공 → analysis['suggested_focus'][0]
+      - focus_setting=None + analysis=None → 디스크에서 최신 analysis 로드 (CLI fallback)
+
+    멀티유저 환경(API 호출)에서는 analysis를 명시적으로 넘기는 게 안전.
+    디스크 로드는 단독 실행(CLI) 편의를 위한 fallback.
+    """
     if focus_setting is not None:
         print(f"[FOCUS] 수동 지정: '{focus_setting}'")
         return focus_setting, None
-    analysis = load_latest_analysis()
+
+    if analysis is None:
+        analysis = load_latest_analysis()  # CLI fallback
+
     options = analysis.get("suggested_focus") or []
     if not options:
-        raise SystemExit("suggested_focus 비어있음")
+        raise ValueError(
+            "suggested_focus가 비어있음. analysis 결과 확인 필요 "
+            "(또는 focus를 명시적으로 지정)"
+        )
     chosen = options[0]
     print(f"[FOCUS] 자동 선택: '{chosen}' (후보: {options})")
     return chosen, analysis
@@ -146,6 +165,7 @@ def generate_keyframe(
     hint: Optional[str] = None,
     seed: Optional[int] = None,
     save_dir: Optional[Path] = None,
+    analysis: Optional[dict] = None,
 ) -> dict:
     """
     키프레임 1장 생성. 재호출 가능 (재생성 흐름용).
@@ -169,7 +189,7 @@ def generate_keyframe(
         }
     """
     # 1) Focus 해석
-    resolved_focus, _loaded = resolve_focus(focus)
+    resolved_focus, _loaded = resolve_focus(focus, analysis=analysis)
 
     # 2) 프롬프트 빌드
     prompts = prompt_builder.build_prompts(
@@ -199,12 +219,21 @@ def generate_keyframe(
     print(f"      → {image_url}")
     print(f"      → 저장: {input_local}")
 
+    # background 파일명: 모든 시뮬레이션에서 "start_frame.jpg" 사용.
+    # (keyframe.jpg는 항상 그대로 — I2I 결과라는 의미로 명확)
+    bg_filename = "2_start_frame.jpg"
+
+    # 같은 seed로 두 번 nano-banana 호출 시 결과가 서로 영향 받을 수 있어 분리.
+    # 배경 교체엔 seed, 키프레임엔 seed+1 (또는 둘 다 None이면 그대로 None).
+    bg_seed = seed
+    kf_seed = (seed + 1) if seed is not None else None
+
     # 5) [2/3] 배경 교체 (선택)
     if background:
-        print(f"[2/3] 배경 교체: '{background}'")
+        print(f"[2/3] 배경 교체: '{background}' (seed={bg_seed})")
         bg_prompt = prompt_builder.build_background_prompt(background)
-        bg_url = call_nano_banana_edit(image_url, bg_prompt, prompts["system_prompt"], seed)
-        bg_local = save_dir / "2_background.jpg"
+        bg_url = call_nano_banana_edit(image_url, bg_prompt, prompts["system_prompt"], bg_seed)
+        bg_local = save_dir / bg_filename
         download_file(bg_url, str(bg_local))
         print(f"      → 배경 교체 이미지: {bg_url}")
         print(f"      → 저장: {bg_local}")
@@ -214,12 +243,12 @@ def generate_keyframe(
         base_url = image_url
 
     # 6) [3/3] 시뮬레이션 키프레임
-    print(f"[3/3] 키프레임 생성")
+    print(f"[3/3] 키프레임 생성 (seed={kf_seed})")
     keyframe_url = call_nano_banana_edit(
         base_url,
         prompts["instruction_prompt"],
         prompts["system_prompt"],
-        seed,
+        kf_seed,
     )
     keyframe_local = save_dir / "3_keyframe.jpg"
     download_file(keyframe_url, str(keyframe_local))

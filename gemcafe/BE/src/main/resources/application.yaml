@@ -42,10 +42,13 @@ spring:
 
 app-mq:
   exchange: ${MQ_EXCHANGE:gemcafe.exchange}
+  watermark-exchange: ${MQ_WATERMARK_EXCHANGE:gemcafe.watermark.exchange}
   queue:
     video-generate: ${MQ_QUEUE_VIDEO_GENERATE:gemcafe.video.generate}
+    watermark-request: ${MQ_QUEUE_WATERMARK_REQUEST:gemcafe.watermark.request}
   routing-key:
     video-generate: ${MQ_ROUTING_VIDEO_GENERATE:gemcafe.video.generate}
+    watermark-request: ${MQ_ROUTING_WATERMARK_REQUEST:gemcafe.watermark.request}
 
 app-ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
@@ -55,6 +58,15 @@ app-ai:
 app-video:
   subdir: ${VIDEO_SUBDIR:ai-videos}
   ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
+
+app-watermark:
+  subdir: ${WATERMARK_SUBDIR:watermarked}
+  alpha: ${WATERMARK_ALPHA:20}
+  redis-channel-prefix: ${WATERMARK_REDIS_CHANNEL_PREFIX:watermark:progress}
+  redis-job-key-prefix: ${WATERMARK_REDIS_JOB_KEY_PREFIX:watermark:job}
+  redis-job-ttl-minutes: ${WATERMARK_REDIS_JOB_TTL_MINUTES:30}
+  sse-timeout-ms: ${WATERMARK_SSE_TIMEOUT_MS:600000}
+  source-mount-prefix: ${WATERMARK_SOURCE_MOUNT_PREFIX:/app/gemcafe-uploads}
 
 jwt:
   secret: ${JWT_SECRET:CHANGE_ME_IN_PROD_min_32_chars_required_for_HS256}
