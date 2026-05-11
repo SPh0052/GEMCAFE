@@ -5,10 +5,12 @@ import com.ssafy.BE.domain.video.dto.CreateVideoResponse;
 import com.ssafy.BE.domain.video.dto.VideoDownloadResponse;
 import com.ssafy.BE.domain.video.dto.VideoShareResponse;
 import com.ssafy.BE.domain.video.dto.VideoStatusResponse;
+import com.ssafy.BE.domain.video.dto.WatermarkDownloadResponse;
 import com.ssafy.BE.domain.video.entity.Video;
 import com.ssafy.BE.domain.video.repository.VideoRepository;
 import com.ssafy.BE.domain.video.service.VideoAssetService;
 import com.ssafy.BE.domain.video.service.VideoGenerationService;
+import com.ssafy.BE.domain.video.service.VideoWatermarkService;
 import com.ssafy.BE.global.common.ApiResponse;
 import com.ssafy.BE.global.exception.BusinessException;
 import com.ssafy.BE.global.exception.ErrorCode;
@@ -32,6 +34,7 @@ public class VideoController {
 
     private final VideoGenerationService videoGenerationService;
     private final VideoAssetService videoAssetService;
+    private final VideoWatermarkService videoWatermarkService;
     private final VideoRepository videoRepository;
 
     @Operation(summary = "영상 생성 시작 (Step 8). 젬 6 차감 후 비동기 큐 발행")
@@ -84,5 +87,15 @@ public class VideoController {
     ) {
         VideoShareResponse data = videoAssetService.getShare(userId, videoId);
         return ApiResponse.ok("공유 정보 조회 완료", data);
+    }
+
+    @Operation(summary = "워터마크 다운로드 요청. jobId 발급 + 비동기 워터마크 처리 시작. SSE로 진행 상태 폴링.")
+    @PostMapping("/{videoId}/watermark-download")
+    public ApiResponse<WatermarkDownloadResponse> watermarkDownload(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId
+    ) {
+        WatermarkDownloadResponse data = videoWatermarkService.requestDownload(userId, videoId);
+        return ApiResponse.ok("워터마크 다운로드 요청 완료", data);
     }
 }
