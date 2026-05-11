@@ -1,5 +1,10 @@
 package com.ssafy.BE.domain.video.service;
 
+import com.ssafy.BE.domain.background.entity.Background;
+import com.ssafy.BE.domain.background.repository.BackgroundRepository;
+import com.ssafy.BE.domain.background.service.BackgroundAiMapper;
+import com.ssafy.BE.domain.simulation.entity.Simulation;
+import com.ssafy.BE.domain.simulation.repository.SimulationRepository;
 import com.ssafy.BE.domain.user.entity.User;
 import com.ssafy.BE.domain.user.repository.UserRepository;
 import com.ssafy.BE.domain.video.dto.CreateVideoRequest;
@@ -36,6 +41,9 @@ public class VideoGenerationService {
     private final VideoSessionRepository videoSessionRepository;
     private final VideoKeyframeRepository videoKeyframeRepository;
     private final VideoRepository videoRepository;
+    private final SimulationRepository simulationRepository;
+    private final BackgroundRepository backgroundRepository;
+    private final BackgroundAiMapper backgroundAiMapper;
     private final VideoGenerationPublisher publisher;
 
     @Transactional
@@ -57,7 +65,7 @@ public class VideoGenerationService {
         Video video = createVideoRow(session, request.userPrompt());
         session.submit(video.getId());
 
-        VideoGenerationMessage message = buildMessage(video.getId(), userId, keyframe);
+        VideoGenerationMessage message = buildMessage(video.getId(), userId, keyframe, session);
         publisher.publish(message);
 
         log.info("[VIDEO-CREATE] videoId={} sessionId={} userId={} gem={}",
@@ -104,7 +112,8 @@ public class VideoGenerationService {
         return videoRepository.save(video);
     }
 
-    private VideoGenerationMessage buildMessage(Integer videoId, Integer userId, VideoKeyframe keyframe) {
+    private VideoGenerationMessage buildMessage(
+            Integer videoId, Integer userId, VideoKeyframe keyframe, VideoSession session) {
         String startUrl;
         String endUrl;
         if ("i2i_is_end".equals(keyframe.getFrameStrategy())) {
@@ -114,7 +123,25 @@ public class VideoGenerationService {
             startUrl = keyframe.getKeyframeUrl();
             endUrl = keyframe.getBaseUrl();
         }
-        return VideoGenerationMessage.of(videoId, userId, startUrl, endUrl, keyframe.getVideoPrompt());
+
+        // 세션에 저장된 simulation/background 키를 AI 서비스가 이해하는 코드로 변환
+        String simulationCode = simulationRepository.findById(session.getSimulationId())
+                .map(Simulation::getCode)
+                .orElse(null);
+        String backgroundCode = backgroundRepository.findById(session.getBackgroundId())
+                .map(backgroundAiMapper::resolveAiCode)
+                .orElse(null);
+
+        return VideoGenerationMessage.of(
+                videoId,
+                userId,
+                startUrl,
+                endUrl,
+                keyframe.getVideoPrompt(),
+                session.getVideoPromptKr(),
+                simulationCode,
+                backgroundCode
+        );
     }
 
     @Transactional

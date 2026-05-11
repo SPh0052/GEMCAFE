@@ -34,10 +34,17 @@ public class VideoGenerationWorker {
         }
 
         try {
+            // 한국어 우선: videoPromptKr 가 있으면 AI 가 LLM 번역 + 잠금 라이브러리 결합 모드
+            //              없으면 keyframe 생성 시 만들어진 영문 video_prompt 사용 (fallback)
+            boolean useKoreanFlow = message.videoPromptKr() != null && !message.videoPromptKr().isBlank();
             AiVideoRequest request = new AiVideoRequest(
                     message.startUrl(),
                     message.endUrl(),
-                    message.videoPrompt(),
+                    useKoreanFlow ? null : message.videoPrompt(),
+                    useKoreanFlow ? message.videoPromptKr() : null,
+                    useKoreanFlow ? message.simulationCode() : null,
+                    useKoreanFlow ? message.backgroundCode() : null,
+                    useKoreanFlow ? "veo-3.1" : null,
                     message.duration(),
                     message.resolution(),
                     Boolean.TRUE.equals(message.generateAudio())
