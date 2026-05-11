@@ -34,20 +34,24 @@ load_dotenv()
 # =====================================================================
 INPUT_IMAGE_PATH = "./test_cake.jpg"
 
-# 시뮬레이션
-#   "cross_section_cut"  단면 자르기   (i2i = end frame)
-#   "lift_slice"         한 조각 들어올리기 (i2i = end frame)
-#   "topping_fall"       토핑 떨어지기  (i2i = start frame, 역방향)
-SIMULATION = "cross_section_cut"
+# 시뮬레이션 (GET /catalog 의 simulations[].key 와 일치)
+#   "smash"              뭉개기                  (i2i = end frame)
+#   "fork_bite"          포크로 한 입 뜨기        (i2i = end frame)
+#   "cut_in_half"        반으로 자르기           (i2i = end frame)
+#   "cream_scoop"        크림만 떠내기           (i2i = end frame)
+#   "strawberry_fall"    딸기가 케이크 위로 떨어짐 (i2i = start frame, 역방향)
+#   "strawberry_cascade" 딸기 우수수             (i2i = start frame, 역방향)
+SIMULATION = "cut_in_half"
 
-# 강조할 요소
+# 강조할 요소 (focus) — 정식 키: "sponge" / "whipped_cream" / "strawberry"
 #   None              → 자동 (analysis.json의 suggested_focus[0])
-#   "strawberry" 등   → 수동 지정
+#   "strawberry" 등   → 수동 지정 (별칭도 허용: fresh_strawberries / cream / sponge_layers ...)
 FOCUS: Optional[str] = None
 
 # 배경
 #   None              → 배경 교체 skip
-#   "white_marble" / "cafe_interior" / "outdoor"
+#   "white_marble" / "cafe_interior" / "outdoor" / "wooden_table" /
+#   "minimalist_white" / "dark_moody"
 BACKGROUND: Optional[str] = None
 
 # 사용자 자유 힌트
@@ -94,8 +98,8 @@ def main():
     print("=" * 60)
 
     # frame_strategy에 따라 start/end 결정
-    #   i2i_is_end   → base_url=START, keyframe=END  (자르기/들어올리기)
-    #   i2i_is_start → keyframe=START, base_url=END  (토핑 떨어지기)
+    #   i2i_is_end   → base_url=START, keyframe=END  (smash/fork_bite/cut_in_half/cream_scoop)
+    #   i2i_is_start → keyframe=START, base_url=END  (strawberry_fall/strawberry_cascade)
     if kf["frame_strategy"] == "i2i_is_end":
         start_url, end_url = kf["base_url"], kf["keyframe_url"]
     else:

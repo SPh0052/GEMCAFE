@@ -20,9 +20,12 @@
 # 시뮬레이션 / 배경 한국어 라벨 (사장님 화면 + LLM 슬롯)
 # =====================================================================
 SIMULATION_LABELS_KR = {
-    "cross_section_cut": "단면 자르기 (칼이 위에서 단면을 가르며 들어감)",
-    "lift_slice":         "한 조각 들어올리기 (포크로 한 조각을 위로 들어올림)",
-    "topping_fall":       "토핑 위에서 떨어지기 (토핑이 케이크 위로 떨어져 안착)",
+    "smash":              "뭉개기 (포크가 케이크 위를 눌러 살짝 짓누름)",
+    "fork_bite":          "포크로 한 입 뜨기 (포크가 케이크 한 입 분량을 떠 들어올림)",
+    "cut_in_half":        "반으로 자르기 (칼이 케이크 조각을 수직으로 갈라 단면 노출)",
+    "cream_scoop":        "크림만 떠내기 (숟가락이 케이크 위 크림 한 덩이만 떠올림)",
+    "strawberry_fall":    "딸기가 케이크 위로 톡 떨어진다 (한 알이 위에서 떨어져 안착)",
+    "strawberry_cascade": "딸기가 우수수 쏟아진다 (여러 알이 차례로 케이크 위로 떨어져 안착)",
 }
 
 BACKGROUND_LABELS_KR = {
@@ -39,17 +42,29 @@ BACKGROUND_LABELS_KR = {
 # 카메라 제어 (시뮬레이션별)
 # =====================================================================
 CAMERA_DIRECTIVES = {
-    "cross_section_cut": (
-        "Static camera at eye level. Knife enters from top. "
-        "Slight push-in as cross-section reveals."
+    "smash": (
+        "Static camera at slightly above eye level looking down at the cake. "
+        "Fork enters from top of frame. Subtle push-in as the indentation forms."
     ),
-    "lift_slice": (
-        "Camera tracks upward following the lifted slice. "
-        "Starts low, ends slightly above."
+    "fork_bite": (
+        "Camera tracks upward following the lifted bite. "
+        "Starts at eye level, ends slightly above as the fork rises."
     ),
-    "topping_fall": (
+    "cut_in_half": (
+        "Static camera at eye level. Knife enters from top of frame. "
+        "Slight push-in as the cake separates and the cross-section reveals."
+    ),
+    "cream_scoop": (
+        "Camera tracks upward following the lifted spoonful of cream. "
+        "Macro close-up emphasizing cream texture and the stretched strand."
+    ),
+    "strawberry_fall": (
         "Static camera, top-down 45-degree angle. "
-        "Captures full cake surface and falling topping briefly."
+        "Captures full cake surface and the falling strawberry briefly."
+    ),
+    "strawberry_cascade": (
+        "Static camera, top-down 45-degree angle, slightly wider framing. "
+        "Captures the full cake surface as multiple strawberries fall and settle."
     ),
     "default": "Static camera, macro close-up, eye level.",
 }
@@ -95,17 +110,29 @@ NEGATIVE_COMMON = (
 )
 
 NEGATIVE_PER_SIMULATION = {
-    "cross_section_cut": (
+    "smash": (
+        "no hands holding fork, no cake breaking apart, no excessive deformation, "
+        "fork presses gently, indentation stays controlled"
+    ),
+    "fork_bite": (
+        "no hands holding fork, no cream dripping unrealistically, "
+        "no plate appearing, bite moves smoothly upward"
+    ),
+    "cut_in_half": (
         "no crumbling, no hands holding knife, no cake breaking apart, "
         "preserve cross-section integrity"
     ),
-    "lift_slice": (
-        "no hands lifting fork, no cream dripping unrealistically, "
-        "no plate appearing, slice moves smoothly"
+    "cream_scoop": (
+        "no hands holding spoon, no cream dripping violently, "
+        "no toppings displaced, cream lifts smoothly"
     ),
-    "topping_fall": (
-        "no toppings bouncing off violently, no excessive splashing, "
-        "topping lands naturally and gently"
+    "strawberry_fall": (
+        "no strawberry bouncing off violently, no excessive splashing, "
+        "strawberry lands naturally and gently in its position"
+    ),
+    "strawberry_cascade": (
+        "no strawberries bouncing off violently, no excessive splashing, "
+        "no strawberries rolling off the cake, each lands naturally and gently"
     ),
 }
 
@@ -144,9 +171,12 @@ MOOD_LIGHTING = {
 # 영상 길이 (시뮬레이션별 권장 — 단, Veo 3.1은 4/6/8초만 가능)
 # =====================================================================
 DURATION_SETTINGS = {
-    "cross_section_cut": "6s",
-    "lift_slice":         "6s",
-    "topping_fall":       "4s",
+    "smash":              "4s",
+    "fork_bite":          "6s",
+    "cut_in_half":        "6s",
+    "cream_scoop":        "6s",
+    "strawberry_fall":    "4s",
+    "strawberry_cascade": "6s",
     "default":            "6s",
 }
 
@@ -227,9 +257,12 @@ TEXTURE_PROFILES = {
 
 # 시뮬레이션 → 어느 동작 카테고리인지 (질감 매핑 시 어떤 컬럼 참조할지 결정)
 SIMULATION_ACTION_TYPE = {
-    "cross_section_cut": "when_cut",       # 자르기 → 잘렸을 때 반응
-    "lift_slice":         "when_cut",       # 들어올리기도 단면 노출 → 잘렸을 때 반응
-    "topping_fall":       None,             # 토핑 떨어지기 → 별도 카테고리 (안착)
+    "smash":              "under_pressure",  # 누르기 → 압력 받았을 때 반응
+    "fork_bite":          "when_cut",        # 한 입 뜨기 → 단면 노출 → 잘렸을 때 반응
+    "cut_in_half":        "when_cut",        # 반으로 자르기 → 잘렸을 때 반응
+    "cream_scoop":        "under_pressure",  # 크림 떠내기 → 변형 반응 (질척 늘어짐)
+    "strawberry_fall":    None,              # 안착 액션 → 질감 가이드 불필요
+    "strawberry_cascade": None,              # 안착 액션 → 질감 가이드 불필요
 }
 
 

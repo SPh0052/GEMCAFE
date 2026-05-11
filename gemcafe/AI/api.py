@@ -4,6 +4,7 @@ FastAPI 래퍼 — BE(Spring)에서 HTTP로 호출할 AI 서비스.
 엔드포인트:
   GET  /             — 정보 (Swagger UI 링크)
   GET  /health       — 헬스체크
+  GET  /catalog      — 시뮬레이션/배경/요소 카탈로그 (BE/FE 가 옵션 목록 조회)
   POST /analyze      — 케이크 이미지 분석 (Moondream3)
   POST /keyframe     — 키프레임 생성 (nano-banana-pro/edit, 재호출 가능)
   POST /video        — 영상 생성 (Veo 3.1 first-last-frame)
@@ -42,6 +43,7 @@ import analyze as analyze_module
 import generate_keyframe
 import generate_video
 import prompt_builder
+import prompt_locks
 
 load_dotenv()
 
@@ -97,7 +99,9 @@ class VideoRequest(BaseModel):
         description=(
             "video_prompt_kr 사용 시 필수. "
             "잠금 라이브러리에서 카메라/부정 프롬프트/길이 조회용. "
-            "예: cross_section_cut / lift_slice / topping_fall"
+            "예: smash / fork_bite / cut_in_half / cream_scoop / "
+            "strawberry_fall / strawberry_cascade. "
+            "전체 목록은 GET /catalog."
         ),
     )
     background: Optional[str] = Field(
@@ -117,8 +121,14 @@ class VideoRequest(BaseModel):
 
 
 class PreviewPromptsRequest(BaseModel):
-    simulation: str = Field(..., description="cross_section_cut / lift_slice / topping_fall")
-    focus: str = Field(..., description="강조 요소 키 (예: strawberry, whipped_cream)")
+    simulation: str = Field(
+        ...,
+        description=(
+            "시뮬레이션 키. 예: smash / fork_bite / cut_in_half / cream_scoop / "
+            "strawberry_fall / strawberry_cascade. 전체 목록은 GET /catalog."
+        ),
+    )
+    focus: str = Field(..., description="강조 요소 키 (sponge / strawberry / whipped_cream)")
     background: Optional[str] = Field(None, description="배경 키 (없으면 원본)")
     hint: Optional[str] = Field(None, description="자유 한국어 힌트 (예: '고급스럽게')")
     dessert_info: str = Field("케이크", description="디저트 종류 (분석 결과의 cake_type 등)")
@@ -179,6 +189,57 @@ def health():
     )
 
 
+@app.get("/catalog", tags=["meta"])
+def catalog() -> dict:
+    """
+    시뮬레이션 / 배경 / 요소(focus) 카탈로그.
+
+    이 응답이 AI 서비스의 **단일 진실 소스(SSOT)** 입니다.
+    BE/FE 는 이 응답을 받아서:
+      - 요소(focus) 선택 시 그 요소의 applicable_simulations 만 노출
+      - simulation_id ↔ AI 키 매핑 시 여기 정의된 key 를 사용
+
+    `applicable_focus` 는 [prompt_builder.SIMULATIONS](prompt_builder.py) 가 단일 출처.
+    """
+    simulations = [
+        {
+            "key": sim_key,
+            "label_kr": sim_def["label_kr"],
+            "applicable_focus": list(sim_def["applicable_focus"]),
+            "frame_strategy": sim_def["frame_strategy"],
+            "recommended_duration": prompt_locks.get_duration(sim_key),
+        }
+        for sim_key, sim_def in prompt_builder.SIMULATIONS.items()
+    ]
+
+    backgrounds = [
+        {"key": bg_key, "label_kr": label_kr}
+        for bg_key, label_kr in prompt_locks.BACKGROUND_LABELS_KR.items()
+    ]
+
+    # 요소(focus) — 정식 키 + 한국어 라벨. 별칭은 호환용으로만 노출.
+    focus_labels_kr = {
+        "sponge":        "시트",
+        "strawberry":    "딸기",
+        "whipped_cream": "크림",
+    }
+    focuses = [
+        {
+            "key": focus_key,
+            "label_kr": focus_labels_kr.get(focus_key, focus_key),
+            "applicable_simulations": list(prompt_builder.FOCUS_SIMULATIONS.get(focus_key, [])),
+        }
+        for focus_key in prompt_builder.FOCUS_TEXT
+    ]
+
+    return {
+        "simulations": simulations,
+        "backgrounds": backgrounds,
+        "focuses": focuses,
+        "focus_aliases": dict(prompt_builder.FOCUS_ALIASES),
+    }
+
+
 @app.post("/analyze", tags=["pipeline"])
 def analyze_endpoint(
     image: UploadFile = File(..., description="분석할 케이크 이미지"),
@@ -209,7 +270,10 @@ def keyframe_endpoint(
     image: UploadFile = File(..., description="원본 케이크 이미지"),
     simulation: str = Form(
         ...,
-        description="시뮬레이션 종류: 'cross_section_cut' / 'lift_slice' / 'topping_fall'",
+        description=(
+            "시뮬레이션 키. 'smash' / 'fork_bite' / 'cut_in_half' / 'cream_scoop' / "
+            "'strawberry_fall' / 'strawberry_cascade'. 전체 목록은 GET /catalog."
+        ),
     ),
     focus: Optional[str] = Form(
         None,
@@ -263,6 +327,28 @@ def keyframe_endpoint(
             detail=(
                 "focus 또는 analysis_json 둘 중 하나는 반드시 지정 필요. "
                 "BE는 /analyze 응답을 보관했다가 analysis_json으로 전달하세요."
+            ),
+        )
+
+    # simulation 존재 여부 + (focus 명시된 경우) 조합 유효성 검증
+    if simulation not in prompt_builder.SIMULATIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"알 수 없는 simulation '{simulation}'. "
+                f"가능한 값: {list(prompt_builder.SIMULATIONS.keys())}. "
+                "GET /catalog 로 정식 목록 조회 가능."
+            ),
+        )
+    if focus is not None and not prompt_builder.is_valid_combination(focus, simulation):
+        normalized = prompt_builder.normalize_focus(focus)
+        allowed = prompt_builder.SIMULATIONS[simulation]["applicable_focus"]
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"focus '{focus}'(정규화: '{normalized}')는 simulation '{simulation}' 에 "
+                f"적용 불가. 이 시뮬레이션의 applicable_focus: {allowed}. "
+                "GET /catalog 응답으로 FE 가 사전 필터링하길 권장."
             ),
         )
 

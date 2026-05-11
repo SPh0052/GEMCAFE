@@ -4,10 +4,15 @@
 분석 결과(analysis.json)와 사용자 선택(simulation, focus, background, hint)을
 조합해서 nano-banana-pro/edit 와 Veo 3.1 에 넘길 프롬프트를 만든다.
 
+지원 디저트: 케이크 (특히 딸기 생크림 조각 케이크) 한정.
+지원 요소(focus): sponge / whipped_cream / strawberry
 지원 시뮬레이션:
-  - cross_section_cut  (단면 자르기)
-  - lift_slice         (한 조각 들어올리기)
-  - topping_fall       (토핑 위에서 떨어지기)
+  - smash              (뭉개기)                 — sponge, whipped_cream
+  - fork_bite          (포크로 한 입 뜨기)       — sponge, whipped_cream
+  - cut_in_half        (반으로 자르기)          — sponge, whipped_cream
+  - cream_scoop        (크림만 떠내기)          — whipped_cream
+  - strawberry_fall    (딸기가 케이크 위로 떨어짐)— strawberry
+  - strawberry_cascade (딸기 우수수 쏟아짐)      — strawberry
 """
 from typing import Optional
 
@@ -21,27 +26,30 @@ from typing import Optional
 #    여기는 "어떤 종류의 요소인지"만 표현 (재료 자체의 정체성).
 # =====================================================================
 FOCUS_TEXT = {
-    # 과일 / 토핑 류 (특정 과일은 색이 비교적 일정하지만 그래도 형용사 자제)
-    # ⚠️ "the" 접두사 박지 말 것 — 템플릿 안에 이미 "the {focus}" / "a {focus}" 형태로 들어있음.
-    #     박으면 "the the strawberry" 같은 중복 발생.
-    "strawberry": "strawberry",
-    "strawberries": "strawberries",
-    "fresh_strawberries": "strawberries on top",
-    "blueberry": "blueberries",
-    "blueberries": "blueberries",
-    # 크림 류 (색 형용사 제거 — 흰크림/녹차크림/초콜릿크림 등 다 커버)
-    "cream": "cream",
-    "whipped_cream": "whipped cream",
-    "fluffy_whipped_cream": "fluffy whipped cream",
-    "mascarpone_cream": "mascarpone cream",
-    # 시트 / 스펀지 류
     "sponge": "sponge cake layers",
-    "sponge_layers": "sponge cake layers",
-    "soft_sponge_layers": "soft sponge cake layers",
-    # 기타
-    "cocoa_dusting": "cocoa powder dusting",
-    "molten_center": "molten chocolate center",
+    "strawberry": "strawberry",
+    "whipped_cream": "whipped cream",
 }
+
+# Moondream 등이 변형 키를 줄 때 정식 focus 키로 정규화하기 위한 별칭 표.
+# /catalog 응답에는 정식 키 3개만 노출하지만, /keyframe 입력은 별칭도 받아준다.
+FOCUS_ALIASES = {
+    "strawberries": "strawberry",
+    "fresh_strawberries": "strawberry",
+    "cream": "whipped_cream",
+    "fluffy_whipped_cream": "whipped_cream",
+    "whipped_cream_coating": "whipped_cream",
+    "sponge_layers": "sponge",
+    "soft_sponge_layers": "sponge",
+    "vanilla_sponge": "sponge",
+}
+
+
+def normalize_focus(focus_key: str) -> str:
+    """별칭이면 정식 키로, 정식 키면 그대로 반환. 알 수 없으면 입력 그대로."""
+    if focus_key in FOCUS_TEXT:
+        return focus_key
+    return FOCUS_ALIASES.get(focus_key, focus_key)
 
 
 def focus_phrase(focus_key: str) -> str:
@@ -55,75 +63,176 @@ def focus_phrase(focus_key: str) -> str:
 # 시뮬레이션 정의
 # =====================================================================
 # 각 시뮬레이션은:
+#   - label_kr:             사용자(사장님) 화면 라벨
+#   - applicable_focus:     이 시뮬을 적용 가능한 focus 키 목록 (FE 필터링용)
+#   - frame_strategy:       "i2i_is_end"   → start=원본,    end=I2I 결과
+#                           "i2i_is_start" → start=I2I 결과, end=원본
 #   - instruction_template: nano-banana-pro/edit 용 (I2I 키프레임 생성 지시)
 #   - video_template:       Veo 3.1 용 (start→end 사이의 동작 묘사)
-#   - frame_strategy:       "i2i_is_end" → start=원본, end=I2I결과
-#                           "i2i_is_start" → start=I2I결과, end=원본
 # 템플릿의 {focus} 자리는 자연어 focus 표현으로 치환됨.
 # =====================================================================
 
 SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
-    "cross_section_cut": {
-        "label_kr": "단면 자르기",
+    "smash": {
+        "label_kr": "뭉개기",
+        "applicable_focus": ["sponge", "whipped_cream"],
+        "frame_strategy": "i2i_is_end",
+        "instruction_template": (
+            "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
+            "Preserve the cake pixel-by-pixel: same shape, same toppings, same overall cream "
+            "pattern, same plate, same background, same lighting. "
+            "ADD ONLY this change: a metal fork is pressed down into the top of the cake from "
+            "above, gently compressing the {focus}. A visible indentation forms where the fork "
+            "pushes in, with the {focus} squished and slightly spread to the sides. The toppings "
+            "stay on the cake but may be slightly displaced. The fork is partially visible above "
+            "the cake and partially embedded in it. "
+            "Do not regenerate any existing element. Photorealistic, sharp focus, natural lighting."
+        ),
+        "video_template": (
+            "A metal fork descends slowly from above and presses down into the top of the cake, "
+            "gently compressing the {focus}. The {focus} visibly squishes and spreads to the "
+            "sides under the pressure, while the rest of the cake stays in place. Smooth steady "
+            "downward motion. Realistic physics, no morphing of the cake."
+        ),
+    },
+    # ─────────────────────────────────────────────────────────────────
+    "fork_bite": {
+        "label_kr": "포크로 한 입 뜨기",
+        "applicable_focus": ["sponge", "whipped_cream"],
+        "frame_strategy": "i2i_is_end",
+        "instruction_template": (
+            "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
+            "Preserve the cake pixel-by-pixel: same shape, same toppings, same overall cream "
+            "pattern, same plate, same background, same lighting. "
+            "ADD ONLY this change: a metal fork is inserted into the front edge of the cake and "
+            "a small bite-sized piece is being lifted slightly upward by the fork, partially "
+            "separated from the rest. The lifted piece shows the cross-section with visible "
+            "{focus} and cream layers. A thin strand of cream stretches between the lifted bite "
+            "and the remaining cake. A small indentation is left on the cake where the bite was "
+            "taken. "
+            "Do not alter the rest of the image. Photorealistic, sharp focus, natural lighting."
+        ),
+        "video_template": (
+            "A metal fork inserts into the front edge of the cake and gently lifts a small "
+            "bite-sized piece upward. Cream stretches and slightly drips between the lifted bite "
+            "and the remaining cake. The cross-section of {focus} on the lifted piece is "
+            "highlighted. Smooth gentle upward motion, realistic physics, no morphing."
+        ),
+    },
+    # ─────────────────────────────────────────────────────────────────
+    "cut_in_half": {
+        "label_kr": "반으로 자르기",
+        "applicable_focus": ["sponge", "whipped_cream"],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
             "Preserve the cake pixel-by-pixel: same shape, same toppings, same cream pattern, "
             "same plate, same background, same lighting. "
             "ADD ONLY this: a sharp metal knife pressed completely vertically through the cake "
-            "from above, fully embedded straight down through the {focus} and all the cream/sponge "
-            "layers, with a clean cut line visible where the blade has passed. "
-            "The blade should be partially visible above the cake and partially inside it. "
+            "slice from above, fully embedded straight down through all the {focus} and cream "
+            "layers, splitting it into two halves with a clean cut line visible where the blade "
+            "has passed. The blade should be partially visible above the cake and partially "
+            "inside it. "
             "Do not regenerate any existing element. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
-            "A sharp metal knife descends slowly from above and cuts straight down through the cake, "
-            "slicing cleanly through the {focus}, cream, and sponge layers. The cake stays in place. "
-            "Smooth steady downward motion of the knife. Realistic physics, no morphing of the cake."
+            "A sharp metal knife descends slowly from above and cuts straight down through the "
+            "cake slice, splitting it cleanly in half through all the {focus} and cream layers. "
+            "The two halves stay in place. Smooth steady downward motion of the knife. Realistic "
+            "physics, no morphing of the cake."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
-    "lift_slice": {
-        "label_kr": "한 조각 들어올리기",
+    "cream_scoop": {
+        "label_kr": "크림만 떠내기",
+        "applicable_focus": ["whipped_cream"],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
-            "Preserve the original cake pixel-by-pixel: same shape, same {focus}, same cream pattern, "
-            "same plate, same background, same lighting. "
-            "ADD ONLY this change: one slice of the cake is lifted slightly upward by a metal fork "
-            "inserted into it from above. The lifted slice is partially separated from the rest, "
-            "revealing the cross-section with visible cream and sponge layers. "
-            "A thin strand of cream stretches between the lifted slice and the remaining cake. "
-            "Highlight the texture of the {focus}. "
+            "Preserve the cake pixel-by-pixel: same shape, same toppings, same overall cream "
+            "pattern, same plate, same background, same lighting. "
+            "ADD ONLY this change: a metal spoon is scooping out a small fluffy dollop of "
+            "{focus} from the top of the cake, lifted slightly upward. The spoon holds a soft "
+            "mound of {focus} on it. A small smooth indentation is visible on the cake where the "
+            "{focus} was scooped from. A thin strand of cream stretches between the spoon and "
+            "the cake. The toppings on the cake remain undisturbed. "
             "Do not alter the rest of the image. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
-            "A metal fork lifts one slice of the cake upward steadily. Cream stretches and slightly "
-            "drips between the lifted slice and the remaining cake. The {focus} stays attached to the "
-            "lifted slice. Smooth gentle upward motion, realistic physics, no morphing."
+            "A metal spoon scoops a small fluffy dollop of {focus} from the top of the cake and "
+            "lifts it gently upward. The {focus} stretches slightly as it separates from the "
+            "cake, forming a soft mound on the spoon. Smooth gentle motion, realistic physics, "
+            "no morphing of the cake."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
-    "topping_fall": {
-        "label_kr": "토핑 위에서 떨어지기",
-        "frame_strategy": "i2i_is_start",   # 역방향: I2I = 토핑 없는 시작 상태
+    "strawberry_fall": {
+        "label_kr": "딸기가 케이크 위로 톡 떨어진다",
+        "applicable_focus": ["strawberry"],
+        "frame_strategy": "i2i_is_start",   # 역방향: I2I = 딸기 없는 시작 상태
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
-            "Preserve the cake pixel-by-pixel: same shape, same cream, same plate, same background, "
-            "same lighting. "
-            "ONLY remove the {focus} from the top of the cake. The cake should look complete but "
-            "without the {focus} — as if the {focus} hasn't been placed on it yet. Keep the cream "
-            "surface where the {focus} was, smooth and natural, as if untouched. "
+            "Preserve the cake pixel-by-pixel: same shape, same cream, same plate, same "
+            "background, same lighting. "
+            "ONLY remove the {focus} from the top of the cake. The cake should look complete "
+            "but without the {focus} — as if the {focus} hasn't been placed on it yet. Keep the "
+            "cream surface where the {focus} was, smooth and natural, as if untouched. "
             "Do not change anything else. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
-            "A {focus} falls gently from above and lands softly on top of the cake, settling into "
-            "its natural position on the cream. Realistic physics with slight bounce on impact. "
+            "A single {focus} falls gently from above and lands softly on top of the cake, "
+            "settling into its natural position on the cream with a slight bounce on impact. "
             "The cake itself stays still. No morphing, no extra elements appear."
         ),
     },
+    # ─────────────────────────────────────────────────────────────────
+    "strawberry_cascade": {
+        "label_kr": "딸기가 우수수 쏟아진다",
+        "applicable_focus": ["strawberry"],
+        "frame_strategy": "i2i_is_start",   # 역방향: I2I = 딸기 없는 시작 상태
+        "instruction_template": (
+            "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
+            "Preserve the cake pixel-by-pixel: same shape, same cream, same plate, same "
+            "background, same lighting. "
+            "ONLY remove every {focus} from the top of the cake. The cake should look complete "
+            "but without any {focus} — as if the {focus} pieces haven't been placed on it yet. "
+            "Keep the cream surface where the {focus} pieces were, smooth and natural, as if "
+            "untouched. "
+            "Do not change anything else. Photorealistic, sharp focus, natural lighting."
+        ),
+        "video_template": (
+            "Multiple {focus} pieces fall gently from above one after another in a smooth "
+            "cascade, and each lands softly on top of the cake, settling into its natural "
+            "position on the cream with a slight bounce. The cascade has a rhythmic, lively "
+            "timing. The cake itself stays still. No morphing, no extra elements appear."
+        ),
+    },
 }
+
+
+# =====================================================================
+# focus → 적용 가능 시뮬레이션 키 리스트 (SIMULATIONS에서 자동 도출)
+# /catalog 응답과 검증에 사용.
+# =====================================================================
+def _build_focus_simulations() -> dict[str, list[str]]:
+    mapping: dict[str, list[str]] = {focus: [] for focus in FOCUS_TEXT}
+    for sim_key, sim_def in SIMULATIONS.items():
+        for focus in sim_def["applicable_focus"]:
+            mapping.setdefault(focus, []).append(sim_key)
+    return mapping
+
+
+FOCUS_SIMULATIONS = _build_focus_simulations()
+
+
+def is_valid_combination(focus: str, simulation: str) -> bool:
+    """focus × simulation 조합이 카탈로그에 정의된 유효 조합인지 확인."""
+    normalized = normalize_focus(focus)
+    sim = SIMULATIONS.get(simulation)
+    if not sim:
+        return False
+    return normalized in sim["applicable_focus"]
 
 
 # =====================================================================
@@ -195,6 +304,8 @@ def build_prompts(
             f"가능한 값: {list(SIMULATIONS.keys())}"
         )
 
+    # focus 정규화 (별칭이면 정식 키로). 검증은 호출자(API 레이어)가 담당.
+    focus = normalize_focus(focus)
     sim = SIMULATIONS[simulation]
     focus_text = focus_phrase(focus)
 
@@ -348,14 +459,13 @@ def assemble_final_video_prompt(
 
 
 # =====================================================================
-# 단독 실행 시 — 9가지 조합(3 시뮬레이션 × 3 focus) 미리보기
+# 단독 실행 시 — 카탈로그상 모든 유효 조합 미리보기
 # =====================================================================
 if __name__ == "__main__":
-    test_focuses = ["strawberry", "whipped_cream", "sponge_layers"]
-    for sim_id in SIMULATIONS:
-        for focus in test_focuses:
+    for sim_id, sim_def in SIMULATIONS.items():
+        for focus in sim_def["applicable_focus"]:
             print("=" * 70)
-            print(f"[{sim_id}] × [{focus}]  →  {SIMULATIONS[sim_id]['label_kr']}")
+            print(f"[{sim_id}] × [{focus}]  →  {sim_def['label_kr']}")
             print("=" * 70)
             p = build_prompts(sim_id, focus)
             print(f"\n[I2I 지시문]")
