@@ -61,3 +61,51 @@ export async function login(req: LoginRequest): Promise<LoginResponse> {
 export async function logout(): Promise<void> {
   await api.post<ApiResponse<unknown>>('/auth/logout')
 }
+
+// ─── 구글 소셜 로그인 (ID Token Flow) ────────────────────────
+export interface GoogleLoginRequest {
+  /** GIS 가 내려준 ID 토큰(JWT). BE 가 구글 공개키로 검증. */
+  idToken: string
+}
+
+export interface GoogleLoginUser {
+  /** 우리 시스템 user 식별자 (sub 또는 userId) */
+  sub: string
+  email: string
+  nickname?: string
+  name?: string
+  picture?: string
+  phone?: string
+  gem?: number
+  /** 신규 가입 여부 — true 면 /signup/phone 으로 분기 */
+  isNewUser: boolean
+}
+
+export interface GoogleLoginResponse {
+  accessToken: string
+  tokenType: string
+  expiresIn: number
+  user: GoogleLoginUser
+}
+
+/**
+ * 구글 소셜 로그인.
+ * POST /api/v1/auth/google (application/json)
+ *
+ * 흐름:
+ *   1. FE 가 GIS SDK 로 구글에서 ID 토큰(JWT) 발급받음
+ *   2. 이 함수로 BE 에 idToken 전달
+ *   3. BE 가 구글 공개키로 JWT 서명 검증 → 자체 세션 토큰 발급
+ *   4. 응답으로 우리 시스템의 accessToken + user 정보 수신
+ *
+ * refreshToken 은 HttpOnly 쿠키로 내려와 withCredentials 로 자동 저장.
+ */
+export async function googleLogin(
+  idToken: string,
+): Promise<GoogleLoginResponse> {
+  const res = await api.post<ApiResponse<GoogleLoginResponse>>(
+    '/auth/google',
+    { idToken },
+  )
+  return res.data.data
+}

@@ -842,7 +842,7 @@ export default function VideoEditor() {
         >
           <Home className="h-5 w-5" />
         </Link>
-        <h1 className="text-base font-bold text-white">젬젬 에디터</h1>
+        <h1 className="text-base font-bold text-white">영상 편집하기</h1>
         <button
           type="button"
           onClick={isRecording ? stopRecording : startRecording}
