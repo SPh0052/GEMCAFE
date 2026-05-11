@@ -65,13 +65,13 @@ def load_latest_keyframe_metadata() -> dict:
         reverse=True,
     )
     if not keyframe_dirs:
-        raise SystemExit(
+        raise FileNotFoundError(
             "keyframe_* 폴더 없음. 먼저 'python generate_keyframe.py' 실행하세요.\n"
             "(또는 START_URL/END_URL/VIDEO_PROMPT 직접 지정)"
         )
     metadata_path = keyframe_dirs[0] / "metadata.json"
     if not metadata_path.exists():
-        raise SystemExit(f"{metadata_path} 없음")
+        raise FileNotFoundError(f"{metadata_path} 없음")
     with open(metadata_path, encoding="utf-8") as f:
         meta = json.load(f)
     print(f"[키프레임 로드] {metadata_path}")
@@ -107,10 +107,10 @@ def generate_video(
     end_url: str,
     video_prompt: str,
     save_dir: Optional[Path] = None,
-    duration: str = VIDEO_DURATION,
+    duration: Optional[str] = None,
     resolution: str = VIDEO_RESOLUTION,
     generate_audio: bool = VIDEO_GENERATE_AUDIO,
-    negative_prompt: str = VIDEO_NEGATIVE_PROMPT,
+    negative_prompt: Optional[str] = None,
 ) -> dict:
     """
     Veo 3.1 first-last-frame으로 영상 1편 생성.
@@ -130,6 +130,10 @@ def generate_video(
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     print(f"[저장 폴더] {save_dir}\n")
+
+    # 기본값 fallback (인자가 None일 때만)
+    duration = duration or VIDEO_DURATION
+    negative_prompt = negative_prompt or VIDEO_NEGATIVE_PROMPT
 
     print(f"[Veo 3.1 영상 생성] (1~3분 소요, ~$1.20)")
     print(f"      start = {start_url}")
