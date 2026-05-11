@@ -12,6 +12,13 @@ public enum ErrorCode {
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH-003", "유효하지 않은 토큰입니다"),
     FORBIDDEN_RESOURCE(HttpStatus.FORBIDDEN, "AUTH-004", "해당 리소스에 접근할 권한이 없습니다"),
 
+    // Auth - Google OAuth
+    AUTH_GOOGLE_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "AUTH-010", "유효하지 않은 구글 토큰입니다"),
+    AUTH_GOOGLE_EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "AUTH-011", "이메일 인증이 완료되지 않은 구글 계정입니다"),
+    AUTH_GOOGLE_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "AUTH-012", "구글 인증 서버에 연결할 수 없습니다"),
+    AUTH_EMAIL_PROVIDER_CONFLICT(HttpStatus.CONFLICT, "AUTH-013", "이미 일반 가입된 이메일입니다. 이메일/비밀번호로 로그인해주세요"),
+    AUTH_PROFILE_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "AUTH-014", "이미 추가 정보 입력이 완료된 계정입니다"),
+
     // User
     USER_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "USER-001", "이미 가입된 이메일입니다"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-002", "해당 사용자를 찾을 수 없습니다"),
