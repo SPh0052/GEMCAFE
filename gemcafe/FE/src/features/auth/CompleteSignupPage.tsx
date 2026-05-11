@@ -5,7 +5,8 @@ import MobileShell from '@/shared/components/MobileShell'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
-import { registerUser } from './userRegistry'
+import { extractErrorMessage } from '@/shared/lib/errors'
+import { completeGoogleProfile } from './api'
 
 export default function CompleteSignupPage() {
   const navigate = useNavigate()
@@ -15,7 +16,7 @@ export default function CompleteSignupPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // 이미 가입 완료된 사용자가 이 페이지로 들어오면 메인으로 보냄
+  // 이미 전화번호까지 입력 완료된 사용자가 이 페이지로 들어오면 메인으로 보냄
   useEffect(() => {
     if (user?.phone) {
       navigate('/', { replace: true })
@@ -36,13 +37,12 @@ export default function CompleteSignupPage() {
     setSubmitting(true)
     setError(null)
     try {
-      // BE 붙기 전 mock — 로컬 레지스트리에 가입 정보 저장
-      registerUser(user.sub, { phone: cleaned })
+      await completeGoogleProfile({ phone: cleaned })
       setPhone(cleaned)
       navigate('/', { replace: true })
     } catch (err) {
-      console.error('회원가입 완료 실패', err)
-      setError('잠시 후 다시 시도해주세요.')
+      console.error('[POST /auth/google/complete-profile] error:', err)
+      setError(extractErrorMessage(err, '잠시 후 다시 시도해주세요.'))
     } finally {
       setSubmitting(false)
     }

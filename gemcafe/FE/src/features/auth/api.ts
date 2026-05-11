@@ -68,24 +68,19 @@ export interface GoogleLoginRequest {
   idToken: string
 }
 
-export interface GoogleLoginUser {
-  /** 우리 시스템 user 식별자 (sub 또는 userId) */
-  sub: string
-  email: string
-  nickname?: string
-  name?: string
-  picture?: string
-  phone?: string
-  gem?: number
-  /** 신규 가입 여부 — true 면 /signup/phone 으로 분기 */
-  isNewUser: boolean
-}
-
+/**
+ * BE 가 내려주는 구글 로그인 응답.
+ * - 기존 회원: isNewUser=false, 그대로 홈으로 진입
+ * - 신규 회원: isNewUser=true, 토큰은 발급됐지만 추가 정보(전화번호) 입력 필요
+ */
 export interface GoogleLoginResponse {
   accessToken: string
   tokenType: string
-  expiresIn: number
-  user: GoogleLoginUser
+  accessExpiresIn: number
+  isNewUser: boolean
+  email: string
+  name: string
+  picture: string
 }
 
 /**
@@ -95,8 +90,8 @@ export interface GoogleLoginResponse {
  * 흐름:
  *   1. FE 가 GIS SDK 로 구글에서 ID 토큰(JWT) 발급받음
  *   2. 이 함수로 BE 에 idToken 전달
- *   3. BE 가 구글 공개키로 JWT 서명 검증 → 자체 세션 토큰 발급
- *   4. 응답으로 우리 시스템의 accessToken + user 정보 수신
+ *   3. BE 가 구글 공개키로 JWT 서명 검증 → 자체 세션 토큰 발급 + isNewUser 판정
+ *   4. 응답으로 accessToken + 프로필 + isNewUser 수신
  *
  * refreshToken 은 HttpOnly 쿠키로 내려와 withCredentials 로 자동 저장.
  */
@@ -108,4 +103,23 @@ export async function googleLogin(
     { idToken },
   )
   return res.data.data
+}
+
+// ─── 구글 신규 가입자 추가 정보 입력 ──────────────────────────
+export interface CompleteProfileRequest {
+  /** 전화번호 (숫자만, 하이픈 없음) */
+  phone: string
+}
+
+/**
+ * 구글 신규 가입자가 전화번호 입력 후 호출.
+ * POST /api/v1/auth/google/complete-profile (application/json)
+ *
+ * accessToken 은 axios 인터셉터가 자동 첨부.
+ * BE 가 토큰에서 userId 추출해 해당 user 에 전화번호 저장.
+ */
+export async function completeGoogleProfile(
+  req: CompleteProfileRequest,
+): Promise<void> {
+  await api.post<ApiResponse<void>>('/auth/google/complete-profile', req)
 }
