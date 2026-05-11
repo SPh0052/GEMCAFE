@@ -93,27 +93,29 @@ export default function LoginPage() {
         const session = await googleLogin(idToken)
         console.log('[POST /auth/google] response:', session)
 
+        // BE 응답에는 sub 가 없어 email 을 user 식별자로 사용.
+        // isNewUser=true 라도 BE 가 토큰을 발급해줘서 그대로 로그인 처리,
+        // 다만 전화번호 미입력 상태이므로 /signup/phone 으로 보냄.
         login(
           {
-            sub: session.user.sub,
-            nickname:
-              session.user.nickname ?? session.user.name ?? googleUser.name,
-            email: session.user.email,
-            picture: session.user.picture ?? googleUser.picture,
-            phone: session.user.phone,
-            gem: session.user.gem ?? 0,
+            sub: session.email,
+            nickname: session.name || googleUser.name,
+            email: session.email,
+            picture: session.picture || googleUser.picture,
+            phone: undefined,
+            gem: 0,
           },
           {
             accessToken: session.accessToken,
             tokenType: session.tokenType,
-            expiresIn: session.expiresIn,
+            expiresIn: session.accessExpiresIn,
           },
         )
 
-        if (session.user.isNewUser) {
-          navigate('/signup/phone')
+        if (session.isNewUser) {
+          navigate('/signup/phone', { replace: true })
         } else {
-          navigate('/')
+          navigate('/', { replace: true })
         }
       } catch (err) {
         console.error('[Google] BE 인증 실패', err)
