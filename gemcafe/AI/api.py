@@ -25,6 +25,7 @@ FastAPI 래퍼 — BE(Spring)에서 HTTP로 호출할 AI 서비스.
   4. POST /video (start_url, end_url, video_prompt) — 선택된 키프레임의 메타데이터로
      → 영상 생성
 """
+import json
 import os
 import shutil
 from datetime import datetime
@@ -179,7 +180,7 @@ def health():
 
 
 @app.post("/analyze", tags=["pipeline"])
-async def analyze_endpoint(
+def analyze_endpoint(
     image: UploadFile = File(..., description="분석할 케이크 이미지"),
 ) -> dict:
     """
@@ -187,6 +188,9 @@ async def analyze_endpoint(
 
     Moondream3가 케이크의 cake_type, creams, toppings, suggested_focus 등을
     JSON으로 추출. 프론트는 suggested_focus를 라디오 버튼/카드로 표시.
+
+    ⚠️ BE는 응답 dict를 보관해뒀다가 `/keyframe` 호출 시 `analysis_json` 으로 다시 전달해야 함
+       (focus를 명시적으로 지정하지 않을 경우).
     """
     require_fal_key()
     image_path = save_upload(image)
@@ -201,7 +205,7 @@ async def analyze_endpoint(
 
 
 @app.post("/keyframe", tags=["pipeline"])
-async def keyframe_endpoint(
+def keyframe_endpoint(
     image: UploadFile = File(..., description="원본 케이크 이미지"),
     simulation: str = Form(
         ...,
@@ -209,11 +213,12 @@ async def keyframe_endpoint(
     ),
     focus: Optional[str] = Form(
         None,
-        description="강조 요소 (예: 'strawberry'). 비우면 서버측 자동(latest analyze 기반).",
+        description="강조 요소 (예: 'strawberry'). 비우면 analysis_json 필수.",
     ),
     background: Optional[str] = Form(
         None,
-        description="배경: 'white_marble' / 'cafe_interior' / 'outdoor'. "
+        description="배경: 'white_marble' / 'cafe_interior' / 'outdoor' / "
+                    "'wooden_table' / 'minimalist_white' / 'dark_moody'. "
                     "비우면 배경 교체 안 함.",
     ),
     hint: Optional[str] = Form(None, description="자유 텍스트 힌트"),
@@ -221,15 +226,46 @@ async def keyframe_endpoint(
         None,
         description="재생성 시 다른 값으로 호출. 비우면 매번 랜덤.",
     ),
+    analysis_json: Optional[str] = Form(
+        None,
+        description=(
+            "/analyze 응답 dict를 JSON 문자열로 직렬화해서 전달. "
+            "focus가 None일 때 suggested_focus 자동 선택용. "
+            "focus 명시하면 무시 가능. 멀티유저 안전성을 위해 명시 전달 권장."
+        ),
+    ),
 ) -> dict:
     """
     키프레임 생성 (STEP 7-1).
 
     1회 호출 = 키프레임 1장. 재생성 시 같은 엔드포인트를 seed 다르게 다시 호출.
     응답의 모든 필드를 그대로 보관해야 다음 /video 호출에 사용 가능.
+
+    멀티유저 환경에서는 BE가 `/analyze` 응답을 보관했다가 `analysis_json`으로 전달.
     """
     require_fal_key()
     image_path = save_upload(image)
+
+    # analysis_json 파싱 (있으면)
+    analysis_dict: Optional[dict] = None
+    if analysis_json:
+        try:
+            analysis_dict = json.loads(analysis_json)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=400, detail=f"analysis_json 파싱 실패: {e}"
+            )
+
+    # focus와 analysis 둘 다 없으면 400 (디스크 fallback 사용 X — 멀티유저 안전)
+    if focus is None and analysis_dict is None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "focus 또는 analysis_json 둘 중 하나는 반드시 지정 필요. "
+                "BE는 /analyze 응답을 보관했다가 analysis_json으로 전달하세요."
+            ),
+        )
+
     try:
         result = generate_keyframe.generate_keyframe(
             image_path=image_path,
@@ -238,16 +274,17 @@ async def keyframe_endpoint(
             background=background,
             hint=hint,
             seed=seed,
+            analysis=analysis_dict,
         )
         return result
-    except SystemExit as e:
+    except (ValueError, FileNotFoundError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"키프레임 생성 실패: {e}")
 
 
 @app.post("/preview-prompts", tags=["pipeline"])
-async def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
+def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
     """
     오토 프롬프팅 Phase 1 — 슬롯 → 자연스러운 한국어 미리보기.
 
@@ -275,7 +312,7 @@ async def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
 
 
 @app.post("/video", tags=["pipeline"])
-async def video_endpoint(req: VideoRequest) -> dict:
+def video_endpoint(req: VideoRequest) -> dict:
     """
     영상 생성 (STEP 8).
 

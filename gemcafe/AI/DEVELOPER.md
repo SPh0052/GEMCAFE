@@ -9,6 +9,7 @@
 - [1. 파일별 함수/변수 상세 표](#1-파일별-함수변수-상세-표)
 - [2. 데이터 형식 변환 표](#2-데이터-형식-변환-표)
 - [3. 새 시뮬레이션 추가 체크리스트](#3-새-시뮬레이션-추가-체크리스트)
+- [4. 미연결 / 부분 활용 코드](#4-미연결--부분-활용-코드-dead-code-추적)
 
 ---
 
@@ -462,6 +463,36 @@ const SIMULATION_KR = {
 - [prompt_locks.py](./prompt_locks.py)의 `MODEL_SPECIFIC_ADDITIONS`
 - [generate_video.py](./generate_video.py)의 `ENDPOINT_I2V` 변경
 - 입력/응답 스키마가 다르면 `generate_video()` 함수 수정
+
+---
+
+## 4. 미연결 / 부분 활용 코드 (Dead Code 추적)
+
+코드는 정의/등록돼있지만 **메인 흐름에서 호출 안 되거나 일부만 활용되는 항목** 목록.
+새 기능 추가 시 이 자리에 매핑/등록을 잊으면 표 늘어남. 관리용.
+
+### 4.1 미연결 (정의만 됐고 메인 흐름에서 호출 0회)
+
+| 항목 | 위치 | 상태 |
+|---|---|---|
+| (현재 없음 — 모든 함수가 메인 흐름에 연결됨) | - | - |
+
+> 과거에 `llm_client.expand_hint()`가 미연결 상태였으나, [prompt_builder.py](./prompt_builder.py)의 `build_korean_preview()`에서 hint가 있을 때 자동 호출하도록 연결됨.
+
+### 4.2 부분 활용 (등록은 됐지만 일부만 활용)
+
+| 항목 | 위치 | 상태 | 활용 방법 |
+|---|---|---|---|
+| `MODEL_SPECIFIC_ADDITIONS`의 `kling-3.0-pro`, `kling-2.6-pro`, `hailuo-2.3` | [prompt_locks.py](./prompt_locks.py) | 현재 `veo-3.1`만 실사용. 나머지 3개는 미래 영상 모델 교체 대비 placeholder. | [generate_video.py](./generate_video.py)의 `ENDPOINT_I2V` 갈아끼우면 자동 활성. |
+| Moondream 분석 결과의 `cake_type` | [analyze.py](./analyze.py) `ANALYSIS_PROMPT` | 추출은 되나 prompt 빌드 단계에서 사용 안 됨. | 향후 디저트 종류별 시뮬레이션 자동 추천에 활용 가능. |
+| Moondream 분석 결과의 `key_feature` | 동일 | 추출만 됨. | LLM Phase 1 입력에 추가 컨텍스트로 넣을 수 있음. |
+| Moondream 분석 결과의 `is_warm` | 동일 | 추출만 됨. | 따뜻한 디저트(라바케이크 등) 분기 시 활용. 김 모락모락 시뮬레이션 등에 적합. |
+| Moondream 분석 결과의 `is_layered` | 동일 | 추출만 됨. | 단면 시뮬레이션(`cross_section_cut`, `lift_slice`) 적합성 판단에 활용 가능. |
+
+### 4.3 새 항목 발생 시 갱신 가이드
+
+새 기능 추가하다가 "정의만 하고 안 부르는" 코드가 생기면 이 표에 등록해서 추적.
+나중에 연결되면 표에서 제거.
 
 ---
 

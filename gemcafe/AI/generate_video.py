@@ -65,13 +65,13 @@ def load_latest_keyframe_metadata() -> dict:
         reverse=True,
     )
     if not keyframe_dirs:
-        raise SystemExit(
+        raise FileNotFoundError(
             "keyframe_* 폴더 없음. 먼저 'python generate_keyframe.py' 실행하세요.\n"
             "(또는 START_URL/END_URL/VIDEO_PROMPT 직접 지정)"
         )
     metadata_path = keyframe_dirs[0] / "metadata.json"
     if not metadata_path.exists():
-        raise SystemExit(f"{metadata_path} 없음")
+        raise FileNotFoundError(f"{metadata_path} 없음")
     with open(metadata_path, encoding="utf-8") as f:
         meta = json.load(f)
     print(f"[키프레임 로드] {metadata_path}")
@@ -135,18 +135,7 @@ def generate_video(
     duration = duration or VIDEO_DURATION
     negative_prompt = negative_prompt or VIDEO_NEGATIVE_PROMPT
 
-    # Veo 호출 전에 start/end 프레임을 먼저 로컬에 저장
-    # (어느 프레임이 영상의 시작/끝으로 들어갔는지 명확히 보기 위함.
-    #  특히 topping_fall 같은 역방향 케이스에서 I2I 결과가 start로 들어가는 게 보임)
-    start_local = save_dir / "4_start_frame.jpg"
-    end_local = save_dir / "4_end_frame.jpg"
-    print(f"[Veo 입력 프레임 저장]")
-    download_file(start_url, str(start_local))
-    print(f"      → 저장: {start_local}")
-    download_file(end_url, str(end_local))
-    print(f"      → 저장: {end_local}")
-
-    print(f"\n[Veo 3.1 영상 생성] (1~3분 소요, ~$1.20)")
+    print(f"[Veo 3.1 영상 생성] (1~3분 소요, ~$1.20)")
     print(f"      start = {start_url}")
     print(f"      end   = {end_url}")
     print(f"      prompt = {video_prompt[:80]}...")
@@ -185,11 +174,6 @@ def generate_video(
         "generate_audio": generate_audio,
         "i2v_model": ENDPOINT_I2V,
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "local_files": {
-            "start_frame": str(start_local),
-            "end_frame": str(end_local),
-            "video": str(video_local),
-        },
     }
     (save_dir / "metadata.json").write_text(
         json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"

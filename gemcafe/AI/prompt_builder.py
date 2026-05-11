@@ -22,16 +22,18 @@ from typing import Optional
 # =====================================================================
 FOCUS_TEXT = {
     # 과일 / 토핑 류 (특정 과일은 색이 비교적 일정하지만 그래도 형용사 자제)
-    "strawberry": "the strawberry on top",
-    "strawberries": "the strawberries",
-    "fresh_strawberries": "the strawberries on top",
-    "blueberry": "the blueberries",
-    "blueberries": "the blueberries",
+    # ⚠️ "the" 접두사 박지 말 것 — 템플릿 안에 이미 "the {focus}" / "a {focus}" 형태로 들어있음.
+    #     박으면 "the the strawberry" 같은 중복 발생.
+    "strawberry": "strawberry",
+    "strawberries": "strawberries",
+    "fresh_strawberries": "strawberries on top",
+    "blueberry": "blueberries",
+    "blueberries": "blueberries",
     # 크림 류 (색 형용사 제거 — 흰크림/녹차크림/초콜릿크림 등 다 커버)
-    "cream": "the cream",
-    "whipped_cream": "the whipped cream",
-    "fluffy_whipped_cream": "the fluffy whipped cream",
-    "mascarpone_cream": "the mascarpone cream",
+    "cream": "cream",
+    "whipped_cream": "whipped cream",
+    "fluffy_whipped_cream": "fluffy whipped cream",
+    "mascarpone_cream": "mascarpone cream",
     # 시트 / 스펀지 류
     "sponge": "sponge cake layers",
     "sponge_layers": "sponge cake layers",
@@ -136,25 +138,9 @@ SYSTEM_PROMPT = (
 
 
 # =====================================================================
-# 배경 키 → 자연어 영어 표현
-# =====================================================================
-BACKGROUND_TEXT = {
-    "white_marble": (
-        "a clean white marble surface with soft natural diffused lighting and "
-        "subtle elegant shadow under the cake"
-    ),
-    "cafe_interior": (
-        "a cozy cafe interior with warm ambient lighting, wooden table surface, "
-        "and slightly blurred background showing soft bokeh of cafe ambience"
-    ),
-    "outdoor": (
-        "an outdoor garden setting with soft natural daylight, a light wooden "
-        "or stone surface, and blurred greenery in the background"
-    ),
-}
-
-
 # 배경 교체용 I2I 지시문 — 케이크는 보존하고 배경/면만 교체
+# (배경 키 → 영어 묘사 매핑은 prompt_locks.MOOD_LIGHTING 단일 소스 사용)
+# =====================================================================
 BACKGROUND_INSTRUCTION_TEMPLATE = (
     "DO NOT change the cake itself. Use the exact input image as the base. "
     "ONLY replace the background and the surface the cake sits on with: {bg_text}. "
@@ -167,13 +153,15 @@ BACKGROUND_INSTRUCTION_TEMPLATE = (
 
 
 def build_background_prompt(background_key: str) -> str:
-    """배경 교체용 I2I 지시문 생성."""
-    if background_key not in BACKGROUND_TEXT:
+    """배경 교체용 I2I 지시문 생성. 배경 묘사는 prompt_locks.MOOD_LIGHTING 사용."""
+    import prompt_locks
+    bg_text = prompt_locks.get_mood_lighting(background_key)
+    if not bg_text:
         raise ValueError(
             f"알 수 없는 background: {background_key}. "
-            f"가능한 값: {list(BACKGROUND_TEXT.keys())}"
+            f"가능한 값: {list(prompt_locks.MOOD_LIGHTING.keys())}"
         )
-    return BACKGROUND_INSTRUCTION_TEMPLATE.format(bg_text=BACKGROUND_TEXT[background_key])
+    return BACKGROUND_INSTRUCTION_TEMPLATE.format(bg_text=bg_text)
 
 
 # =====================================================================
@@ -213,10 +201,14 @@ def build_prompts(
     instruction = sim["instruction_template"].format(focus=focus_text)
     video = sim["video_template"].format(focus=focus_text)
 
-    # 배경/힌트가 있으면 프롬프트 끝에 덧붙임
+    # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
+    # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
     extras = []
     if background:
-        extras.append(f"Background: {background}.")
+        import prompt_locks
+        bg_text = prompt_locks.get_mood_lighting(background)
+        if bg_text:
+            extras.append(f"Setting: {bg_text}.")
     if hint:
         extras.append(hint.strip())
     if extras:
@@ -257,7 +249,7 @@ def build_korean_preview(
     /preview-prompts 엔드포인트가 이 결과를 사장님에게 보여주고 편집 가능하게 함.
     """
     # llm_client는 여기서 import (Gemini 키 없어도 다른 함수는 동작하도록)
-    from llm_client import generate_korean_preview
+    from llm_client import generate_korean_preview, expand_hint
     import prompt_locks
 
     sim_label_kr = prompt_locks.get_simulation_label_kr(simulation)
@@ -274,12 +266,26 @@ def build_korean_preview(
         else ""
     )
 
+    # hint가 있으면 LLM으로 4가지 측면(조명/모션/분위기/시각적 디테일)으로 확장.
+    # 짧은 힌트("고급스럽게")를 풍부한 키워드로 풀어 Phase 1 입력 품질 향상.
+    enriched_hint = hint
+    if hint and hint.strip():
+        expanded = expand_hint(hint)
+        if expanded:   # JSON 파싱 성공 시 (실패하면 원본 hint 그대로)
+            enriched_hint = (
+                f"{hint} "
+                f"(조명: {expanded.get('조명', '')}; "
+                f"모션: {expanded.get('모션', '')}; "
+                f"분위기: {expanded.get('분위기', '')}; "
+                f"시각적 디테일: {expanded.get('시각적_디테일', '')})"
+            )
+
     return generate_korean_preview(
         dessert_info=dessert_info,
         focus_label_kr=focus_kr,
         simulation_label_kr=sim_label_kr,
         background_label_kr=bg_label_kr,
-        user_hint=hint,
+        user_hint=enriched_hint,
         texture_guidance=texture_guidance,
     )
 

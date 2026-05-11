@@ -1,9 +1,10 @@
 # Gemcafe AI Service — 시스템 구조 다이어그램
 
 > 이 문서는 **AI 시스템 구조를 다이어그램으로 한눈에 파악**하기 위한 내부 개발자용 문서입니다.<br/>
+> Mermaid Diagram 이므로 → Extensions → "Markdown Preview Mermaid Support" 설치할 것<br/>
 > 코드 수정 시 함수/변수 레퍼런스, 데이터 매핑 표, 시뮬레이션 추가 체크리스트는 [DEVELOPER.md](./DEVELOPER.md) 참조.<br/>
 > 외부 통합(BE/FE)에 대한 설명은 [README.md](./README.md) 참조.<br/>
-> Mermaid Diagram 이므로 → Extensions → "Markdown Preview Mermaid Support" 설치할 것
+
 
 ---
 
