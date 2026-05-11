@@ -51,6 +51,12 @@ public enum ErrorCode {
     VIDEO_FILE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "VIDEO-002", "영상 파일 처리 중 오류가 발생했습니다"),
     VIDEO_NOT_READY(HttpStatus.BAD_REQUEST, "VIDEO-003", "영상이 아직 준비되지 않았습니다"),
 
+    // Watermark / Job
+    WATERMARK_SOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "WM-001", "워터마크 처리할 원본 영상 파일을 찾을 수 없습니다"),
+    WATERMARK_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "WM-002", "해당 작업을 찾을 수 없거나 만료되었습니다"),
+    WATERMARK_JOB_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-003", "워터마크 작업 요청 발행에 실패했습니다"),
+    WATERMARK_PROGRESS_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-004", "진행 상태 메시지 파싱에 실패했습니다"),
+
     // Common
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "COM-001", "요청 형식이 올바르지 않습니다"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COM-500", "서버 오류가 발생했습니다");
