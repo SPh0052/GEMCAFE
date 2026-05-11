@@ -126,7 +126,12 @@ public class CakeKeyframeService {
         }
 
         session.selectKeyframe(target.getId());
-        log.info("[CAKE-KEYFRAME-SELECT] sessionId={} keyframeId={}", sessionId, target.getId());
+        if (request.videoPromptKr() != null && !request.videoPromptKr().isBlank()) {
+            session.updateVideoPromptKr(request.videoPromptKr().trim());
+        }
+        log.info("[CAKE-KEYFRAME-SELECT] sessionId={} keyframeId={} hasPromptKr={}",
+                sessionId, target.getId(),
+                request.videoPromptKr() != null && !request.videoPromptKr().isBlank());
 
         return new KeyframeSelectResponse(sessionId, target.getId(), session.getStatus().name());
     }

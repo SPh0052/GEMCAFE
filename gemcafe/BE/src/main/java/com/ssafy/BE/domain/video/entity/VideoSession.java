@@ -43,6 +43,9 @@ public class VideoSession {
     @Column(columnDefinition = "TEXT")
     private String hint;
 
+    @Column(name = "video_prompt_kr", columnDefinition = "TEXT")
+    private String videoPromptKr;
+
     @Column(name = "selected_keyframe_id")
     private Integer selectedKeyframeId;
 
@@ -89,6 +92,10 @@ public class VideoSession {
     public void selectKeyframe(Integer keyframeId) {
         this.selectedKeyframeId = keyframeId;
         this.status = VideoSessionStatus.READY_TO_GENERATE;
+    }
+
+    public void updateVideoPromptKr(String videoPromptKr) {
+        this.videoPromptKr = videoPromptKr;
     }
 
     public void submit(Integer videoId) {
