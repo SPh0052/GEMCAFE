@@ -1,5 +1,6 @@
 package com.ssafy.BE.domain.video.service;
 
+import com.ssafy.BE.domain.video.dto.VideoDetailResponse;
 import com.ssafy.BE.domain.video.dto.VideoDownloadResponse;
 import com.ssafy.BE.domain.video.dto.VideoShareResponse;
 import com.ssafy.BE.domain.video.entity.Video;
@@ -22,6 +23,21 @@ public class VideoAssetService {
     private static final String THUMBNAIL_URL_FMT = "/api/v1/files/videos/%d/thumbnail";
 
     private final VideoRepository videoRepository;
+
+    @Transactional(readOnly = true)
+    public VideoDetailResponse getDetail(Integer userId, Integer videoId) {
+        Video video = findCompletedOwnedBy(userId, videoId);
+        String title = (video.getUserPrompt() == null || video.getUserPrompt().isBlank())
+                ? DEFAULT_TITLE
+                : video.getUserPrompt();
+        return new VideoDetailResponse(
+                video.getId(),
+                title,
+                buildThumbnailUrl(video.getId()),
+                buildVideoUrl(video.getId()),
+                video.getCreatedAt()
+        );
+    }
 
     @Transactional(readOnly = true)
     public VideoDownloadResponse getDownload(Integer userId, Integer videoId) {

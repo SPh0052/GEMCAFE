@@ -2,6 +2,7 @@ package com.ssafy.BE.domain.video.controller;
 
 import com.ssafy.BE.domain.video.dto.CreateVideoRequest;
 import com.ssafy.BE.domain.video.dto.CreateVideoResponse;
+import com.ssafy.BE.domain.video.dto.VideoDetailResponse;
 import com.ssafy.BE.domain.video.dto.VideoDownloadResponse;
 import com.ssafy.BE.domain.video.dto.VideoShareResponse;
 import com.ssafy.BE.domain.video.dto.VideoStatusResponse;
@@ -67,6 +68,16 @@ public class VideoController {
                 video.getCreatedAt()
         );
         return ApiResponse.ok("영상 상태 조회 완료", data);
+    }
+
+    @Operation(summary = "영상 상세 조회. id/title/thumbnailUrl/videoUrl/createdAt 반환. URL은 보호된 서빙 컨트롤러 경로.")
+    @GetMapping("/{videoId}")
+    public ApiResponse<VideoDetailResponse> detail(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId
+    ) {
+        VideoDetailResponse data = videoAssetService.getDetail(userId, videoId);
+        return ApiResponse.ok("영상 상세 조회 완료", data);
     }
 
     @Operation(summary = "영상 다운로드 정보 조회. 파일 URL + 원본 파일명 반환")
