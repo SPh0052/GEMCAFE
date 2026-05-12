@@ -56,10 +56,6 @@ export default function MyVideosPage() {
               className={`relative aspect-9/16 overflow-hidden rounded-2xl bg-linear-to-br ${v.color}`}
             >
               <div className="absolute inset-0 bg-black/20" />
-              {/* 영상 제목 — 좌상단 오버레이 (인스타 릴스 느낌) */}
-              <p className="absolute left-3 top-3 right-3 line-clamp-2 text-xs font-semibold leading-tight text-white drop-shadow-md">
-                {v.title}
-              </p>
               <button
                 type="button"
                 aria-label="재생"

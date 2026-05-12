@@ -57,10 +57,19 @@ function clearSessionAndRedirect() {
   }
 }
 
-// ───── 요청 인터셉터: accessToken 자동 첨부 ─────
+// ───── 요청 인터셉터: accessToken 자동 첨부 + URL 정규화 ─────
 // 모든 요청에 로그인 시 받은 accessToken을 authorization 헤더로 자동 첨부.
 // 로그인/회원가입 자체 호출 시점에는 토큰이 없으므로 그대로 통과.
+//
+// 추가로 — BE 가 가끔 응답에 `/api/v1/files/...` 처럼 baseURL prefix 까지
+// 포함된 URL 을 내려주는데, 이걸 그대로 axios 에 넘기면 baseURL(`/dev/be/gemcafe/api/v1`)
+// 와 중복돼 `/dev/be/gemcafe/api/v1/api/v1/...` 가 되어 404. 인터셉터에서 자동 strip.
 api.interceptors.request.use((config) => {
+  // /api/v1/... 형태로 들어온 URL 은 baseURL prefix 와 중복되므로 prefix 만 제거
+  if (config.url && config.url.startsWith('/api/v1/')) {
+    config.url = config.url.substring('/api/v1'.length)
+  }
+
   const session = readSession()
   const token = session?.tokens?.accessToken
   if (token) {

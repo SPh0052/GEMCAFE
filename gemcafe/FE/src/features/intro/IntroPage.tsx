@@ -23,29 +23,32 @@ export default function IntroPage() {
     <div className="min-h-screen overflow-x-hidden bg-white text-gray-900 antialiased">
       {/* ───── Top Nav (fixed) ───── */}
       <nav className="fixed inset-x-0 top-0 z-40 border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 pb-4 pt-6 sm:px-10">
-          <Link to="/intro" className="group flex items-center gap-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 pb-3 pt-4 sm:gap-4 sm:px-10 sm:pb-4 sm:pt-6">
+          <Link
+            to="/intro"
+            className="group flex shrink-0 items-center gap-2 sm:gap-3"
+          >
             <img
               src={ASSET('logo.png')}
               alt="gem.cafe 로고"
-              className="h-12 w-12 transition group-hover:scale-105"
+              className="h-9 w-9 transition group-hover:scale-105 sm:h-12 sm:w-12"
             />
             <img
               src={ASSET('logo_text.png')}
               alt="gem.cafe"
-              className="h-8"
+              className="h-6 sm:h-8"
             />
           </Link>
-          <div className="flex items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
             <Link
               to="/login"
-              className="rounded-lg bg-brand-100 px-5 py-2.5 text-base font-medium text-brand-500 transition hover:bg-brand-200"
+              className="whitespace-nowrap rounded-lg bg-brand-100 px-3 py-2 text-sm font-medium text-brand-500 transition hover:bg-brand-200 sm:px-5 sm:py-2.5 sm:text-base"
             >
               로그인
             </Link>
             <Link
               to="/signup"
-              className="rounded-lg bg-brand-500 px-5 py-2.5 text-base font-medium text-white transition hover:bg-brand-600"
+              className="whitespace-nowrap rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 sm:px-5 sm:py-2.5 sm:text-base"
             >
               회원가입
             </Link>
@@ -54,7 +57,7 @@ export default function IntroPage() {
       </nav>
 
       {/* nav 가 fixed 라 본문이 가려지지 않도록 스페이서 */}
-      <div className="h-24" aria-hidden="true" />
+      <div className="h-16 sm:h-24" aria-hidden="true" />
 
       {/* ═══════════════════════════════════ HERO (centered, miricanvas-style) ═══════════════════════════════════ */}
       <section className="relative overflow-hidden">
@@ -62,7 +65,7 @@ export default function IntroPage() {
         <div className="absolute -left-32 -top-32 -z-10 h-96 w-96 rounded-full bg-brand-400/30 blur-3xl" />
         <div className="absolute -right-32 top-40 -z-10 h-112 w-md rounded-full bg-amber-300/25 blur-3xl" />
 
-        <div className="mx-auto max-w-5xl px-5 pb-20 pt-16 text-center sm:px-8 sm:pb-28 sm:pt-24">
+        <div className="mx-auto max-w-5xl px-7 pb-20 pt-16 text-center sm:px-8 sm:pb-28 sm:pt-24">
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-brand-600 shadow-sm backdrop-blur">
             <span className="relative flex h-2 w-2">
               <span className="absolute inset-0 animate-ping rounded-full bg-brand-400 opacity-75" />
@@ -71,7 +74,7 @@ export default function IntroPage() {
             AI BETA · 카페 영상 자동 생성
           </span>
 
-          <h1 className="mx-auto mt-7 max-w-4xl text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+          <h1 className="mx-auto mt-7 max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
             카페 광고 영상,
             <br />
             <span className="relative inline-block">
@@ -79,12 +82,13 @@ export default function IntroPage() {
                 AI 가 1분 만에
               </span>
               <span className="absolute inset-x-0 -bottom-2 h-3 -rotate-1 rounded-full bg-brand-200/50 blur-sm" />
-            </span>{' '}
-            완성
+            </span>
+            <br className="sm:hidden" />
+            <span className="whitespace-nowrap"> 완성</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-600 sm:text-xl">
-            메뉴 사진 한 장만 올리면 AI 가 카페 분위기에 맞는
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-gray-600 sm:text-lg md:text-xl">
+            메뉴 사진 한 장만 올리면 AI 가 카페 분위기에 맞는{' '}
             <br className="hidden sm:block" />
             매력적인 광고 영상을 자동으로 만들어드려요.
           </p>
@@ -180,7 +184,7 @@ export default function IntroPage() {
       {/* ═══════════════════════════════════ STATS STRIP ═══════════════════════════════════ */}
       <section className="relative overflow-hidden bg-gray-950 py-14 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,106,0,0.18),transparent_60%)]" />
-        <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="relative mx-auto max-w-7xl px-7 sm:px-8">
           <div className="grid grid-cols-2 gap-y-10 sm:grid-cols-4">
             {stats.map((s) => (
               <div key={s.label} className="text-center">
@@ -198,7 +202,7 @@ export default function IntroPage() {
 
       {/* ═══════════════════════════════════ INPUT → OUTPUT FLOW ═══════════════════════════════════ */}
       <section className="bg-linear-to-b from-white via-orange-50/30 to-white py-24 sm:py-32">
-        <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <div className="mx-auto max-w-6xl px-7 sm:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
               How it works
@@ -270,7 +274,7 @@ export default function IntroPage() {
 
       {/* ═══════════════════════════════════ 4 STEP DETAIL ═══════════════════════════════════ */}
       <section id="how" className="bg-white py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
               4단계면 끝나요
@@ -306,7 +310,7 @@ export default function IntroPage() {
 
       {/* ═══════════════════════════════════ ALTERNATING FEATURES ═══════════════════════════════════ */}
       <section className="bg-linear-to-b from-orange-50/30 via-white to-white py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
               Features
@@ -430,7 +434,7 @@ export default function IntroPage() {
           }}
         />
 
-        <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="relative mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
               이런 분께
@@ -465,7 +469,7 @@ export default function IntroPage() {
 
       {/* ═══════════════════════════════════ FAQ ═══════════════════════════════════ */}
       <section className="bg-white py-24 sm:py-32">
-        <div className="mx-auto max-w-3xl px-5 sm:px-8">
+        <div className="mx-auto max-w-3xl px-7 sm:px-8">
           <div className="text-center">
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
               FAQ
@@ -503,18 +507,19 @@ export default function IntroPage() {
       <section className="relative overflow-hidden py-24 sm:py-32">
         <div className="absolute left-1/2 top-1/2 -z-10 h-160 w-160 -translate-x-1/2 -translate-y-1/2 rounded-full bg-linear-to-br from-brand-200/40 via-orange-200/30 to-rose-200/40 blur-3xl" />
 
-        <div className="mx-auto max-w-3xl px-5 text-center sm:px-8">
+        <div className="mx-auto max-w-3xl px-7 text-center sm:px-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-600 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5" />
             지금 시작하기
           </div>
-          <h2 className="mt-6 text-5xl font-extrabold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
+          <h2 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
             첫 영상,
             <br />
             <span className="bg-linear-to-br from-brand-500 via-orange-500 to-rose-500 bg-clip-text text-transparent">
               지금 1분이면
-            </span>{' '}
-            완성
+            </span>
+            <br className="sm:hidden" />
+            <span className="whitespace-nowrap"> 완성</span>
           </h2>
           <p className="mt-6 text-lg text-gray-600 sm:text-xl">
             가입 즉시 무료로 사용해보실 수 있습니다.
@@ -539,7 +544,7 @@ export default function IntroPage() {
 
       {/* ═══════════════════════════════════ FOOTER ═══════════════════════════════════ */}
       <footer className="border-t border-gray-100 bg-white py-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-7 sm:flex-row sm:px-8">
           <div className="flex items-center gap-2">
             <UtensilsCrossed className="h-4 w-4 text-brand-500" />
             <span className="text-sm font-semibold tracking-tight">
