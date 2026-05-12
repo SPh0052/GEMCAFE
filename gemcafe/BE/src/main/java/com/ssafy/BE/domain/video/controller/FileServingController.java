@@ -51,6 +51,7 @@ public class FileServingController {
     private String internalVideos;
     private String internalThumbs;
     private String internalImages;
+    private String internalWatermarked;
 
     @PostConstruct
     void initPaths() {
@@ -58,8 +59,9 @@ public class FileServingController {
         this.internalVideos = base + "/ai-videos/";
         this.internalThumbs = base + "/ai-videos/thumbnails/";
         this.internalImages = base + "/upload-images/";
-        log.info("[FileServingController] internalPrefix={} videos={} thumbs={} images={}",
-                internalPrefix, internalVideos, internalThumbs, internalImages);
+        this.internalWatermarked = base + "/watermarked/";
+        log.info("[FileServingController] internalPrefix={} videos={} thumbs={} images={} watermarked={}",
+                internalPrefix, internalVideos, internalThumbs, internalImages, internalWatermarked);
     }
 
     private final VideoRepository videoRepository;
@@ -93,6 +95,21 @@ public class FileServingController {
         log.debug("[FILE-SERVE-THUMB] videoId={} userId={} file={}",
                 videoId, userId, video.getThumbnailFileName());
         return redirect(internalThumbs + video.getThumbnailFileName(), "image/jpeg");
+    }
+
+    @Operation(summary = "워터마크 영상 서빙. videoId 소유자 검증 + X-Accel-Redirect 로 nginx 위임. 파일명은 원본 영상과 동일하게 watermarked/ 디렉터리에 저장된 것.")
+    @GetMapping("/watermark/{videoId}")
+    public ResponseEntity<Void> serveWatermark(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId
+    ) {
+        Video video = ownedVideo(userId, videoId);
+        if (video.getStatus() != VideoStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.VIDEO_NOT_READY);
+        }
+        log.debug("[FILE-SERVE-WATERMARK] videoId={} userId={} file={}",
+                videoId, userId, video.getStoredFileName());
+        return redirect(internalWatermarked + video.getStoredFileName(), "video/mp4");
     }
 
     @Operation(summary = "세션 업로드 원본 이미지 서빙. 세션 소유자 검증.")
