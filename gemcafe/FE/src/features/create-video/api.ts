@@ -41,6 +41,38 @@ export async function analyzeCakeImage(file: File): Promise<AnalyzeResult> {
   return res.data.data
 }
 
+// ─── Step 4. 자동 프롬프트 생성 ─────────────────────────────────
+export interface PreviewPromptRequest {
+  simulationId: number
+  backgroundId: number
+  focus: string
+  hint: string
+}
+
+export interface PreviewPromptResult {
+  /** LLM 이 생성한 한국어 영상 묘사. */
+  videoPromptKr: string
+}
+
+/**
+ * 자동 프롬프트 생성 (stateless).
+ * POST /api/v1/cakes/sessions/{sessionId}/preview-prompts
+ *
+ * 사용자 선택값(simulation/background/focus/hint)을 바탕으로 LLM 이
+ * 한국어 영상 묘사를 생성. 사용자가 그대로 쓰거나 추가 편집해서 hint 로 보낼 수 있음.
+ */
+export async function generatePreviewPrompt(
+  sessionId: number,
+  body: PreviewPromptRequest,
+): Promise<PreviewPromptResult> {
+  const res = await api.post<ApiResponse<PreviewPromptResult>>(
+    `/cakes/sessions/${sessionId}/preview-prompts`,
+    body,
+    { timeout: AI_TIMEOUT_MS },
+  )
+  return res.data.data
+}
+
 // ─── Step 7. 키프레임 생성 ─────────────────────────────────────
 export interface KeyframeRequest {
   simulationId: number
@@ -74,6 +106,12 @@ export async function generateKeyframe(
 }
 
 // ─── Step 7-③. 키프레임 선택 ──────────────────────────────────
+export interface SelectKeyframeRequest {
+  keyframeId: number
+  /** 영상 생성에 사용할 한국어 영상 묘사 (자동 생성 + 사용자 편집 결과) */
+  videoPromptKr: string
+}
+
 export interface SelectKeyframeResult {
   sessionId: number
   selectedKeyframeId: number
@@ -81,16 +119,16 @@ export interface SelectKeyframeResult {
 }
 
 /**
- * 영상 생성에 사용할 키프레임 확정.
+ * 영상 생성에 사용할 키프레임 확정 + videoPromptKr 저장.
  * POST /api/v1/cakes/sessions/{sessionId}/select-keyframe
  */
 export async function selectKeyframe(
   sessionId: number,
-  keyframeId: number,
+  body: SelectKeyframeRequest,
 ): Promise<SelectKeyframeResult> {
   const res = await api.post<ApiResponse<SelectKeyframeResult>>(
     `/cakes/sessions/${sessionId}/select-keyframe`,
-    { keyframeId },
+    body,
   )
   return res.data.data
 }

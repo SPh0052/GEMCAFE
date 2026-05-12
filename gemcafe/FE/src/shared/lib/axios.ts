@@ -47,9 +47,13 @@ function writeTokens(tokens: PersistedTokens) {
 
 function clearSessionAndRedirect() {
   localStorage.removeItem(STORAGE_KEY)
-  // 풀 리로드로 React 앱·Zustand 스토어 모두 깨끗하게 초기화하면서 /login 으로.
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login'
+  // 풀 리로드로 React 앱·Zustand 스토어 모두 깨끗하게 초기화하면서 로그인 페이지로.
+  // Vite base path(예: /dev/gemcafe/) 를 prefix 로 붙여서 절대 경로 만든다.
+  // BASE_URL 끝에 / 가 붙어있으므로 join 시 중복 슬래시 방지.
+  const baseUrl = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+  const loginPath = `${baseUrl}/login`
+  if (window.location.pathname !== loginPath) {
+    window.location.href = loginPath
   }
 }
 
