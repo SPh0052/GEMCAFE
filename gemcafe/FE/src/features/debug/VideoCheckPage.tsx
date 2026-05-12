@@ -17,7 +17,8 @@ interface CheckResult {
   name: string
   status: CheckStatus
   message?: string
-  details?: Record<string, string | number | boolean | undefined>
+  /** 화면에 raw display 만 하므로 unknown 으로 받고 string 변환은 렌더 시점에. */
+  details?: Record<string, unknown>
 }
 
 export default function VideoCheckPage() {
@@ -176,7 +177,7 @@ function ResultCard({ result }: { result: CheckResult }) {
         <pre className="mt-3 overflow-x-auto rounded-lg bg-white/80 p-3 text-xs leading-relaxed text-gray-700 ring-1 ring-gray-200">
           {Object.entries(result.details)
             .filter(([, v]) => v !== undefined)
-            .map(([k, v]) => `${k}: ${v}`)
+            .map(([k, v]) => `${k}: ${String(v)}`)
             .join('\n')}
         </pre>
       )}
