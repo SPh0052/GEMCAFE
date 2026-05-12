@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { api } from '@/shared/lib/axios'
 import {
   Home,
   Loader2,
@@ -269,7 +270,19 @@ const newId = () => Math.random().toString(36).slice(2, 9)
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v))
 
+interface EditorLocationState {
+  /** VideoDetailPage 에서 편집하기 클릭 시 전달되는 영상 정보 */
+  videoId?: number
+  title?: string
+  /** 인증 보호된 영상 서빙 URL (예: /dev/files/gemcafe/ai-videos/abc.mp4) */
+  videoUrl?: string
+  thumbnailUrl?: string
+}
+
 export default function VideoEditor() {
+  const location = useLocation()
+  const incomingVideo = (location.state as EditorLocationState | null) ?? null
+
   // refs
   const containerRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -373,6 +386,41 @@ export default function VideoEditor() {
     setVideoLoaded(false)
     setLoadError(null)
   }
+
+  // VideoDetailPage 에서 편집하기 진입 시 — 인증 보호 경로의 영상을 blob 으로 받아
+  // 자동 로드해서 업로드 단계 건너뜀.
+  useEffect(() => {
+    const incomingUrl = incomingVideo?.videoUrl
+    if (!incomingUrl) return
+
+    let cancelled = false
+    let created: string | undefined
+    setLoadError(null)
+    setVideoLoaded(false)
+
+    const useOriginBase = /^\/dev\//.test(incomingUrl)
+    api
+      .get<Blob>(incomingUrl, {
+        responseType: 'blob',
+        ...(useOriginBase ? { baseURL: '' } : {}),
+      })
+      .then((res) => {
+        if (cancelled) return
+        created = URL.createObjectURL(res.data)
+        setVideoUrl(created)
+      })
+      .catch((err) => {
+        console.error('[VideoEditor] 영상 로드 실패', err)
+        if (!cancelled) setLoadError('영상을 불러오지 못했습니다.')
+      })
+
+    return () => {
+      cancelled = true
+      if (created) URL.revokeObjectURL(created)
+    }
+    // location.state 는 mount 시 한 번만 확정값으로 봄
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // videoUrl 변경 시 — JSX 의 <video> 엘리먼트(videoRef) 에 listener 부착
   useEffect(() => {

@@ -74,6 +74,16 @@ export default defineConfig({
           referer: 'https://k14s307.p.ssafy.io/',
         },
       },
+      // 파일 서빙 — /dev/files/gemcafe/{filename} 형식 (영상/썸네일/이미지)
+      '/dev/files': {
+        target: 'https://k14s307.p.ssafy.io',
+        changeOrigin: true,
+        secure: true,
+        headers: {
+          origin: 'https://k14s307.p.ssafy.io',
+          referer: 'https://k14s307.p.ssafy.io/',
+        },
+      },
     },
   },
 })

@@ -10,12 +10,24 @@ interface ApiResponse<T> {
 const AI_TIMEOUT_MS = 180_000
 
 // ─── Step 2. 케이크 이미지 분석 ──────────────────────────────────
+/**
+ * BE 가 내려주는 분석 결과.
+ * FE 는 suggested_focus 만 사용자에게 노출 (사용자가 강조할 포인트 선택).
+ * 나머지 필드는 BE 가 키프레임/영상 생성 시 내부적으로 사용.
+ */
 export interface CakeAnalysis {
-  /**
-   * BE 가 내려주는 분석 결과 — key/value 쌍.
-   * value 는 단일 string 또는 string 배열일 수 있음 (예: { fruit: ["strawberry"] }).
-   */
-  [key: string]: string | string[]
+  cake_type?: string
+  base?: string[]
+  creams?: string[]
+  toppings?: string[]
+  coating?: string
+  key_feature?: string
+  is_warm?: boolean
+  is_layered?: boolean
+  /** 사용자에게 태그로 보여줄 강조 포인트 후보 목록. */
+  suggested_focus?: string[]
+  /** 추가 필드 호환용. */
+  [key: string]: unknown
 }
 
 export interface AnalyzeResult {
@@ -43,8 +55,8 @@ export async function analyzeCakeImage(file: File): Promise<AnalyzeResult> {
 
 // ─── Step 4. 자동 프롬프트 생성 ─────────────────────────────────
 export interface PreviewPromptRequest {
-  simulationId: number
-  backgroundId: number
+  simulationCode: string
+  backgroundCode: string
   focus: string
   hint: string
 }
@@ -75,9 +87,11 @@ export async function generatePreviewPrompt(
 
 // ─── Step 7. 키프레임 생성 ─────────────────────────────────────
 export interface KeyframeRequest {
-  simulationId: number
-  backgroundId: number
-  /** analyze 결과에서 선택한 키 (또는 값) */
+  /** 시뮬레이션 카탈로그 키 (예: 'smash', 'fork_bite') */
+  simulationCode: string
+  /** 배경 카탈로그 키 (예: 'white_marble', 'cafe_interior') */
+  backgroundCode: string
+  /** focus 카탈로그 키 (sponge | strawberry | whipped_cream) */
   focus: string
   /** 유저가 입력한 자유 프롬프트 */
   hint: string
@@ -159,8 +173,9 @@ export async function createVideo(
 // ─── 영상 상태 폴링 ────────────────────────────────────────────
 export interface VideoStatus {
   videoId: number
-  /** 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' 등 BE 정의값 */
+  /** 'GENERATING' | 'COMPLETED' | 'FAILED' */
   status: string
+  /** COMPLETED 시 파일명. /dev/files/gemcafe/ai-videos/{storedFileName} 로 접근. */
   storedFileName?: string
   thumbnailFileName?: string
   fileSize?: number
@@ -174,6 +189,58 @@ export interface VideoStatus {
 export async function getVideoStatus(videoId: number): Promise<VideoStatus> {
   const res = await api.get<ApiResponse<VideoStatus>>(
     `/videos/${videoId}/status`,
+  )
+  return res.data.data
+}
+
+// ─── 영상 파일 URL 헬퍼 ────────────────────────────────────────
+/** AuthedVideo / AuthedImage 에 넘길 영상 파일 경로 생성. */
+export function videoFileUrl(storedFileName: string): string {
+  return `/dev/files/gemcafe/ai-videos/${storedFileName}`
+}
+
+/** AuthedImage 에 넘길 썸네일 파일 경로 생성. */
+export function videoThumbnailUrl(thumbnailFileName: string): string {
+  return `/dev/files/gemcafe/ai-videos/thumbnails/${thumbnailFileName}`
+}
+
+// ─── 영상 다운로드 / 공유 메타 ─────────────────────────────────
+export interface VideoDownloadInfo {
+  videoId: number
+  fileUrl: string
+  originFileName: string
+  fileSize: number
+}
+
+/**
+ * 영상 다운로드 메타 조회 (원본 파일명 포함).
+ * GET /api/v1/videos/{videoId}/download
+ */
+export async function getVideoDownloadInfo(
+  videoId: number,
+): Promise<VideoDownloadInfo> {
+  const res = await api.get<ApiResponse<VideoDownloadInfo>>(
+    `/videos/${videoId}/download`,
+  )
+  return res.data.data
+}
+
+export interface VideoShareInfo {
+  videoId: number
+  videoUrl: string
+  thumbnailUrl: string
+  title: string
+}
+
+/**
+ * 영상 공유 메타 조회 (제목·썸네일 포함, navigator.share 용).
+ * GET /api/v1/videos/{videoId}/share
+ */
+export async function getVideoShareInfo(
+  videoId: number,
+): Promise<VideoShareInfo> {
+  const res = await api.get<ApiResponse<VideoShareInfo>>(
+    `/videos/${videoId}/share`,
   )
   return res.data.data
 }
