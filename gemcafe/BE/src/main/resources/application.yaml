@@ -11,7 +11,7 @@ spring:
       max-request-size: 10MB
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/gemcafe?useUnicode=true&serverTimezone=Asia/Seoul}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:13306/gemcafe?useUnicode=true&serverTimezone=Asia/Seoul}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -21,7 +21,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
@@ -42,10 +42,13 @@ spring:
 
 app-mq:
   exchange: ${MQ_EXCHANGE:gemcafe.exchange}
+  watermark-exchange: ${MQ_WATERMARK_EXCHANGE:gemcafe.watermark.exchange}
   queue:
     video-generate: ${MQ_QUEUE_VIDEO_GENERATE:gemcafe.video.generate}
+    watermark-request: ${MQ_QUEUE_WATERMARK_REQUEST:gemcafe.watermark.request}
   routing-key:
     video-generate: ${MQ_ROUTING_VIDEO_GENERATE:gemcafe.video.generate}
+    watermark-request: ${MQ_ROUTING_WATERMARK_REQUEST:gemcafe.watermark.request}
 
 app-ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
@@ -56,10 +59,26 @@ app-video:
   subdir: ${VIDEO_SUBDIR:ai-videos}
   ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
 
+app-watermark:
+  subdir: ${WATERMARK_SUBDIR:watermarked}
+  alpha: ${WATERMARK_ALPHA:20}
+  redis-channel-prefix: ${WATERMARK_REDIS_CHANNEL_PREFIX:watermark:progress}
+  redis-job-key-prefix: ${WATERMARK_REDIS_JOB_KEY_PREFIX:watermark:job}
+  redis-job-ttl-minutes: ${WATERMARK_REDIS_JOB_TTL_MINUTES:30}
+  sse-timeout-ms: ${WATERMARK_SSE_TIMEOUT_MS:600000}
+  source-mount-prefix: ${WATERMARK_SOURCE_MOUNT_PREFIX:/app/gemcafe-uploads}
+
 jwt:
   secret: ${JWT_SECRET:CHANGE_ME_IN_PROD_min_32_chars_required_for_HS256}
   access-expire-minutes: ${JWT_ACCESS_EXPIRE_MINUTES:60}
   refresh-expire-days: ${JWT_REFRESH_EXPIRE_DAYS:7}
+
+oauth:
+  google:
+    # FE 의 VITE_GOOGLE_CLIENT_ID 와 반드시 동일한 값이어야 ID Token 의 aud 검증이 통과한다.
+    client-id: ${GOOGLE_CLIENT_ID:}
+    # 첫 가입 시 지급할 보너스 젬 (이메일 가입과 동일하게 20)
+    signup-bonus-gem: ${GOOGLE_SIGNUP_BONUS_GEM:20}
 
 app:
   cookie:

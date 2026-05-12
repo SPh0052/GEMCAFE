@@ -2,15 +2,10 @@ package com.ssafy.BE.domain.cake.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.BE.domain.background.entity.Background;
-import com.ssafy.BE.domain.background.repository.BackgroundRepository;
-import com.ssafy.BE.domain.background.service.BackgroundAiMapper;
 import com.ssafy.BE.domain.cake.dto.KeyframeGenerateRequest;
 import com.ssafy.BE.domain.cake.dto.KeyframeGenerateResponse;
 import com.ssafy.BE.domain.cake.dto.KeyframeSelectRequest;
 import com.ssafy.BE.domain.cake.dto.KeyframeSelectResponse;
-import com.ssafy.BE.domain.simulation.entity.Simulation;
-import com.ssafy.BE.domain.simulation.repository.SimulationRepository;
 import com.ssafy.BE.domain.video.entity.VideoKeyframe;
 import com.ssafy.BE.domain.video.entity.VideoSession;
 import com.ssafy.BE.domain.video.entity.VideoSessionStatus;
@@ -41,9 +36,6 @@ public class CakeKeyframeService {
 
     private final VideoSessionRepository videoSessionRepository;
     private final VideoKeyframeRepository videoKeyframeRepository;
-    private final SimulationRepository simulationRepository;
-    private final BackgroundRepository backgroundRepository;
-    private final BackgroundAiMapper backgroundAiMapper;
     private final AiKeyframeClient aiKeyframeClient;
     private final ObjectMapper objectMapper;
 
@@ -51,16 +43,12 @@ public class CakeKeyframeService {
     private String uploadDir;
 
     @Transactional
-    public KeyframeGenerateResponse generate(Integer sessionId, KeyframeGenerateRequest request) {
+    public KeyframeGenerateResponse generate(Integer userId, Integer sessionId, KeyframeGenerateRequest request) {
         VideoSession session = videoSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
+        validateSessionOwner(session, userId);
         validateSessionForKeyframe(session);
-
-        Simulation simulation = simulationRepository.findById(request.simulationId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SIMULATION_NOT_FOUND));
-        Background background = backgroundRepository.findById(request.backgroundId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.BACKGROUND_NOT_FOUND));
 
         Path imagePath = Path.of(uploadDir, IMAGE_SUBDIR, session.getInputImageFileName());
         if (!Files.exists(imagePath)) {
@@ -68,20 +56,18 @@ public class CakeKeyframeService {
             throw new BusinessException(ErrorCode.IMAGE_CORRUPTED);
         }
 
-        String aiBackgroundCode = backgroundAiMapper.resolveAiCode(background);
-        String mergedHint = backgroundAiMapper.mergeHint(background, request.hint());
         Integer seed = generateSeed(session.getKeyframeAttempts());
 
         Map<String, Object> aiResponse = aiKeyframeClient.generate(
                 imagePath,
-                simulation.getCode(),
+                request.simulationCode(),
                 request.focus(),
-                aiBackgroundCode,
-                mergedHint,
+                request.backgroundCode(),
+                request.hint(),
                 seed
         );
 
-        session.updateChoices(request.simulationId(), request.backgroundId(), request.focus(), request.hint());
+        session.updateChoices(request.simulationCode(), request.backgroundCode(), request.focus(), request.hint());
         session.incrementKeyframeAttempts();
 
         VideoKeyframe keyframe = VideoKeyframe.builder()
@@ -103,9 +89,10 @@ public class CakeKeyframeService {
     }
 
     @Transactional
-    public KeyframeSelectResponse select(Integer sessionId, KeyframeSelectRequest request) {
+    public KeyframeSelectResponse select(Integer userId, Integer sessionId, KeyframeSelectRequest request) {
         VideoSession session = videoSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+        validateSessionOwner(session, userId);
         validateNotExpired(session);
 
         VideoKeyframe target = videoKeyframeRepository.findById(request.keyframeId())
@@ -124,7 +111,12 @@ public class CakeKeyframeService {
         }
 
         session.selectKeyframe(target.getId());
-        log.info("[CAKE-KEYFRAME-SELECT] sessionId={} keyframeId={}", sessionId, target.getId());
+        if (request.videoPromptKr() != null && !request.videoPromptKr().isBlank()) {
+            session.updateVideoPromptKr(request.videoPromptKr().trim());
+        }
+        log.info("[CAKE-KEYFRAME-SELECT] sessionId={} keyframeId={} hasPromptKr={}",
+                sessionId, target.getId(),
+                request.videoPromptKr() != null && !request.videoPromptKr().isBlank());
 
         return new KeyframeSelectResponse(sessionId, target.getId(), session.getStatus().name());
     }
@@ -143,6 +135,12 @@ public class CakeKeyframeService {
     private void validateNotExpired(VideoSession session) {
         if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.SESSION_EXPIRED);
+        }
+    }
+
+    private void validateSessionOwner(VideoSession session, Integer userId) {
+        if (userId == null || !session.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_RESOURCE);
         }
     }
 

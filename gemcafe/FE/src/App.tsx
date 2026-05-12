@@ -4,6 +4,7 @@ import RequireAuth from '@/shared/components/RequireAuth'
 import LoginPage from '@/features/auth/LoginPage'
 import SignupPage from '@/features/auth/SignupPage'
 import CompleteSignupPage from '@/features/auth/CompleteSignupPage'
+import IntroPage from '@/features/intro/IntroPage'
 import HomePage from '@/features/home/HomePage'
 import CreateVideoPage from '@/features/create-video/CreateVideoPage'
 import CreatingPage from '@/features/create-video/CreatingPage'
@@ -15,6 +16,9 @@ import VideoEditor from '@/components/VideoEditor'
 export default function App() {
   return (
     <Routes>
+      {/* 소개 페이지 — 비로그인 사용자 진입점, 인증 불필요 */}
+      <Route path="/intro" element={<IntroPage />} />
+
       {/* 로그인/회원가입 — 레이아웃 없이 독립 */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />

@@ -34,14 +34,17 @@ public class VideoSession {
     @Column(length = 50)
     private String focus;
 
-    @Column(name = "simulation_id")
-    private Integer simulationId;
+    @Column(name = "simulation_code", length = 50)
+    private String simulationCode;
 
-    @Column(name = "background_id")
-    private Integer backgroundId;
+    @Column(name = "background_code", length = 50)
+    private String backgroundCode;
 
     @Column(columnDefinition = "TEXT")
     private String hint;
+
+    @Column(name = "video_prompt_kr", columnDefinition = "TEXT")
+    private String videoPromptKr;
 
     @Column(name = "selected_keyframe_id")
     private Integer selectedKeyframeId;
@@ -74,9 +77,9 @@ public class VideoSession {
         this.expiresAt = expiresAt;
     }
 
-    public void updateChoices(Integer simulationId, Integer backgroundId, String focus, String hint) {
-        this.simulationId = simulationId;
-        this.backgroundId = backgroundId;
+    public void updateChoices(String simulationCode, String backgroundCode, String focus, String hint) {
+        this.simulationCode = simulationCode;
+        this.backgroundCode = backgroundCode;
         this.focus = focus;
         this.hint = hint;
         this.status = VideoSessionStatus.KEYFRAMING;
@@ -89,6 +92,10 @@ public class VideoSession {
     public void selectKeyframe(Integer keyframeId) {
         this.selectedKeyframeId = keyframeId;
         this.status = VideoSessionStatus.READY_TO_GENERATE;
+    }
+
+    public void updateVideoPromptKr(String videoPromptKr) {
+        this.videoPromptKr = videoPromptKr;
     }
 
     public void submit(Integer videoId) {

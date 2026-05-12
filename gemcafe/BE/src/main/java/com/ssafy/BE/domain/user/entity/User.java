@@ -58,19 +58,33 @@ public class User {
 
     @Builder
     public User(String email, String password, String name, String phone,
-                Provider provider, String providerUserId, Integer gem) {
+                Provider provider, String providerUserId, Integer gem, Boolean emailVerified) {
         this.email = email;
         this.password = password;
         this.name = name;
         this.phone = phone;
         this.provider = provider != null ? provider : Provider.LOCAL;
         this.providerUserId = providerUserId;
-        this.emailVerified = false;
+        this.emailVerified = emailVerified != null && emailVerified;
         this.gem = gem != null ? gem : 0;
     }
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    /**
+     * 소셜 로그인 신규 가입 후 추가 정보(전화번호) 입력 시 호출.
+     */
+    public void completePhone(String phone) {
+        if (phone == null || phone.isBlank()) {
+            throw new IllegalArgumentException("phone must not be blank");
+        }
+        this.phone = phone;
+    }
+
+    public boolean hasPhone() {
+        return phone != null && !phone.isBlank();
     }
 
     public void deductGem(int amount) {

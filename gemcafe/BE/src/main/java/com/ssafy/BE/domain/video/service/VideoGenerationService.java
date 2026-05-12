@@ -57,7 +57,7 @@ public class VideoGenerationService {
         Video video = createVideoRow(session, request.userPrompt());
         session.submit(video.getId());
 
-        VideoGenerationMessage message = buildMessage(video.getId(), userId, keyframe);
+        VideoGenerationMessage message = buildMessage(video.getId(), userId, keyframe, session);
         publisher.publish(message);
 
         log.info("[VIDEO-CREATE] videoId={} sessionId={} userId={} gem={}",
@@ -90,8 +90,8 @@ public class VideoGenerationService {
         String origin = LocalDateTime.now().format(ORIGIN_NAME_FMT) + ".mp4";
         Video video = Video.builder()
                 .userId(session.getUserId())
-                .simulationId(session.getSimulationId())
-                .backgroundId(session.getBackgroundId())
+                .simulationCode(session.getSimulationCode())
+                .backgroundCode(session.getBackgroundCode())
                 .originFileName(origin)
                 .storedFileName("pending.mp4")
                 .fileType("mp4")
@@ -104,7 +104,8 @@ public class VideoGenerationService {
         return videoRepository.save(video);
     }
 
-    private VideoGenerationMessage buildMessage(Integer videoId, Integer userId, VideoKeyframe keyframe) {
+    private VideoGenerationMessage buildMessage(
+            Integer videoId, Integer userId, VideoKeyframe keyframe, VideoSession session) {
         String startUrl;
         String endUrl;
         if ("i2i_is_end".equals(keyframe.getFrameStrategy())) {
@@ -114,6 +115,31 @@ public class VideoGenerationService {
             startUrl = keyframe.getKeyframeUrl();
             endUrl = keyframe.getBaseUrl();
         }
-        return VideoGenerationMessage.of(videoId, userId, startUrl, endUrl, keyframe.getVideoPrompt());
+
+        return VideoGenerationMessage.of(
+                videoId,
+                userId,
+                startUrl,
+                endUrl,
+                keyframe.getVideoPrompt(),
+                session.getVideoPromptKr(),
+                session.getSimulationCode(),
+                session.getBackgroundCode()
+        );
+    }
+
+    @Transactional
+    public void completeVideo(Integer videoId, VideoFileService.StoredVideo stored) {
+        Video video = videoRepository.findById(videoId).orElseThrow();
+        video.markCompleted(stored.storedFileName(), (int) stored.fileSize(), stored.thumbnailFileName());
+    }
+
+    @Transactional
+    public void failVideoAndRefund(Integer videoId, Integer userId, int gemAmount) {
+        videoRepository.findById(videoId).ifPresent(Video::markFailed);
+        userRepository.findById(userId).ifPresent(user -> {
+            user.refundGem(gemAmount);
+            log.info("[GEM-REFUND] userId={} amount={}", userId, gemAmount);
+        });
     }
 }
