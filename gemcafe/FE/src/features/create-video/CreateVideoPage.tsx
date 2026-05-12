@@ -9,7 +9,6 @@ import {
   generateKeyframe,
   generatePreviewPrompt,
   selectKeyframe,
-  type CakeAnalysis,
   type KeyframeResult,
 } from './api'
 import {
@@ -29,7 +28,6 @@ export default function CreateVideoPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [sessionId, setSessionId] = useState<number | null>(null)
-  const [analysis, setAnalysis] = useState<CakeAnalysis | null>(null)
 
   // ── Step 2~6: 선택값 (catalog 키 기반) ──
   const [focusKey, setFocusKey] = useState<string | null>(null)
@@ -87,7 +85,6 @@ export default function CreateVideoPage() {
 
     // 새 이미지 선택 시 이전 결과 초기화
     setImagePreview(URL.createObjectURL(file))
-    setAnalysis(null)
     setSessionId(null)
     setFocusKey(null)
     setSimulationCode(null)
@@ -102,7 +99,6 @@ export default function CreateVideoPage() {
       const res = await analyzeCakeImage(file)
       console.log('[POST /cakes/analyze] response:', res)
       setSessionId(res.sessionId)
-      setAnalysis(res.analysis ?? {})
     } catch (err) {
       console.error('[POST /cakes/analyze] error:', err)
       setError(extractErrorMessage(err, '이미지 분석에 실패했습니다.'))
@@ -180,14 +176,6 @@ export default function CreateVideoPage() {
       setError(extractErrorMessage(err, '영상 생성 시작에 실패했습니다.'))
       setCreatingVideo(false)
     }
-  }
-
-  // suggested_focus 만 사용자에게 태그로 노출. (나머지 분석 필드는 BE 내부용)
-  const analysisTags: { key: string; value: string }[] = []
-  if (analysis?.suggested_focus) {
-    analysis.suggested_focus.forEach((item, i) =>
-      analysisTags.push({ key: `focus-${i}`, value: String(item) }),
-    )
   }
 
   return (
@@ -273,13 +261,6 @@ export default function CreateVideoPage() {
             })}
           </div>
 
-          {/* Moondream 분석 결과 — 선택적 참고 정보 */}
-          {analysisTags.length > 0 && (
-            <p className="mt-3 text-xs text-gray-400">
-              <span className="font-medium text-gray-500">AI 분석:</span>{' '}
-              {analysisTags.map((t) => t.value).join(' · ')}
-            </p>
-          )}
         </Section>
       )}
 
