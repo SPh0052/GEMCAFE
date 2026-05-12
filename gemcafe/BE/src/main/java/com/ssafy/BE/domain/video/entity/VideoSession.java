@@ -34,11 +34,11 @@ public class VideoSession {
     @Column(length = 50)
     private String focus;
 
-    @Column(name = "simulation_id")
-    private Integer simulationId;
+    @Column(name = "simulation_code", length = 50)
+    private String simulationCode;
 
-    @Column(name = "background_id")
-    private Integer backgroundId;
+    @Column(name = "background_code", length = 50)
+    private String backgroundCode;
 
     @Column(columnDefinition = "TEXT")
     private String hint;
@@ -77,9 +77,9 @@ public class VideoSession {
         this.expiresAt = expiresAt;
     }
 
-    public void updateChoices(Integer simulationId, Integer backgroundId, String focus, String hint) {
-        this.simulationId = simulationId;
-        this.backgroundId = backgroundId;
+    public void updateChoices(String simulationCode, String backgroundCode, String focus, String hint) {
+        this.simulationCode = simulationCode;
+        this.backgroundCode = backgroundCode;
         this.focus = focus;
         this.hint = hint;
         this.status = VideoSessionStatus.KEYFRAMING;

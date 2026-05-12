@@ -3,13 +3,8 @@ package com.ssafy.BE.domain.cake.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.BE.domain.background.entity.Background;
-import com.ssafy.BE.domain.background.repository.BackgroundRepository;
-import com.ssafy.BE.domain.background.service.BackgroundAiMapper;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptRequest;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptResponse;
-import com.ssafy.BE.domain.simulation.entity.Simulation;
-import com.ssafy.BE.domain.simulation.repository.SimulationRepository;
 import com.ssafy.BE.domain.video.entity.VideoSession;
 import com.ssafy.BE.domain.video.entity.VideoSessionStatus;
 import com.ssafy.BE.domain.video.repository.VideoSessionRepository;
@@ -29,11 +24,8 @@ import java.util.Map;
 /**
  * "프롬프트 생성" 버튼 처리.
  *
- * 사용자가 선택한 시뮬레이션/배경/요소/힌트를 받아 AI 서비스의 LLM이
- * 자연스러운 한국어 영상 묘사를 생성하여 반환. 사용자는 이 결과를
- * 화면에서 보고 수정한 뒤 키프레임 선택 단계에서 최종 텍스트를 저장한다.
- *
- * 이 단계는 stateless 하다 (세션에 저장 X). 저장은 select-keyframe 시점.
+ * AI 가 카탈로그의 단일 진실 소스(SSOT). simulation/background 키를 string 으로 그대로 받아 AI 에 패스.
+ * BE 측 DB lookup 없음 (Simulation/Background 테이블은 안 씀).
  */
 @Slf4j
 @Service
@@ -41,9 +33,6 @@ import java.util.Map;
 public class CakePreviewPromptService {
 
     private final VideoSessionRepository videoSessionRepository;
-    private final SimulationRepository simulationRepository;
-    private final BackgroundRepository backgroundRepository;
-    private final BackgroundAiMapper backgroundAiMapper;
     private final AiPreviewPromptClient aiPreviewPromptClient;
     private final ObjectMapper objectMapper;
 
@@ -53,19 +42,11 @@ public class CakePreviewPromptService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
         validateSession(session, userId);
 
-        Simulation simulation = simulationRepository.findById(request.simulationId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SIMULATION_NOT_FOUND));
-        Background background = backgroundRepository.findById(request.backgroundId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.BACKGROUND_NOT_FOUND));
-
-        String aiBackgroundCode = backgroundAiMapper.resolveAiCode(background);
-        String mergedHint = backgroundAiMapper.mergeHint(background, request.hint());
-
         AiPreviewPromptRequest aiRequest = new AiPreviewPromptRequest(
-                simulation.getCode(),
+                request.simulationCode(),
                 request.focus(),
-                aiBackgroundCode,
-                mergedHint,
+                request.backgroundCode(),
+                request.hint(),
                 "케이크",
                 null,
                 parseAnalysis(session.getAnalysisJson())
@@ -73,7 +54,7 @@ public class CakePreviewPromptService {
         AiPreviewPromptResponse aiResponse = aiPreviewPromptClient.preview(aiRequest);
 
         log.info("[CAKE-PREVIEW] sessionId={} simulation={} focus={}",
-                sessionId, simulation.getCode(), request.focus());
+                sessionId, request.simulationCode(), request.focus());
 
         return new PreviewPromptResponse(aiResponse.koreanPreview());
     }
