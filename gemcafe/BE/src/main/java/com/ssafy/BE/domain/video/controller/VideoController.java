@@ -6,6 +6,7 @@ import com.ssafy.BE.domain.video.dto.UpdateVideoRequest;
 import com.ssafy.BE.domain.video.dto.UpdateVideoResponse;
 import com.ssafy.BE.domain.video.dto.VideoDetailResponse;
 import com.ssafy.BE.domain.video.dto.VideoDownloadResponse;
+import com.ssafy.BE.domain.video.dto.VideoListResponse;
 import com.ssafy.BE.domain.video.dto.VideoShareResponse;
 import com.ssafy.BE.domain.video.dto.VideoStatusResponse;
 import com.ssafy.BE.domain.video.dto.WatermarkDownloadResponse;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,6 +46,17 @@ public class VideoController {
     private final VideoAssetService videoAssetService;
     private final VideoWatermarkService videoWatermarkService;
     private final VideoRepository videoRepository;
+
+    @Operation(summary = "내 영상 목록 조회 (커서 페이지네이션, 무한 스크롤용)")
+    @GetMapping
+    public ApiResponse<VideoListResponse> list(
+            @AuthenticationPrincipal Integer userId,
+            @RequestParam(required = false) Integer cursor,
+            @RequestParam(required = false) Integer size
+    ) {
+        VideoListResponse data = videoAssetService.getList(userId, cursor, size);
+        return ApiResponse.ok("영상 목록 조회 완료", data);
+    }
 
     @Operation(summary = "영상 생성 시작 (Step 8). 젬 6 차감 후 비동기 큐 발행")
     @PostMapping
