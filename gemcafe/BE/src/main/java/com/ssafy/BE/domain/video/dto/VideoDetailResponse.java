@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record VideoDetailResponse(
         Integer videoId,
         String title,
+        String originFileName,
         String thumbnailUrl,
         String videoUrl,
         LocalDateTime createdAt
