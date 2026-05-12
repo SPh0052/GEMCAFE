@@ -12,6 +12,7 @@ import MyVideosPage from '@/features/my-videos/MyVideosPage'
 import VideoDetailPage from '@/features/my-videos/VideoDetailPage'
 import MyPage from '@/features/my-page/MyPage'
 import VideoEditor from '@/components/VideoEditor'
+import VideoCheckPage from '@/features/debug/VideoCheckPage'
 
 export default function App() {
   return (
@@ -47,6 +48,16 @@ export default function App() {
         element={
           <RequireAuth>
             <VideoEditor />
+          </RequireAuth>
+        }
+      />
+
+      {/* 디버그: 영상 서빙 점검 — 로컬에서 BE 응답 검증용 */}
+      <Route
+        path="/debug/video-check"
+        element={
+          <RequireAuth>
+            <VideoCheckPage />
           </RequireAuth>
         }
       />
