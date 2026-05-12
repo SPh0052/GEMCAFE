@@ -63,6 +63,8 @@ public enum ErrorCode {
     WATERMARK_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "WM-002", "해당 작업을 찾을 수 없거나 만료되었습니다"),
     WATERMARK_JOB_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-003", "워터마크 작업 요청 발행에 실패했습니다"),
     WATERMARK_PROGRESS_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-004", "진행 상태 메시지 파싱에 실패했습니다"),
+    WATERMARK_EMBED_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "WM-005", "gemmark 워터마크 서비스에 연결할 수 없습니다"),
+    WATERMARK_EMBED_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-006", "워터마크 삽입에 실패했습니다"),
 
     // Common
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "COM-001", "요청 형식이 올바르지 않습니다"),

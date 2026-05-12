@@ -136,6 +136,57 @@ async def embed_watermark(
 
 
 # ──────────────────────────────────────────────────────────
+# External embed (gemcafe → gemmark, internal HTTP, gateway-net 신뢰)
+# ──────────────────────────────────────────────────────────
+
+
+async def embed_watermark_external(
+    source_file_path: str,
+    downloader_user_id: str,
+    alpha: int | None = None,
+) -> dict:
+    """gemcafe 등 외부 서비스가 호출하는 경량 워터마크 삽입.
+
+    - in-memory 등록부 / video_watermarked DB 기록 모두 skip
+    - 원본 파일 경로를 직접 받아 같은 파일명으로 WATERMARKED_DIR 에 저장
+    - 인증 없음 (gateway-net 내부 호출만 도달 가능한 전제)
+    """
+    src_path = Path(source_file_path)
+    if not src_path.exists():
+        raise VideoNotFoundError()
+
+    effective_alpha = int(alpha) if alpha is not None else int(settings.WATERMARK_ALPHA)
+
+    # 원본 파일명에서 .mp4 떼고 uuid 부분만 payload 에 사용
+    video_uuid = src_path.stem
+    payload = make_payload_bits(video_uuid, downloader_user_id)
+
+    settings.WATERMARKED_DIR.mkdir(parents=True, exist_ok=True)
+    dest_path = settings.WATERMARKED_DIR / src_path.name
+
+    try:
+        stats = await asyncio.to_thread(
+            embed_video_file,
+            src_path,
+            dest_path,
+            payload,
+            settings.WATERMARK_KEY,
+            float(effective_alpha),
+        )
+    except Exception:
+        dest_path.unlink(missing_ok=True)
+        raise WatermarkEmbedError()
+
+    return {
+        "storedFileName": dest_path.name,
+        "fileSize": dest_path.stat().st_size,
+        "durationSec": stats["duration_sec"],
+        "watermarkHex": bits_to_hex(payload),
+        "processingTime": stats.get("processing_time"),
+    }
+
+
+# ──────────────────────────────────────────────────────────
 # Verify
 # ──────────────────────────────────────────────────────────
 
