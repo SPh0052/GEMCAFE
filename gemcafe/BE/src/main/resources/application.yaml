@@ -68,6 +68,11 @@ app-watermark:
   sse-timeout-ms: ${WATERMARK_SSE_TIMEOUT_MS:600000}
   source-mount-prefix: ${WATERMARK_SOURCE_MOUNT_PREFIX:/app/gemcafe-uploads}
 
+app-gemmark:
+  base-url: ${GEMMARK_BASE_URL:http://dev-gemmark-be:8000}
+  connect-timeout-ms: ${GEMMARK_CONNECT_TIMEOUT_MS:5000}
+  read-timeout-ms: ${GEMMARK_READ_TIMEOUT_MS:120000}
+
 jwt:
   secret: ${JWT_SECRET:CHANGE_ME_IN_PROD_min_32_chars_required_for_HS256}
   access-expire-minutes: ${JWT_ACCESS_EXPIRE_MINUTES:60}
@@ -89,6 +94,9 @@ app:
   file:
     base-url: ${FILE_BASE_URL:/dev/files/gemcafe}
     upload-dir: ${UPLOAD_DIR:/app/uploads}
+    # X-Accel-Redirect 내부 경로 prefix. DEV/PROD 가 같은 nginx 를 공유하므로 환경별로 다르게.
+    # 예: DEV=/internal/dev, PROD=/internal/prod. 미설정 시 기본 /internal 사용.
+    internal-prefix: ${INTERNAL_PREFIX:/internal}
 
 springdoc:
   api-docs:
