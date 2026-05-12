@@ -62,7 +62,7 @@ public class VideoAssetService {
                 video.getId(),
                 buildVideoUrl(video.getId()),
                 buildThumbnailUrl(video.getId()),
-                resolveTitle(video)
+                resolveTitle(video),
                 video.getOriginFileName()
         );
     }
