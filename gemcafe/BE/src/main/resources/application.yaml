@@ -89,6 +89,9 @@ app:
   file:
     base-url: ${FILE_BASE_URL:/dev/files/gemcafe}
     upload-dir: ${UPLOAD_DIR:/app/uploads}
+    # X-Accel-Redirect 내부 경로 prefix. DEV/PROD 가 같은 nginx 를 공유하므로 환경별로 다르게.
+    # 예: DEV=/internal/dev, PROD=/internal/prod. 미설정 시 기본 /internal 사용.
+    internal-prefix: ${INTERNAL_PREFIX:/internal}
 
 springdoc:
   api-docs:
