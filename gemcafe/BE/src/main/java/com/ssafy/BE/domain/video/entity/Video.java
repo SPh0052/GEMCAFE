@@ -28,7 +28,7 @@ public class Video {
     @Column(name = "background_code", length = 50)
     private String backgroundCode;
 
-    @Column(name = "origin_file_name", nullable = false, length = 50, unique = true)
+    @Column(name = "origin_file_name", nullable = false, length = 50)
     private String originFileName;
 
     @Column(name = "stored_file_name", nullable = false, length = 255)
@@ -87,5 +87,15 @@ public class Video {
 
     public void markFailed() {
         this.status = VideoStatus.FAILED;
+    }
+
+    public void updateTitle(String title) {
+        this.originFileName = title;
+    }
+
+    public void replaceFiles(String storedFileName, Integer fileSize, String thumbnailFileName) {
+        this.storedFileName = storedFileName;
+        this.fileSize = fileSize;
+        this.thumbnailFileName = thumbnailFileName;
     }
 }
