@@ -1,10 +1,5 @@
 package com.ssafy.BE.domain.video.service;
 
-import com.ssafy.BE.domain.background.entity.Background;
-import com.ssafy.BE.domain.background.repository.BackgroundRepository;
-import com.ssafy.BE.domain.background.service.BackgroundAiMapper;
-import com.ssafy.BE.domain.simulation.entity.Simulation;
-import com.ssafy.BE.domain.simulation.repository.SimulationRepository;
 import com.ssafy.BE.domain.user.entity.User;
 import com.ssafy.BE.domain.user.repository.UserRepository;
 import com.ssafy.BE.domain.video.dto.CreateVideoRequest;
@@ -41,9 +36,6 @@ public class VideoGenerationService {
     private final VideoSessionRepository videoSessionRepository;
     private final VideoKeyframeRepository videoKeyframeRepository;
     private final VideoRepository videoRepository;
-    private final SimulationRepository simulationRepository;
-    private final BackgroundRepository backgroundRepository;
-    private final BackgroundAiMapper backgroundAiMapper;
     private final VideoGenerationPublisher publisher;
 
     @Transactional
@@ -98,8 +90,8 @@ public class VideoGenerationService {
         String origin = LocalDateTime.now().format(ORIGIN_NAME_FMT) + ".mp4";
         Video video = Video.builder()
                 .userId(session.getUserId())
-                .simulationId(session.getSimulationId())
-                .backgroundId(session.getBackgroundId())
+                .simulationCode(session.getSimulationCode())
+                .backgroundCode(session.getBackgroundCode())
                 .originFileName(origin)
                 .storedFileName("pending.mp4")
                 .fileType("mp4")
@@ -124,14 +116,6 @@ public class VideoGenerationService {
             endUrl = keyframe.getBaseUrl();
         }
 
-        // 세션에 저장된 simulation/background 키를 AI 서비스가 이해하는 코드로 변환
-        String simulationCode = simulationRepository.findById(session.getSimulationId())
-                .map(Simulation::getCode)
-                .orElse(null);
-        String backgroundCode = backgroundRepository.findById(session.getBackgroundId())
-                .map(backgroundAiMapper::resolveAiCode)
-                .orElse(null);
-
         return VideoGenerationMessage.of(
                 videoId,
                 userId,
@@ -139,8 +123,8 @@ public class VideoGenerationService {
                 endUrl,
                 keyframe.getVideoPrompt(),
                 session.getVideoPromptKr(),
-                simulationCode,
-                backgroundCode
+                session.getSimulationCode(),
+                session.getBackgroundCode()
         );
     }
 

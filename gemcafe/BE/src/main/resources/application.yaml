@@ -103,3 +103,7 @@ springdoc:
 
 server:
   port: ${SERVER_PORT:8002}
+
+oauth:
+  google:
+    client-id: ${OAUTH_GOOGLE_CLIENT_ID:}

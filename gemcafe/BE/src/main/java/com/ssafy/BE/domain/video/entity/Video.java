@@ -22,11 +22,11 @@ public class Video {
     @Column(name = "user_id", nullable = false)
     private Integer userId;
 
-    @Column(name = "background_id", nullable = false)
-    private Integer backgroundId;
+    @Column(name = "simulation_code", length = 50)
+    private String simulationCode;
 
-    @Column(name = "simulation_id", nullable = false)
-    private Integer simulationId;
+    @Column(name = "background_code", length = 50)
+    private String backgroundCode;
 
     @Column(name = "origin_file_name", nullable = false, length = 50, unique = true)
     private String originFileName;
@@ -61,13 +61,13 @@ public class Video {
     private LocalDateTime deletedAt;
 
     @Builder
-    private Video(Integer userId, Integer backgroundId, Integer simulationId,
+    private Video(Integer userId, String backgroundCode, String simulationCode,
                   String originFileName, String storedFileName,
                   String fileType, Integer fileSize, String thumbnailFileName,
                   String userPrompt, Integer gem, VideoStatus status) {
         this.userId = userId;
-        this.backgroundId = backgroundId;
-        this.simulationId = simulationId;
+        this.backgroundCode = backgroundCode;
+        this.simulationCode = simulationCode;
         this.originFileName = originFileName;
         this.storedFileName = storedFileName;
         this.fileType = fileType;

@@ -2,15 +2,10 @@ package com.ssafy.BE.domain.cake.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.BE.domain.background.entity.Background;
-import com.ssafy.BE.domain.background.repository.BackgroundRepository;
-import com.ssafy.BE.domain.background.service.BackgroundAiMapper;
 import com.ssafy.BE.domain.cake.dto.KeyframeGenerateRequest;
 import com.ssafy.BE.domain.cake.dto.KeyframeGenerateResponse;
 import com.ssafy.BE.domain.cake.dto.KeyframeSelectRequest;
 import com.ssafy.BE.domain.cake.dto.KeyframeSelectResponse;
-import com.ssafy.BE.domain.simulation.entity.Simulation;
-import com.ssafy.BE.domain.simulation.repository.SimulationRepository;
 import com.ssafy.BE.domain.video.entity.VideoKeyframe;
 import com.ssafy.BE.domain.video.entity.VideoSession;
 import com.ssafy.BE.domain.video.entity.VideoSessionStatus;
@@ -41,9 +36,6 @@ public class CakeKeyframeService {
 
     private final VideoSessionRepository videoSessionRepository;
     private final VideoKeyframeRepository videoKeyframeRepository;
-    private final SimulationRepository simulationRepository;
-    private final BackgroundRepository backgroundRepository;
-    private final BackgroundAiMapper backgroundAiMapper;
     private final AiKeyframeClient aiKeyframeClient;
     private final ObjectMapper objectMapper;
 
@@ -58,31 +50,24 @@ public class CakeKeyframeService {
         validateSessionOwner(session, userId);
         validateSessionForKeyframe(session);
 
-        Simulation simulation = simulationRepository.findById(request.simulationId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SIMULATION_NOT_FOUND));
-        Background background = backgroundRepository.findById(request.backgroundId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.BACKGROUND_NOT_FOUND));
-
         Path imagePath = Path.of(uploadDir, IMAGE_SUBDIR, session.getInputImageFileName());
         if (!Files.exists(imagePath)) {
             log.error("[CAKE-KEYFRAME] image not found: {}", imagePath);
             throw new BusinessException(ErrorCode.IMAGE_CORRUPTED);
         }
 
-        String aiBackgroundCode = backgroundAiMapper.resolveAiCode(background);
-        String mergedHint = backgroundAiMapper.mergeHint(background, request.hint());
         Integer seed = generateSeed(session.getKeyframeAttempts());
 
         Map<String, Object> aiResponse = aiKeyframeClient.generate(
                 imagePath,
-                simulation.getCode(),
+                request.simulationCode(),
                 request.focus(),
-                aiBackgroundCode,
-                mergedHint,
+                request.backgroundCode(),
+                request.hint(),
                 seed
         );
 
-        session.updateChoices(request.simulationId(), request.backgroundId(), request.focus(), request.hint());
+        session.updateChoices(request.simulationCode(), request.backgroundCode(), request.focus(), request.hint());
         session.incrementKeyframeAttempts();
 
         VideoKeyframe keyframe = VideoKeyframe.builder()
