@@ -76,7 +76,7 @@ export interface GoogleLoginRequest {
 export interface GoogleLoginResponse {
   accessToken: string
   tokenType: string
-  accessExpiresIn: number
+  expiresIn: number
   isNewUser: boolean
   email: string
   name: string

@@ -108,7 +108,7 @@ export default function LoginPage() {
           {
             accessToken: session.accessToken,
             tokenType: session.tokenType,
-            expiresIn: session.accessExpiresIn,
+            expiresIn: session.expiresIn,
           },
         )
 

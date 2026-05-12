@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { Camera, Loader2, RefreshCw, Sparkles, Wand2 } from 'lucide-react'
 import Button from '@/shared/components/Button'
 import { extractErrorMessage } from '@/shared/lib/errors'
 import {
   analyzeCakeImage,
   createVideo,
   generateKeyframe,
+  generatePreviewPrompt,
   selectKeyframe,
   type CakeAnalysis,
   type KeyframeResult,
@@ -67,6 +68,10 @@ export default function CreateVideoPage() {
   // ── Step 8: 영상 생성 ──
   const [creatingVideo, setCreatingVideo] = useState(false)
 
+  // ── 자동 프롬프트 생성 ──
+  const [autoPrompt, setAutoPrompt] = useState('')
+  const [generatingPrompt, setGeneratingPrompt] = useState(false)
+
   const [error, setError] = useState<string | null>(null)
 
   const attemptsLeft = MAX_KEYFRAME_ATTEMPTS - keyframes.length
@@ -79,6 +84,12 @@ export default function CreateVideoPage() {
     !generatingKeyframe
   const canCreateVideo =
     !!sessionId && !!selectedKeyframeId && !creatingVideo && !generatingKeyframe
+  const canGeneratePrompt =
+    !!sessionId &&
+    !!selectedSimId &&
+    !!selectedBgId &&
+    !!selectedFocus &&
+    !generatingPrompt
 
   const handleImagePick = () => fileInputRef.current?.click()
 
@@ -134,12 +145,40 @@ export default function CreateVideoPage() {
     }
   }
 
+  const handleGeneratePrompt = async () => {
+    if (!canGeneratePrompt || !sessionId || !selectedSimId || !selectedBgId)
+      return
+    setError(null)
+    setGeneratingPrompt(true)
+    try {
+      const res = await generatePreviewPrompt(sessionId, {
+        simulationId: selectedSimId,
+        backgroundId: selectedBgId,
+        focus: selectedFocus ?? '',
+        hint: prompt,
+      })
+      console.log('[POST /cakes/sessions/.../preview-prompts] response:', res)
+      setAutoPrompt(res.videoPromptKr)
+    } catch (err) {
+      console.error('[POST /cakes/sessions/.../preview-prompts] error:', err)
+      setError(extractErrorMessage(err, '자동 프롬프트 생성에 실패했습니다.'))
+    } finally {
+      setGeneratingPrompt(false)
+    }
+  }
+
   const handleCreateVideo = async () => {
     if (!canCreateVideo || !sessionId || !selectedKeyframeId) return
     setError(null)
     setCreatingVideo(true)
     try {
-      await selectKeyframe(sessionId, selectedKeyframeId)
+      // select-keyframe 에 videoPromptKr 필수. 자동 생성 결과(autoPrompt) 우선,
+      // 없으면 사용자가 입력한 hint(prompt) 로 fallback.
+      const videoPromptKr = (autoPrompt || prompt).trim()
+      await selectKeyframe(sessionId, {
+        keyframeId: selectedKeyframeId,
+        videoPromptKr,
+      })
       const res = await createVideo(sessionId, prompt)
       console.log('[POST /videos] response:', res)
       navigate('/creating', { state: { videoId: res.videoId } })
@@ -278,7 +317,7 @@ export default function CreateVideoPage() {
 
       {/* 배경 설정 */}
       <Section title="배경 설정">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {backgrounds.map((bg) => {
             const isActive = selectedBgId === bg.id
             return (
@@ -319,6 +358,40 @@ export default function CreateVideoPage() {
           rows={3}
           className="w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
+
+        <div className="mt-3">
+          <Button
+            variant="outline"
+            size="md"
+            fullWidth
+            onClick={handleGeneratePrompt}
+            disabled={!canGeneratePrompt}
+          >
+            {generatingPrompt ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wand2 className="h-4 w-4" />
+            )}
+            {generatingPrompt
+              ? '프롬프트 생성 중...'
+              : '자동 프롬프트 생성'}
+          </Button>
+
+          {!canGeneratePrompt && !generatingPrompt && (
+            <p className="mt-2 text-xs text-gray-400">
+              메뉴 사진 업로드 후 강조 포인트·시뮬레이션·배경을 모두 선택해주세요.
+            </p>
+          )}
+
+          {autoPrompt && (
+            <textarea
+              value={autoPrompt}
+              onChange={(e) => setAutoPrompt(e.target.value)}
+              rows={3}
+              className="mt-3 w-full resize-none rounded-2xl border border-brand-200 bg-brand-50/40 px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          )}
+        </div>
       </Section>
 
       {/* 키프레임 생성하기 */}
