@@ -2,6 +2,8 @@ package com.ssafy.BE.domain.video.controller;
 
 import com.ssafy.BE.domain.video.dto.CreateVideoRequest;
 import com.ssafy.BE.domain.video.dto.CreateVideoResponse;
+import com.ssafy.BE.domain.video.dto.UpdateVideoRequest;
+import com.ssafy.BE.domain.video.dto.UpdateVideoResponse;
 import com.ssafy.BE.domain.video.dto.VideoDetailResponse;
 import com.ssafy.BE.domain.video.dto.VideoDownloadResponse;
 import com.ssafy.BE.domain.video.dto.VideoShareResponse;
@@ -19,13 +21,18 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Video", description = "AI 영상 생성 진입점 + 진행 상태 조회")
 @RestController
@@ -78,6 +85,21 @@ public class VideoController {
     ) {
         VideoDetailResponse data = videoAssetService.getDetail(userId, videoId);
         return ApiResponse.ok("영상 상세 조회 완료", data);
+    }
+
+    @Operation(summary = "영상 편집 내용 저장. 제목 수정 + (선택) 영상/썸네일 파일 교체")
+    @PatchMapping(value = "/{videoId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<UpdateVideoResponse> update(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId,
+            @Valid @ModelAttribute UpdateVideoRequest request,
+            @RequestPart(value = "videoFile", required = false) MultipartFile videoFile,
+            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail
+    ) {
+        UpdateVideoResponse data = videoAssetService.update(
+                userId, videoId, request.title(), videoFile, thumbnail
+        );
+        return ApiResponse.ok("영상 수정 완료", data);
     }
 
     @Operation(summary = "영상 다운로드 정보 조회. 파일 URL + 원본 파일명 반환")

@@ -1,5 +1,6 @@
 package com.ssafy.BE.domain.video.service;
 
+import com.ssafy.BE.domain.video.dto.UpdateVideoResponse;
 import com.ssafy.BE.domain.video.dto.VideoDetailResponse;
 import com.ssafy.BE.domain.video.dto.VideoDownloadResponse;
 import com.ssafy.BE.domain.video.dto.VideoShareResponse;
@@ -9,9 +10,14 @@ import com.ssafy.BE.domain.video.repository.VideoRepository;
 import com.ssafy.BE.global.exception.BusinessException;
 import com.ssafy.BE.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VideoAssetService {
@@ -23,16 +29,14 @@ public class VideoAssetService {
     private static final String THUMBNAIL_URL_FMT = "/api/v1/files/videos/%d/thumbnail";
 
     private final VideoRepository videoRepository;
+    private final VideoFileService videoFileService;
 
     @Transactional(readOnly = true)
     public VideoDetailResponse getDetail(Integer userId, Integer videoId) {
         Video video = findCompletedOwnedBy(userId, videoId);
-        String title = (video.getUserPrompt() == null || video.getUserPrompt().isBlank())
-                ? DEFAULT_TITLE
-                : video.getUserPrompt();
         return new VideoDetailResponse(
                 video.getId(),
-                title,
+                resolveTitle(video),
                 video.getOriginFileName(),
                 buildThumbnailUrl(video.getId()),
                 buildVideoUrl(video.getId()),
@@ -54,16 +58,60 @@ public class VideoAssetService {
     @Transactional(readOnly = true)
     public VideoShareResponse getShare(Integer userId, Integer videoId) {
         Video video = findCompletedOwnedBy(userId, videoId);
-        String title = (video.getUserPrompt() == null || video.getUserPrompt().isBlank())
-                ? DEFAULT_TITLE
-                : video.getUserPrompt();
         return new VideoShareResponse(
                 video.getId(),
                 buildVideoUrl(video.getId()),
                 buildThumbnailUrl(video.getId()),
-                title,
+                resolveTitle(video)
                 video.getOriginFileName()
         );
+    }
+
+    @Transactional
+    public UpdateVideoResponse update(
+            Integer userId,
+            Integer videoId,
+            String title,
+            MultipartFile videoFile,
+            MultipartFile thumbnail
+    ) {
+        Video video = findCompletedOwnedBy(userId, videoId);
+
+        boolean hasVideo = videoFile != null && !videoFile.isEmpty();
+        boolean hasThumb = thumbnail != null && !thumbnail.isEmpty();
+        if (hasVideo ^ hasThumb) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        String oldStored = video.getStoredFileName();
+        String oldThumb = video.getThumbnailFileName();
+
+        if (hasVideo) {
+            VideoFileService.StoredVideo saved = videoFileService.saveUploadedFiles(videoFile, thumbnail);
+            video.replaceFiles(saved.storedFileName(), (int) saved.fileSize(), saved.thumbnailFileName());
+        }
+        video.updateTitle(title);
+
+        if (hasVideo) {
+            try {
+                videoFileService.deleteFiles(oldStored, oldThumb);
+            } catch (Exception e) {
+                log.warn("[VIDEO] old file cleanup failed videoId={} ({})", videoId, e.getMessage());
+            }
+        }
+
+        return new UpdateVideoResponse(
+                video.getId(),
+                title,
+                buildThumbnailUrl(video.getId()),
+                buildVideoUrl(video.getId()),
+                LocalDateTime.now()
+        );
+    }
+
+    private String resolveTitle(Video video) {
+        String name = video.getOriginFileName();
+        return (name == null || name.isBlank()) ? DEFAULT_TITLE : name;
     }
 
     private Video findCompletedOwnedBy(Integer userId, Integer videoId) {
