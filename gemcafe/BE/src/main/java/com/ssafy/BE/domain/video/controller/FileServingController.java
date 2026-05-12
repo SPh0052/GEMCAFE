@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.annotation.PostConstruct;
 
 /**
  * 인증/소유권 검증이 필요한 정적 자원(영상/썸네일/원본 이미지) 서빙.
@@ -40,9 +43,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class FileServingController {
 
-    private static final String INTERNAL_VIDEOS = "/internal/ai-videos/";
-    private static final String INTERNAL_THUMBS = "/internal/ai-videos/thumbnails/";
-    private static final String INTERNAL_IMAGES = "/internal/upload-images/";
+    // 환경별 internal prefix (DEV: /internal/dev, PROD: /internal/prod).
+    // DEV/PROD 가 같은 nginx 의 같은 server 블록을 공유하므로 location 충돌 방지를 위해 분리.
+    @Value("${app.file.internal-prefix:/internal}")
+    private String internalPrefix;
+
+    private String internalVideos;
+    private String internalThumbs;
+    private String internalImages;
+
+    @PostConstruct
+    void initPaths() {
+        String base = internalPrefix.endsWith("/") ? internalPrefix.substring(0, internalPrefix.length() - 1) : internalPrefix;
+        this.internalVideos = base + "/ai-videos/";
+        this.internalThumbs = base + "/ai-videos/thumbnails/";
+        this.internalImages = base + "/upload-images/";
+        log.info("[FileServingController] internalPrefix={} videos={} thumbs={} images={}",
+                internalPrefix, internalVideos, internalThumbs, internalImages);
+    }
 
     private final VideoRepository videoRepository;
     private final VideoSessionRepository videoSessionRepository;
@@ -59,7 +77,7 @@ public class FileServingController {
         }
         log.debug("[FILE-SERVE-VIDEO] videoId={} userId={} file={}",
                 videoId, userId, video.getStoredFileName());
-        return redirect(INTERNAL_VIDEOS + video.getStoredFileName(), "video/mp4");
+        return redirect(internalVideos + video.getStoredFileName(), "video/mp4");
     }
 
     @Operation(summary = "영상 썸네일 서빙. 소유자 검증.")
@@ -74,7 +92,7 @@ public class FileServingController {
         }
         log.debug("[FILE-SERVE-THUMB] videoId={} userId={} file={}",
                 videoId, userId, video.getThumbnailFileName());
-        return redirect(INTERNAL_THUMBS + video.getThumbnailFileName(), "image/jpeg");
+        return redirect(internalThumbs + video.getThumbnailFileName(), "image/jpeg");
     }
 
     @Operation(summary = "세션 업로드 원본 이미지 서빙. 세션 소유자 검증.")
@@ -90,7 +108,7 @@ public class FileServingController {
         }
         log.debug("[FILE-SERVE-IMAGE] sessionId={} userId={} file={}",
                 sessionId, userId, session.getInputImageFileName());
-        return redirect(INTERNAL_IMAGES + session.getInputImageFileName(), contentTypeFromName(session.getInputImageFileName()));
+        return redirect(internalImages + session.getInputImageFileName(), contentTypeFromName(session.getInputImageFileName()));
     }
 
     // =================================================================
