@@ -7,7 +7,6 @@ import {
   Clock3,
   Image as ImageIcon,
   Music,
-  Music2,
   Play,
   Share2,
   Sparkles,
