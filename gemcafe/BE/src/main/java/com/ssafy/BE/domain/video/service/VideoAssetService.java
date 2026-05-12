@@ -33,6 +33,7 @@ public class VideoAssetService {
         return new VideoDetailResponse(
                 video.getId(),
                 title,
+                video.getOriginFileName(),
                 buildThumbnailUrl(video.getId()),
                 buildVideoUrl(video.getId()),
                 video.getCreatedAt()
@@ -60,7 +61,8 @@ public class VideoAssetService {
                 video.getId(),
                 buildVideoUrl(video.getId()),
                 buildThumbnailUrl(video.getId()),
-                title
+                title,
+                video.getOriginFileName()
         );
     }
 
