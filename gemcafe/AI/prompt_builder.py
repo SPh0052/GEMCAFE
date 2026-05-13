@@ -190,22 +190,34 @@ SIMULATIONS = {
     "strawberry_cascade": {
         "label_kr": "딸기가 우수수 쏟아진다",
         "applicable_focus": ["strawberry"],
-        "frame_strategy": "i2i_is_start",   # 역방향: I2I = 딸기 없는 시작 상태
+        "frame_strategy": "i2i_is_start",   # 역방향: I2I = 토핑 없는 시작 상태
         "instruction_template": (
-            "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
-            "Preserve the cake pixel-by-pixel: same shape, same cream, same plate, same "
-            "background, same lighting. "
-            "ONLY remove every {focus} from the top of the cake. The cake should look complete "
-            "but without any {focus} — as if the {focus} pieces haven't been placed on it yet. "
-            "Keep the cream surface where the {focus} pieces were, smooth and natural, as if "
-            "untouched. "
-            "Do not change anything else. Photorealistic, sharp focus, natural lighting."
+            "Remove all toppings, fruits, decorations, garnishes, and any objects placed "
+            "on the top surface of the cake, including any existing {focus} pieces "
+            "already on top. This also includes any berries, chocolate pieces, nuts, "
+            "flowers, edible decorations, sauces, drizzles, dustings, gold leaf, herbs, "
+            "or any other items resting on top. Keep the cake's sides, base, height, "
+            "shape, and overall structure completely unchanged. Preserve all side "
+            "details exactly as they are, including any wrappers, ribbons, bands, text, "
+            "logos, plaques, frosting patterns, or coatings on the sides of the cake. "
+            "Keep the original background, lighting, camera angle, perspective, shadows, "
+            "and product photography style identical to the input image. Replace the "
+            "top surface with a smooth, evenly spread layer of the cake's existing top "
+            "material (such as whipped cream, frosting, ganache, or glaze) matching the "
+            "color and texture already visible on the cake. The top should look flat, "
+            "clean, and ready to receive {focus} pieces as toppings. Do not add any new "
+            "decorations, toppings, fruits, or garnishes. Maintain the exact same cake "
+            "position, size, and framing in the image."
         ),
         "video_template": (
-            "Multiple {focus} pieces fall gently from above one after another in a smooth "
-            "cascade, and each lands softly on top of the cake, settling into its natural "
-            "position on the cream with a slight bounce. The cascade has a rhythmic, lively "
-            "timing. The cake itself stays still. No morphing, no extra elements appear."
+            "Fresh {focus} pieces cascade from above the frame onto the cake's top "
+            "surface. Slow-motion fall: the {focus} pieces tumble through the air, "
+            "bounce on the surface with subtle deformation, and settle into a dense "
+            "even arrangement that progressively covers the entire top of the cake. "
+            "Small water droplets glisten on their natural surface, with the {focus} "
+            "emphasized as the most prominent visual element in the scene. Static "
+            "camera, soft diffused studio lighting, shallow depth of field, premium "
+            "food commercial aesthetic, hyper-realistic textures."
         ),
     },
 }
