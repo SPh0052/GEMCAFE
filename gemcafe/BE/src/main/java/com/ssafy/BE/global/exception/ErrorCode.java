@@ -70,6 +70,12 @@ public enum ErrorCode {
     WATERMARK_EMBED_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "WM-005", "gemmark 워터마크 서비스에 연결할 수 없습니다"),
     WATERMARK_EMBED_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-006", "워터마크 삽입에 실패했습니다"),
 
+    // Social upload (Upload-Post)
+    SOCIAL_UPLOAD_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "SOC-001", "SNS 업로드할 워터마크 영상 파일을 찾을 수 없습니다"),
+    SOCIAL_UPLOAD_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "SOC-002", "SNS 업로드 서비스에 연결할 수 없습니다"),
+    SOCIAL_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SOC-003", "SNS 업로드에 실패했습니다"),
+    SOCIAL_PLATFORM_INVALID(HttpStatus.BAD_REQUEST, "SOC-004", "지원하지 않는 SNS 플랫폼입니다"),
+
     // Common
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "COM-001", "요청 형식이 올바르지 않습니다"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COM-500", "서버 오류가 발생했습니다");

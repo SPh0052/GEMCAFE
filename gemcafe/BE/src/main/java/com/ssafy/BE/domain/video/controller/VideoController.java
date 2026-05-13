@@ -2,6 +2,8 @@ package com.ssafy.BE.domain.video.controller;
 
 import com.ssafy.BE.domain.video.dto.CreateVideoRequest;
 import com.ssafy.BE.domain.video.dto.CreateVideoResponse;
+import com.ssafy.BE.domain.video.dto.SocialUploadRequest;
+import com.ssafy.BE.domain.video.dto.SocialUploadResponse;
 import com.ssafy.BE.domain.video.dto.UpdateVideoRequest;
 import com.ssafy.BE.domain.video.dto.UpdateVideoResponse;
 import com.ssafy.BE.domain.video.dto.VideoDetailResponse;
@@ -12,6 +14,7 @@ import com.ssafy.BE.domain.video.dto.VideoStatusResponse;
 import com.ssafy.BE.domain.video.dto.WatermarkDownloadResponse;
 import com.ssafy.BE.domain.video.entity.Video;
 import com.ssafy.BE.domain.video.repository.VideoRepository;
+import com.ssafy.BE.domain.video.service.SocialUploadService;
 import com.ssafy.BE.domain.video.service.VideoAssetService;
 import com.ssafy.BE.domain.video.service.VideoGenerationService;
 import com.ssafy.BE.domain.video.service.VideoWatermarkService;
@@ -45,6 +48,7 @@ public class VideoController {
     private final VideoGenerationService videoGenerationService;
     private final VideoAssetService videoAssetService;
     private final VideoWatermarkService videoWatermarkService;
+    private final SocialUploadService socialUploadService;
     private final VideoRepository videoRepository;
 
     @Operation(summary = "내 영상 목록 조회 (커서 페이지네이션, 무한 스크롤용)")
@@ -143,5 +147,16 @@ public class VideoController {
     ) {
         WatermarkDownloadResponse data = videoWatermarkService.requestDownload(userId, videoId);
         return ApiResponse.ok("워터마크 다운로드 요청 완료", data);
+    }
+
+    @Operation(summary = "워터마크된 영상을 YouTube Shorts / Instagram Reels 에 자동 게시 (Upload-Post API).")
+    @PostMapping("/{videoId}/social-upload")
+    public ApiResponse<SocialUploadResponse> socialUpload(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer videoId,
+            @Valid @RequestBody SocialUploadRequest request
+    ) {
+        SocialUploadResponse data = socialUploadService.upload(userId, videoId, request);
+        return ApiResponse.ok("SNS 업로드 요청 완료", data);
     }
 }
