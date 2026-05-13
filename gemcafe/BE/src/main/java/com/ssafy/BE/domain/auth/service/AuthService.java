@@ -9,6 +9,7 @@ import com.ssafy.BE.domain.auth.dto.TokenPair;
 import com.ssafy.BE.domain.user.entity.Provider;
 import com.ssafy.BE.domain.user.entity.User;
 import com.ssafy.BE.domain.user.repository.UserRepository;
+import com.ssafy.BE.domain.user.service.ProfileImageService;
 import com.ssafy.BE.global.exception.BusinessException;
 import com.ssafy.BE.global.exception.ErrorCode;
 import com.ssafy.BE.infra.oauth.google.GoogleIdTokenService;
@@ -37,6 +38,7 @@ public class AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final GoogleIdTokenService googleIdTokenService;
     private final GoogleOAuthProperties googleProps;
+    private final ProfileImageService profileImageService;
 
     @Transactional
     public SignupResponse signup(SignupRequest req) {
@@ -53,6 +55,7 @@ public class AuthService {
                 .phone(phone)
                 .provider(Provider.LOCAL)
                 .gem(SIGNUP_BONUS_GEM)
+                .profileUrl(ProfileImageService.DEFAULT_PROFILE_FILE)
                 .build();
 
         User saved = userRepository.save(user);
@@ -177,6 +180,8 @@ public class AuthService {
         });
 
         Integer bonus = googleProps.signupBonusGem() != null ? googleProps.signupBonusGem() : SIGNUP_BONUS_GEM;
+        // picture 가 null/빈값이거나 다운로드 실패 시 default-profile.jpg 로 fallback
+        String profileFile = profileImageService.saveFromGoogleOrDefault(profile.picture());
         User user = User.builder()
                 .email(profile.email())
                 .password(null)               // 소셜 가입자는 비밀번호 없음
@@ -186,6 +191,7 @@ public class AuthService {
                 .providerUserId(profile.sub())
                 .emailVerified(profile.emailVerified())
                 .gem(bonus)
+                .profileUrl(profileFile)
                 .build();
         User saved = userRepository.save(user);
         log.info("[GOOGLE-SIGNUP] userId={} email={} sub={}", saved.getId(), saved.getEmail(), profile.sub());

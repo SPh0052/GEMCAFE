@@ -1,5 +1,7 @@
 package com.ssafy.BE.domain.video.controller;
 
+import com.ssafy.BE.domain.user.entity.User;
+import com.ssafy.BE.domain.user.repository.UserRepository;
 import com.ssafy.BE.domain.video.entity.Video;
 import com.ssafy.BE.domain.video.entity.VideoSession;
 import com.ssafy.BE.domain.video.entity.VideoStatus;
@@ -52,6 +54,7 @@ public class FileServingController {
     private String internalThumbs;
     private String internalImages;
     private String internalWatermarked;
+    private String internalProfiles;
 
     @PostConstruct
     void initPaths() {
@@ -60,12 +63,14 @@ public class FileServingController {
         this.internalThumbs = base + "/ai-videos/thumbnails/";
         this.internalImages = base + "/upload-images/";
         this.internalWatermarked = base + "/watermarked/";
-        log.info("[FileServingController] internalPrefix={} videos={} thumbs={} images={} watermarked={}",
-                internalPrefix, internalVideos, internalThumbs, internalImages, internalWatermarked);
+        this.internalProfiles = base + "/profile-images/";
+        log.info("[FileServingController] internalPrefix={} videos={} thumbs={} images={} watermarked={} profiles={}",
+                internalPrefix, internalVideos, internalThumbs, internalImages, internalWatermarked, internalProfiles);
     }
 
     private final VideoRepository videoRepository;
     private final VideoSessionRepository videoSessionRepository;
+    private final UserRepository userRepository;
 
     @Operation(summary = "영상 파일 서빙. 소유자 검증 + X-Accel-Redirect 로 nginx 위임.")
     @GetMapping("/videos/{videoId}")
@@ -126,6 +131,25 @@ public class FileServingController {
         log.debug("[FILE-SERVE-IMAGE] sessionId={} userId={} file={}",
                 sessionId, userId, session.getInputImageFileName());
         return redirect(internalImages + session.getInputImageFileName(), contentTypeFromName(session.getInputImageFileName()));
+    }
+
+    @Operation(summary = "내 프로필 이미지 서빙. 본인만 조회 가능.")
+    @GetMapping("/users/me/profile-image")
+    public ResponseEntity<Void> serveMyProfileImage(
+            @AuthenticationPrincipal Integer userId
+    ) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
+        User user = userRepository.findById(userId)
+                .filter(u -> !u.isDeleted())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        String fileName = user.getProfileUrl();
+        if (fileName == null || fileName.isBlank()) {
+            throw new BusinessException(ErrorCode.PROFILE_IMAGE_NOT_FOUND);
+        }
+        log.debug("[FILE-SERVE-PROFILE] userId={} file={}", userId, fileName);
+        return redirect(internalProfiles + fileName, contentTypeFromName(fileName));
     }
 
     // =================================================================
