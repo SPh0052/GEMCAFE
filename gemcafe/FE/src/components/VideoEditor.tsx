@@ -343,11 +343,6 @@ export default function VideoEditor() {
   const [watermarkLoading, setWatermarkLoading] = useState(false)
   /** 저장 시 편집본 자동 합성 진행 중 (텍스트·스티커·BGM 을 영상에 baked) */
   const [bakingForSave, setBakingForSave] = useState(false)
-  // 파일명 변경 여부 (request.title 보낼지 판단용)
-  const fileNameChanged =
-    !!incomingVideo?.videoId &&
-    fileName.trim() !== (incomingVideo.originFileName ?? '').trim() &&
-    fileName.trim().length > 0
   // 저장 가능 조건 — videoId 가 있으면 언제든 PATCH 가능 (BE 가 idempotent 하게 처리)
   // 텍스트·스티커는 로컬 상태라 별도 추적 안 함 — 녹화로 baked 되어야 BE 반영됨
   const canSave = !!incomingVideo?.videoId && !savingChanges
@@ -941,8 +936,9 @@ export default function VideoEditor() {
     }
     stopPreviewBgm()
     const audio = new Audio()
-    // Pixabay CDN 등이 referer 헤더 보고 hotlink 차단 (403) — referrer 안 보내게 처리
-    audio.referrerPolicy = 'no-referrer'
+    // Pixabay CDN 등이 referer 헤더 보고 hotlink 차단 (403) — referrer 안 보내게 처리.
+    // HTMLAudioElement 타입엔 referrerPolicy 가 없어서 setAttribute 로 우회 (런타임 동작 동일).
+    audio.setAttribute('referrerpolicy', 'no-referrer')
     audio.src = url
     audio.volume = 0.6
     audio.play().catch((err) => {
