@@ -20,8 +20,11 @@ export default defineConfig({
         background_color: '#FFFFFF',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
-        scope: '/',
+        // 같은 도메인 (k14s307.p.ssafy.io) 에 /dev/gemmark 도 함께 서빙되므로
+        // scope 를 '/' 로 두면 gemcafe SW 가 gemmark navigation 까지 가로채서
+        // 빈 화면 / 캐시된 gemcafe index 가 응답되는 버그가 발생한다.
+        start_url: '/dev/gemcafe/',
+        scope: '/dev/gemcafe/',
         lang: 'ko',
         icons: [
           {
@@ -44,6 +47,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // SPA navigation fallback 을 gemcafe 의 index 로 한정.
+        // 같은 도메인의 /dev/gemmark, /dev/be, /dev/files 는 SW 가 손대지 않도록
+        // denylist 로 차단 — 그렇지 않으면 gemcafe 의 index.html 이 잘못 응답된다.
+        navigateFallback: '/dev/gemcafe/index.html',
+        navigateFallbackDenylist: [/^\/dev\/(?!gemcafe\/)/],
       },
       // dev 모드에선 PWA 비활성 — service worker 와 HMR 캐시 충돌, 재시작 시
       // dev-dist/sw.js, workbox-*.js 의 race condition 으로 인한 ENOENT 회피.
