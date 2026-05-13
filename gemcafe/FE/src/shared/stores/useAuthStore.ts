@@ -23,6 +23,8 @@ interface AuthStore {
   isAuthenticated: boolean
   login: (user: User, tokens?: AuthTokens) => void
   logout: () => void
+  /** 로그인 후 /users/me 응답으로 사용자 정보를 갱신할 때 사용. */
+  setUser: (user: User) => void
   setPhone: (phone: string) => void
   chargeGem: (amount: number) => void
 }
@@ -68,6 +70,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
     persist(null)
     set({ user: null, tokens: null, isAuthenticated: false })
   },
+  setUser: (user) =>
+    set((state) => {
+      persist({ user, tokens: state.tokens ?? undefined })
+      return { user, isAuthenticated: true }
+    }),
   setPhone: (phone) =>
     set((state) => {
       if (!state.user) return state

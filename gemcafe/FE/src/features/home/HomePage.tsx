@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Plus, Sparkles, Video, Wand2 } from 'lucide-react'
+import { ArrowRight, Plus, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
 
 export default function HomePage() {
@@ -97,49 +97,7 @@ export default function HomePage() {
         </div>
       </button>
 
-      {/* ───── 보조 액션 — 빠른 메뉴 그리드 ───── */}
-      <section className="grid grid-cols-2 gap-3">
-        <QuickAction
-          onClick={() => navigate('/videos')}
-          icon={Video}
-          title="내 영상"
-          desc="만든 영상 모아보기"
-        />
-        <QuickAction
-          onClick={() => navigate('/editor')}
-          icon={Wand2}
-          title="영상 편집"
-          desc="텍스트·스티커·BGM"
-        />
-      </section>
+      {/* 내 영상 진입은 하단 BottomNav 의 '내 영상' 탭으로 일원화 — 홈에서는 노출하지 않음. */}
     </div>
-  )
-}
-
-function QuickAction({
-  onClick,
-  icon: Icon,
-  title,
-  desc,
-}: {
-  onClick: () => void
-  icon: typeof Video
-  title: string
-  desc: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md active:scale-[0.99]"
-    >
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-brand-50 to-orange-100/60 text-brand-500 transition group-hover:scale-105">
-        <Icon className="h-5 w-5" />
-      </span>
-      <div>
-        <div className="text-sm font-bold text-gray-900">{title}</div>
-        <div className="mt-0.5 text-xs text-gray-500">{desc}</div>
-      </div>
-    </button>
   )
 }

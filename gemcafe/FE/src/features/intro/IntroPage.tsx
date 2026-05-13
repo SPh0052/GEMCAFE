@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   ArrowDown,
@@ -6,6 +7,7 @@ import {
   ChevronRight,
   Clock3,
   Image as ImageIcon,
+  LogOut,
   Music,
   Play,
   Share2,
@@ -16,10 +18,32 @@ import {
   Zap,
 } from 'lucide-react'
 import SiteFooter from '@/layout/SiteFooter'
+import { useAuthStore } from '@/shared/stores/useAuthStore'
+import { logout as logoutApi } from '@/features/auth/api'
 
 const ASSET = (file: string) => `${import.meta.env.BASE_URL}${file}`
 
 export default function IntroPage() {
+  const navigate = useNavigate()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const logout = useAuthStore((s) => s.logout)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  // 로그아웃 — BE 호출 실패해도 로컬 세션은 비움 (네트워크 단절·만료 토큰 대비)
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await logoutApi()
+    } catch (err) {
+      console.error('[POST /auth/logout] error:', err)
+    } finally {
+      logout()
+      setLoggingOut(false)
+      navigate('/intro', { replace: true })
+    }
+  }
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-gray-900 antialiased">
       {/* ───── Top Nav (fixed) ───── */}
@@ -41,18 +65,40 @@ export default function IntroPage() {
             />
           </Link>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-            <Link
-              to="/login"
-              className="whitespace-nowrap rounded-lg bg-brand-100 px-3 py-2 text-sm font-medium text-brand-500 transition hover:bg-brand-200 sm:px-5 sm:py-2.5 sm:text-base"
-            >
-              로그인
-            </Link>
-            <Link
-              to="/signup"
-              className="whitespace-nowrap rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 sm:px-5 sm:py-2.5 sm:text-base"
-            >
-              회원가입
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-brand-100 px-3 py-2 text-sm font-medium text-brand-500 transition hover:bg-brand-200 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-2.5 sm:text-base"
+                >
+                  <LogOut className="h-4 w-4" />
+                  로그아웃
+                </button>
+                <Link
+                  to="/create"
+                  className="whitespace-nowrap rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 sm:px-5 sm:py-2.5 sm:text-base"
+                >
+                  영상 생성하기
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="whitespace-nowrap rounded-lg bg-brand-100 px-3 py-2 text-sm font-medium text-brand-500 transition hover:bg-brand-200 sm:px-5 sm:py-2.5 sm:text-base"
+                >
+                  로그인
+                </Link>
+                <Link
+                  to="/signup"
+                  className="whitespace-nowrap rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 sm:px-5 sm:py-2.5 sm:text-base"
+                >
+                  회원가입
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>

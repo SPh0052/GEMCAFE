@@ -11,7 +11,7 @@ import {
   renderGoogleButton,
   type GoogleSignInResult,
 } from './google'
-import { googleLogin, login as loginApi } from './api'
+import { getMe, googleLogin, login as loginApi } from './api'
 
 interface LoginLocationState {
   /** 회원가입 직후 LoginPage 로 넘어올 때 SignupPage 가 prefill 용으로 보내주는 이메일. */
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const login = useAuthStore((s) => s.login)
+  const setUser = useAuthStore((s) => s.setUser)
   const googleBtnRef = useRef<HTMLDivElement>(null)
 
   // 회원가입 직후라면 이메일이 미리 채워짐 (사용자는 비밀번호만 치면 됨)
@@ -48,6 +49,8 @@ export default function LoginPage() {
         return
       }
       const trimmed = email.trim()
+      // 1) tokens 먼저 저장 — getMe 호출 시 인터셉터가 Authorization 헤더에 자동 첨부할 수 있도록.
+      //    user 는 일단 이메일 기반 임시값 — 곧바로 setUser 로 덮어씀.
       login(
         {
           sub: trimmed,
@@ -57,6 +60,21 @@ export default function LoginPage() {
         },
         tokens,
       )
+      // 2) /users/me 로 진짜 프로필(이름·프로필이미지·잼 잔액) 조회 후 store 갱신.
+      //    실패해도 (네트워크·BE 일시 장애) 로그인은 진행하고 임시 user 유지 — 다음 진입에서 재시도.
+      try {
+        const me = await getMe()
+        console.log('[GET /users/me] response:', me)
+        setUser({
+          sub: String(me.userId),
+          nickname: me.name || trimmed.split('@')[0] || trimmed,
+          email: me.email || trimmed,
+          picture: me.profileImage || undefined,
+          gem: me.gem ?? 0,
+        })
+      } catch (meErr) {
+        console.warn('[GET /users/me] 실패 — 임시 user 유지', meErr)
+      }
       navigate('/', { replace: true })
     } catch (err) {
       console.error('[POST /auth/login] error:', err)
@@ -112,6 +130,25 @@ export default function LoginPage() {
           },
         )
 
+        // 신규가입자가 아니면 /users/me 로 BE 측 정식 프로필(이름·프로필이미지·잼) 동기화.
+        // 신규는 전화번호 입력 단계로 가야 하므로 me 조회 생략 (어차피 곧 재진입).
+        if (!session.isNewUser) {
+          try {
+            const me = await getMe()
+            console.log('[GET /users/me] response:', me)
+            setUser({
+              sub: String(me.userId),
+              nickname: me.name || session.name || googleUser.name,
+              email: me.email || session.email,
+              picture:
+                me.profileImage || session.picture || googleUser.picture,
+              gem: me.gem ?? 0,
+            })
+          } catch (meErr) {
+            console.warn('[GET /users/me] 실패 — Google 응답 user 유지', meErr)
+          }
+        }
+
         if (session.isNewUser) {
           navigate('/signup/phone', { replace: true })
         } else {
@@ -128,7 +165,7 @@ export default function LoginPage() {
         setGoogleLoading(false)
       }
     },
-    [login, navigate],
+    [login, setUser, navigate],
   )
 
   const handleGoogleError = useCallback((err: Error) => {
