@@ -47,8 +47,8 @@ CAMERA_DIRECTIVES = {
         "Fork enters from top of frame. Subtle push-in as the indentation forms."
     ),
     "fork_bite": (
-        "Camera tracks upward following the lifted bite. "
-        "Starts at eye level, ends slightly above as the fork rises."
+        "Steady camera at a slight high angle. Framing widens gently as the bite "
+        "is lifted, keeping both the cake and the lifted fork comfortably in view."
     ),
     "cut_in_half": (
         "Camera starts wide on the full cake slice, then slowly and continuously "

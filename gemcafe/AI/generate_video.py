@@ -199,8 +199,8 @@ def main():
         raise SystemExit("FAL_KEY 미설정")
 
     # 입력 결정 — 수동 지정 vs 자동 로드
-    # 자동 모드일 때만 시뮬레이션별 부정 프롬프트가 잡힘.
-    # 수동 모드는 simulation 정보가 없으므로 generate_video의 기본 부정 프롬프트로 폴백.
+    # 자동 모드일 때만 시뮬레이션별 잠금(카메라/부정 프롬프트)이 적용됨.
+    # 수동 모드는 simulation 정보가 없으므로 generate_video의 기본값으로 폴백.
     if START_URL and END_URL and VIDEO_PROMPT:
         print("[수동 모드] 스크립트 상단 URL 사용")
         start, end, prompt = START_URL, END_URL, VIDEO_PROMPT
@@ -210,9 +210,16 @@ def main():
         meta = load_latest_keyframe_metadata()
         start, end, prompt, simulation = resolve_frames_from_metadata(meta)
         negative = prompt_locks.get_negative_prompt(simulation) if simulation else None
+        # 카메라 디렉티브를 영상 프롬프트 끝에 append (API 자동 경로와 동일 포맷)
+        if simulation:
+            camera = prompt_locks.get_camera(simulation)
+            if camera:
+                prompt = prompt.rstrip(". ") + f". Camera: {camera}"
         print(f"      simulation: {meta.get('simulation')} × focus: {meta.get('focus')}")
         print(f"      strategy:   {meta.get('frame_strategy')}")
         print(f"      keyframe:   {meta.get('save_dir')}")
+        if simulation:
+            print(f"      camera:     {prompt_locks.get_camera(simulation)[:80]}...")
         if negative:
             print(f"      negative:   {negative[:80]}...")
         print()
