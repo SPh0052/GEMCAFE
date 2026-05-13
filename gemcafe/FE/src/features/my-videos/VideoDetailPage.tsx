@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
-import { Download, Loader2, Pencil, Share2 } from 'lucide-react'
+import { Download, Loader2, Pencil, Send, Share2 } from 'lucide-react'
 import { AuthedVideo } from '@/shared/components/AuthedMedia'
 import { api } from '@/shared/lib/axios'
 import {
@@ -9,6 +9,7 @@ import {
   requestWatermarkDownload,
   type VideoDetail,
 } from './api'
+import SocialUploadModal from './SocialUploadModal'
 
 export default function VideoDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -23,6 +24,8 @@ export default function VideoDetailPage() {
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null)
   /** 워터마크 처리 중 → 풀스크린 로딩 모달 표시용 */
   const [watermarkLoading, setWatermarkLoading] = useState(false)
+  /** SNS 업로드 모달 open 여부 */
+  const [socialOpen, setSocialOpen] = useState(false)
 
   // 토스트 자동 해제
   useEffect(() => {
@@ -316,21 +319,29 @@ export default function VideoDetailPage() {
         </button>
       </div>
 
-      {/* 액션 버튼 */}
+      {/* 액션 버튼 — 시각 가중치 오름차순: 편집 < SNS < 공유 (primary) */}
       <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4">
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={handleEdit}
-            className="group flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 text-base font-semibold text-gray-800 transition hover:border-brand-200 hover:bg-brand-50 active:scale-[0.98]"
+            className="group flex flex-col items-center justify-center gap-1 rounded-2xl border border-gray-200 bg-white px-2 py-3 text-xs font-semibold text-gray-800 transition hover:border-brand-200 hover:bg-brand-50 active:scale-[0.98] sm:flex-row sm:gap-2 sm:py-3.5 sm:text-base"
           >
             <Pencil className="h-4 w-4 text-gray-500 transition group-hover:text-brand-500" />
             편집하기
           </button>
           <button
             type="button"
+            onClick={() => setSocialOpen(true)}
+            className="group flex flex-col items-center justify-center gap-1 rounded-2xl border border-brand-200 bg-brand-50 px-2 py-3 text-xs font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-100 active:scale-[0.98] sm:flex-row sm:gap-2 sm:py-3.5 sm:text-base"
+          >
+            <Send className="h-4 w-4" />
+            SNS 업로드
+          </button>
+          <button
+            type="button"
             onClick={handleShare}
-            className="group flex items-center justify-center gap-2 rounded-2xl bg-linear-to-br from-brand-500 to-orange-600 px-5 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98]"
+            className="group flex flex-col items-center justify-center gap-1 rounded-2xl bg-linear-to-br from-brand-500 to-orange-600 px-2 py-3 text-xs font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] sm:flex-row sm:gap-2 sm:py-3.5 sm:text-base"
           >
             <Share2 className="h-4 w-4" />
             공유하기
@@ -357,6 +368,14 @@ export default function VideoDetailPage() {
           </div>
         </div>
       )}
+
+      {/* SNS 업로드 모달 — detail 로딩 후만 마운트 */}
+      <SocialUploadModal
+        videoId={detail.videoId}
+        defaultTitle={detail.originFileName || detail.title}
+        isOpen={socialOpen}
+        onClose={() => setSocialOpen(false)}
+      />
     </div>
   )
 }

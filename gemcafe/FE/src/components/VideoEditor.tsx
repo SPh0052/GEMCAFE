@@ -22,6 +22,18 @@ import {
   requestWatermarkDownload,
   updateVideo,
 } from '@/features/my-videos/api'
+import {
+  BGM_CATEGORIES,
+  CATEGORY_QUERIES,
+  TRACKS_PER_CATEGORY,
+  type BgmCategory,
+} from '@/features/bgm/categories'
+import {
+  getStreamUrl,
+  getTrackPageUrl,
+  searchTracks,
+  type AudiusTrack,
+} from '@/features/bgm/audius'
 import BottomNav from '@/layout/BottomNav'
 
 // 디자인 기준 캔버스 크기 — 텍스트 위치/사이즈는 모두 이 기준으로 정규화.
@@ -200,45 +212,8 @@ const STICKER_CATEGORIES: StickerDef['category'][] = [
   '동물',
 ]
 
-// 카페 홍보 숏츠에 어울리는 BGM — 분위기별 카테고리 (10 슬롯).
-//
-// 검증된 Pixabay URL 은 4개. 나머지 슬롯은 같은 URL 을 재사용 중이라
-// pixabay.com/music 에서 카테고리 톤에 맞는 mp3 링크를 찾아 url 만 교체하면 자동 다양화.
-const BGM_CATEGORIES = ['밝음', '잔잔', '로파이', '어쿠스틱', '재즈'] as const
-type BgmCategory = (typeof BGM_CATEGORIES)[number]
-
-interface BgmDef {
-  title: string
-  url: string
-  category: BgmCategory
-}
-
-const URL_BRIGHT_UKULELE =
-  'https://cdn.pixabay.com/audio/2022/10/30/audio_b6e8a44f97.mp3'
-const URL_CAFE_MORNING =
-  'https://cdn.pixabay.com/audio/2022/08/02/audio_884fe92c21.mp3'
-const URL_LOUNGE =
-  'https://cdn.pixabay.com/audio/2023/03/09/audio_c6ccf25a68.mp3'
-const URL_LATTE =
-  'https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3'
-
-const BGM_LIST: BgmDef[] = [
-  // 밝음 — 우쿨렐레/팝
-  { title: '햇살 우쿨렐레', url: URL_BRIGHT_UKULELE, category: '밝음' },
-  { title: '봄날의 카페', url: URL_BRIGHT_UKULELE, category: '밝음' }, // TODO: 다른 트랙
-  { title: '경쾌한 휘파람', url: URL_BRIGHT_UKULELE, category: '밝음' }, // TODO
-  // 잔잔 — 차분한 모닝/라떼 톤
-  { title: '맑은 아침의 카페', url: URL_CAFE_MORNING, category: '잔잔' },
-  { title: '라떼 한 잔의 여유', url: URL_LATTE, category: '잔잔' },
-  { title: '비 오는 오후', url: URL_CAFE_MORNING, category: '잔잔' }, // TODO
-  // 로파이
-  { title: '깊은 밤의 로파이', url: URL_LOUNGE, category: '로파이' }, // TODO
-  { title: '책 읽는 시간', url: URL_LOUNGE, category: '로파이' }, // TODO
-  // 어쿠스틱
-  { title: '따스한 어쿠스틱 기타', url: URL_LATTE, category: '어쿠스틱' }, // TODO
-  // 재즈
-  { title: '아늑한 라운지 재즈', url: URL_LOUNGE, category: '재즈' },
-]
+// BGM 트랙은 Jamendo API 에서 동적으로 받아옴 (Pixabay hotlink 차단 대체).
+// 카테고리 정의·매핑은 features/bgm/categories.ts, API 클라이언트는 features/bgm/jamendo.ts 참고.
 
 interface TextItem {
   id: string
@@ -345,9 +320,18 @@ export default function VideoEditor() {
   const [bakingForSave, setBakingForSave] = useState(false)
   /** 워터마크 다운로드 진행 중 (버튼 spinner + 중복 클릭 방지) */
   const [downloading, setDownloading] = useState(false)
-  // 저장 가능 조건 — videoId 가 있으면 언제든 PATCH 가능 (BE 가 idempotent 하게 처리)
-  // 텍스트·스티커는 로컬 상태라 별도 추적 안 함 — 녹화로 baked 되어야 BE 반영됨
-  const canSave = !!incomingVideo?.videoId && !savingChanges
+  /**
+   * 마지막 저장 (PATCH) 이후 사용자 변경사항이 있는지.
+   * 텍스트/스티커/BGM/파일명 어느 하나라도 바뀌면 true. 저장 성공하면 false.
+   * 변경 없으면 저장/다운로드/공유 시 PATCH 스킵 (BE 호출 절약 + UX 일관성).
+   */
+  const [isDirty, setIsDirty] = useState(false)
+  /** isDirty effect 가 mount 시 실행되며 초기값 변화로 dirty 되는 거 방지 */
+  const dirtyTrackerInitRef = useRef(true)
+  // 저장 가능 조건 — videoId 가 있고 변경사항이 있을 때만.
+  // isDirty=false 면 BE 호출 의미 없어서 버튼 자체를 disable.
+  const canSave =
+    !!incomingVideo?.videoId && !savingChanges && isDirty
   const [isPlaying, setIsPlaying] = useState(false)
   const [textInput, setTextInput] = useState('')
   const [fontFamily, setFontFamily] = useState(FONTS[0].family)
@@ -381,6 +365,18 @@ export default function VideoEditor() {
   >('음료')
   // BGM 패널의 활성 카테고리
   const [bgmCategory, setBgmCategory] = useState<BgmCategory>('밝음')
+  // 카테고리별로 Jamendo API 로 받아온 트랙 캐시. 한 번 받으면 재요청 안 함.
+  const [bgmTracksByCategory, setBgmTracksByCategory] = useState<
+    Partial<Record<BgmCategory, AudiusTrack[]>>
+  >({})
+  const [bgmLoading, setBgmLoading] = useState(false)
+  const [bgmError, setBgmError] = useState<string | null>(null)
+  // 선택된 트랙의 attribution 정보 (artist + license URL) — 저장 후에도 화면에 표시
+  const [bgmAttribution, setBgmAttribution] = useState<{
+    title: string
+    artist: string
+    licenseUrl: string
+  } | null>(null)
   // 컨테이너 dim 추적 — DraggableText 가 표시 사이즈 계산할 때 사용
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
@@ -389,6 +385,49 @@ export default function VideoEditor() {
   useEffect(() => {
     textsRef.current = texts
   }, [texts])
+
+  // 사용자 변경사항 감지 — 텍스트/스티커/BGM/파일명 변하면 isDirty=true.
+  // mount 첫 트리거 (초기값 세팅) 는 ref 로 무시 → 진짜 사용자 액션만 dirty 로 마킹.
+  useEffect(() => {
+    if (dirtyTrackerInitRef.current) {
+      dirtyTrackerInitRef.current = false
+      return
+    }
+    setIsDirty(true)
+  }, [texts, stickers, bgmUrl, fileName])
+
+  // BGM 탭이 열렸고 현재 카테고리 트랙이 아직 안 받아졌으면 Jamendo 검색.
+  // 캐시 (bgmTracksByCategory) 가 있으면 재요청 X — 같은 카테고리 재방문 시 즉시 표시.
+  useEffect(() => {
+    if (activeTab !== 'bgm') return
+    if (bgmTracksByCategory[bgmCategory]) return
+    let cancelled = false
+    setBgmLoading(true)
+    setBgmError(null)
+    const q = CATEGORY_QUERIES[bgmCategory]
+    searchTracks({
+      genre: q.genre,
+      mood: q.mood,
+      limit: TRACKS_PER_CATEGORY,
+    })
+      .then((tracks) => {
+        if (cancelled) return
+        setBgmTracksByCategory((prev) => ({ ...prev, [bgmCategory]: tracks }))
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.error('[Jamendo] 트랙 검색 실패', err)
+        setBgmError(
+          err instanceof Error ? err.message : '트랙을 불러오지 못했어요.',
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setBgmLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, bgmCategory, bgmTracksByCategory])
 
   // 스티커도 동일하게 ref 동기화
   const stickersRef = useRef<StickerItem[]>([])
@@ -482,9 +521,10 @@ export default function VideoEditor() {
         ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
       })
       console.log('[PATCH /videos/{id}] response:', res)
-      // 저장 후엔 새 편집본은 서버 반영됐으므로 로컬 blob 폐기
+      // 저장 후엔 새 편집본은 서버 반영됐으므로 로컬 blob 폐기 + dirty 해제
       setEditedVideoBlob(null)
       setEditedThumbnailBlob(null)
+      setIsDirty(false)
       setSaveStatus('success')
       setSaveMessage('변경사항이 저장되었어요.')
     } catch (err) {
@@ -515,9 +555,8 @@ export default function VideoEditor() {
   const handleShare = async () => {
     if (savingChanges) return
 
-    // 공유 시 변경사항 저장 버튼을 누르지 않았어도 항상 PATCH 호출.
-    // 비어있는 변경이라도 BE 측 상태 갱신(updatedAt 등) 보장 + 편집본 영상이 있다면 업로드.
-    if (incomingVideo?.videoId) {
+    // 변경사항이 있을 때만 PATCH 호출. 마지막 저장 이후 추가 변경 없으면 BE 호출 스킵.
+    if (incomingVideo?.videoId && isDirty) {
       setSavingChanges(true)
       try {
         // 오버레이 있고 미녹화 시 자동 합성
@@ -543,7 +582,8 @@ export default function VideoEditor() {
           ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
         })
         setEditedVideoBlob(null)
-      setEditedThumbnailBlob(null)
+        setEditedThumbnailBlob(null)
+        setIsDirty(false)
       } catch (err) {
         console.error('[PATCH /videos/{id}] 공유 전 저장 실패', err)
         setSaveStatus('error')
@@ -658,39 +698,42 @@ export default function VideoEditor() {
 
     setDownloading(true)
     try {
-      // 1) 저장 (공유 흐름과 동일 — 오버레이 있으면 자동 baking)
-      setSavingChanges(true)
-      try {
-        let videoBlob: Blob | null = editedVideoBlob
-        let thumbBlob: Blob | null = editedThumbnailBlob
-        const hasOverlays =
-          texts.length > 0 || stickers.length > 0 || !!bgmUrl
-        if (hasOverlays && !videoBlob) {
-          setBakingForSave(true)
-          try {
-            const r = await recordAndGetBlob()
-            videoBlob = r.video
-            thumbBlob = r.thumbnail
-          } finally {
-            setBakingForSave(false)
+      // 1) 저장 — 변경사항 있을 때만. 없으면 워터마크 단계로 바로 진행.
+      if (isDirty) {
+        setSavingChanges(true)
+        try {
+          let videoBlob: Blob | null = editedVideoBlob
+          let thumbBlob: Blob | null = editedThumbnailBlob
+          const hasOverlays =
+            texts.length > 0 || stickers.length > 0 || !!bgmUrl
+          if (hasOverlays && !videoBlob) {
+            setBakingForSave(true)
+            try {
+              const r = await recordAndGetBlob()
+              videoBlob = r.video
+              thumbBlob = r.thumbnail
+            } finally {
+              setBakingForSave(false)
+            }
           }
-        }
 
-        const trimmedName = fileName.trim()
-        await updateVideo(incomingVideo.videoId, {
-          ...(trimmedName ? { request: { title: trimmedName } } : {}),
-          ...(videoBlob ? { videoFile: videoBlob } : {}),
-          ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
-        })
-        setEditedVideoBlob(null)
-        setEditedThumbnailBlob(null)
-      } catch (err) {
-        console.error('[PATCH /videos/{id}] 다운로드 전 저장 실패', err)
-        setSaveStatus('error')
-        setSaveMessage('저장에 실패해 다운로드를 중단했어요.')
-        return
-      } finally {
-        setSavingChanges(false)
+          const trimmedName = fileName.trim()
+          await updateVideo(incomingVideo.videoId, {
+            ...(trimmedName ? { request: { title: trimmedName } } : {}),
+            ...(videoBlob ? { videoFile: videoBlob } : {}),
+            ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
+          })
+          setEditedVideoBlob(null)
+          setEditedThumbnailBlob(null)
+          setIsDirty(false)
+        } catch (err) {
+          console.error('[PATCH /videos/{id}] 다운로드 전 저장 실패', err)
+          setSaveStatus('error')
+          setSaveMessage('저장에 실패해 다운로드를 중단했어요.')
+          return
+        } finally {
+          setSavingChanges(false)
+        }
       }
 
       // 2) 워터마크 합성 요청 → downloadUrl 수신
@@ -878,10 +921,19 @@ export default function VideoEditor() {
     if (v.paused) {
       v.muted = false
       try {
+        // BGM 이 createMediaElementSource 로 Web Audio 그래프에 연결돼있으면
+        // AudioContext 가 'suspended' 일 때 소리 안 남. 사용자 gesture 컨텍스트에서
+        // resume 해줘야 함 (브라우저 autoplay 정책).
+        ensureAudio()
+        if (audioCtxRef.current?.state === 'suspended') {
+          await audioCtxRef.current.resume()
+        }
         await v.play()
         setIsPlaying(true)
         if (bgmAudioRef.current) {
-          await bgmAudioRef.current.play().catch(() => {})
+          await bgmAudioRef.current.play().catch((err) => {
+            console.warn('[BGM] play 실패', err)
+          })
         }
       } catch (err) {
         console.error('재생 실패', err)
@@ -1016,132 +1068,92 @@ export default function VideoEditor() {
     }
   }
 
-  // 미리듣기 blob URL — stopPreviewBgm 에서 revoke 해야 메모리 누수 X
-  const previewBlobUrlRef = useRef<string | null>(null)
-  /** 최신 미리듣기 요청 식별자 — 비동기 fetch 중간에 다른 트랙 눌리면 cancel 판단용 */
-  const previewReqIdRef = useRef(0)
-
   const stopPreviewBgm = () => {
-    // reqId 무효화 — 진행 중인 fetch 가 끝나도 그 결과를 적용 안 함
-    previewReqIdRef.current++
     if (previewAudioRef.current) {
       previewAudioRef.current.pause()
       previewAudioRef.current = null
-    }
-    if (previewBlobUrlRef.current) {
-      URL.revokeObjectURL(previewBlobUrlRef.current)
-      previewBlobUrlRef.current = null
     }
     setPreviewBgmKey(null)
   }
 
   /**
-   * BGM 미리듣기.
-   *
-   * Pixabay CDN 은 referer 헤더로 hotlink 를 차단 (403). `<audio referrerpolicy="...">`
-   * 는 표준이 아니라 브라우저가 무시하므로, **fetch + Blob URL** 로 우회한다:
-   *  1. fetch 에 `referrerPolicy: 'no-referrer'` 명시 → 요청에 referer 헤더 빠짐
-   *  2. 받아온 binary 를 `URL.createObjectURL` 로 blob 화 → audio.src 로 사용
-   *  3. 정지 시 blob URL revoke
+   * BGM 미리듣기. Jamendo CDN 은 CORS 허용 + hotlink OK 라서 <audio src> 직접 사용 가능.
    */
-  const togglePreviewBgm = async (url: string, key: string) => {
+  const togglePreviewBgm = (url: string, key: string) => {
     if (previewBgmKey === key) {
       stopPreviewBgm()
       return
     }
     stopPreviewBgm()
-    setPreviewBgmKey(key) // 낙관적 UI — 로딩 중에도 '재생중' 표시
-    const reqId = ++previewReqIdRef.current
-    try {
-      const res = await fetch(url, {
-        referrerPolicy: 'no-referrer',
-        mode: 'cors',
-      })
-      if (!res.ok) throw new Error(`fetch ${res.status}`)
-      const blob = await res.blob()
-      // 같은 reqId 가 아니면 그 사이 새 트랙이 눌린 것 — 무시.
-      // state 가 아니라 ref 로 검사해야 closure stale value 문제 회피.
-      if (reqId !== previewReqIdRef.current) return
-      const blobUrl = URL.createObjectURL(blob)
-      previewBlobUrlRef.current = blobUrl
-      const audio = new Audio(blobUrl)
-      audio.volume = 0.6
-      audio.onended = () => stopPreviewBgm()
-      await audio.play()
-      previewAudioRef.current = audio
-    } catch (err) {
-      console.error('[BGM preview] failed', err)
-      // 사용자에게 보이는 토스트 — Pixabay hotlink 차단 케이스 안내
-      setSaveStatus('error')
-      setSaveMessage(
-        'BGM 을 불러오지 못했어요. (CDN 정책으로 차단된 경우 배포 환경에선 정상 동작할 수 있어요)',
-      )
-      // reqId 일치할 때만 state 정리 (오래된 요청이 최신 트랙 정지시키지 않게)
-      if (reqId === previewReqIdRef.current) setPreviewBgmKey(null)
-    }
+    const audio = new Audio(url)
+    audio.volume = 0.6
+    audio.onended = () => setPreviewBgmKey(null)
+    audio.play().catch((err) => {
+      console.error('[BGM preview] play failed', err)
+      setPreviewBgmKey(null)
+    })
+    previewAudioRef.current = audio
+    setPreviewBgmKey(key)
   }
 
-  /** 선택된 BGM 의 blob URL — selectBgm 갱신·언마운트 시 revoke */
-  const bgmBlobUrlRef = useRef<string | null>(null)
-
   /**
-   * 영상 합성용 BGM 선택.
+   * BGM 선택 — 라이브 재생용.
    *
-   * Pixabay hotlink 차단 회피를 위해 togglePreviewBgm 과 동일하게 fetch + Blob URL 사용.
-   * + Web Audio API 의 createMediaElementSource 로 gain · 녹화 destination 에 연결.
-   * + 같은 URL 의 미리듣기와 충돌 안 나도록 blob URL 은 별도 ref 로 관리.
+   * Audius 콘텐츠 노드 (예: v.monophonic.digital) 가 origin reflect + ACAC:true 조합으로
+   * 응답해서 `crossOrigin='anonymous'` 와 충돌. 그래서 createMediaElementSource 없이
+   * plain audio element 만 사용 — 재생은 default destination 으로 나감 (정상).
+   *
+   * 트레이드오프: 녹화 시 BGM 이 captured stream 에 mix 안 됨. 추후 별도 대응 필요
+   * (예: 녹화 시작 시 fetch 로 mp3 받아 AudioBufferSource + audioDestRef 로 라우팅).
    */
-  const selectBgm = async (url: string) => {
-    ensureAudio()
-    const ctx = audioCtxRef.current!
+  const selectBgm = (track: AudiusTrack) => {
     stopPreviewBgm()
 
-    // 기존 연결 해제 + 이전 blob URL revoke
+    // 기존 BGM 정지
     if (bgmAudioRef.current) bgmAudioRef.current.pause()
-    if (bgmSourceRef.current) bgmSourceRef.current.disconnect()
-    if (bgmGainRef.current) bgmGainRef.current.disconnect()
-    if (bgmBlobUrlRef.current) {
-      URL.revokeObjectURL(bgmBlobUrlRef.current)
-      bgmBlobUrlRef.current = null
+    // 이전에 createMediaElementSource 로 잡혀있던 노드가 있으면 disconnect (정리)
+    if (bgmSourceRef.current) {
+      bgmSourceRef.current.disconnect()
+      bgmSourceRef.current = null
+    }
+    if (bgmGainRef.current) {
+      bgmGainRef.current.disconnect()
+      bgmGainRef.current = null
     }
 
-    let audioSrc = url
-    try {
-      const res = await fetch(url, {
-        referrerPolicy: 'no-referrer',
-        mode: 'cors',
-      })
-      if (!res.ok) throw new Error(`fetch ${res.status}`)
-      const blob = await res.blob()
-      audioSrc = URL.createObjectURL(blob)
-      bgmBlobUrlRef.current = audioSrc
-    } catch (err) {
-      console.error('[BGM] fetch 실패 — 원본 URL 로 fallback', err)
-      // fallback: 원본 URL 그대로 (브라우저가 다시 referer 보내며 403 가능)
-    }
-
-    const audio = new Audio(audioSrc)
-    audio.crossOrigin = 'anonymous'
+    const audioSrc = getStreamUrl(track.id)
+    const audio = new Audio()
     audio.loop = true
     audio.preload = 'auto'
-
-    const source = ctx.createMediaElementSource(audio)
-    const gain = ctx.createGain()
-    gain.gain.value = bgmVolume
-
-    source.connect(gain)
-    gain.connect(ctx.destination)
-    if (audioDestRef.current) gain.connect(audioDestRef.current)
+    audio.volume = bgmVolume
+    audio.addEventListener('error', () => {
+      const e = audio.error
+      console.error('[BGM] audio load error', {
+        code: e?.code,
+        message: e?.message,
+        src: audioSrc,
+      })
+    })
+    audio.addEventListener('canplay', () => {
+      console.log('[BGM] canplay', audioSrc)
+    })
+    audio.src = audioSrc
 
     bgmAudioRef.current = audio
-    bgmSourceRef.current = source
-    bgmGainRef.current = gain
-    setBgmUrl(url) // 원본 URL 보존 — 저장·재선택 비교용
+    setBgmUrl(audioSrc)
+    setBgmAttribution({
+      title: track.title,
+      artist: track.user.name,
+      licenseUrl: getTrackPageUrl(track),
+    })
 
     if (isPlaying) audio.play().catch(() => {})
   }
 
   useEffect(() => {
+    // Web Audio 라우팅 안 쓰는 케이스 — audio.volume 으로 직접 조절.
+    // gainRef 가 있으면 그쪽도 동기화 (legacy / 추후 재라우팅 대비).
+    if (bgmAudioRef.current) bgmAudioRef.current.volume = bgmVolume
     if (bgmGainRef.current) bgmGainRef.current.gain.value = bgmVolume
   }, [bgmVolume])
 
@@ -1288,6 +1300,39 @@ export default function VideoEditor() {
     const combined = new MediaStream()
     videoStream.getVideoTracks().forEach((t) => combined.addTrack(t))
     audioStream?.getAudioTracks().forEach((t) => combined.addTrack(t))
+
+    // BGM 을 녹화 stream 에 추가.
+    //
+    // createMediaElementSource (Web Audio) + crossOrigin='anonymous' 로 routing 하려고 하면
+    // Audius 의 일부 콘텐츠 노드 (origin-reflect + ACAC:true) 가 redirect 체인에서 null origin
+    // 처리 때문에 CORS 거부 → audio 자체가 로드 실패.
+    //
+    // 대안: HTMLMediaElement.captureStream() 로 audio element 의 재생 stream 을 직접 추출 →
+    // 별도 CORS 처리 없이 MediaRecorder 가 그 track 을 녹화. 브라우저에 따라 cross-origin
+    // 미디어에 대해 silent 처리할 수 있으나 (best-effort) 일단 시도.
+    const bgm = bgmAudioRef.current
+    if (bgm) {
+      type AudioWithCapture = HTMLAudioElement & {
+        captureStream?: () => MediaStream
+        mozCaptureStream?: () => MediaStream
+      }
+      const bgmExt = bgm as AudioWithCapture
+      const captureFn = bgmExt.captureStream ?? bgmExt.mozCaptureStream
+      if (captureFn) {
+        try {
+          const bgmStream = captureFn.call(bgm)
+          bgmStream.getAudioTracks().forEach((t) => combined.addTrack(t))
+          console.log('[REC] BGM captureStream track 추가')
+        } catch (err) {
+          console.warn(
+            '[REC] BGM captureStream 실패 — 녹화에 BGM 미포함',
+            err,
+          )
+        }
+      } else {
+        console.warn('[REC] 이 브라우저는 audio.captureStream 미지원')
+      }
+    }
 
     // MP4 우선 시도 → 미지원 브라우저는 webm 으로 fallback.
     // (Chromium 기반 최신 브라우저는 MP4 H.264+AAC 녹화 지원, Firefox 는 webm 만)
@@ -1929,11 +1974,32 @@ export default function VideoEditor() {
                     })}
                   </div>
 
-                  {/* 선택된 카테고리의 BGM 리스트 */}
-                  {BGM_LIST.filter((b) => b.category === bgmCategory).map(
-                    (bgm, idx) => {
-                      const key = `${bgm.title}-${idx}`
-                      const isSelected = bgmUrl === bgm.url
+                  {/* 선택된 카테고리의 BGM 리스트 — Jamendo 결과 */}
+                  {bgmLoading && !bgmTracksByCategory[bgmCategory] && (
+                    <div className="space-y-2">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-12 animate-pulse rounded-xl bg-gray-800"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {bgmError && !bgmTracksByCategory[bgmCategory] && (
+                    <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-3 text-xs text-rose-300">
+                      <p className="font-medium">{bgmError}</p>
+                      <p className="mt-1 text-rose-300/70">
+                        잠시 후 다시 시도해주세요. 카테고리를 바꿔보는 것도 방법이에요.
+                      </p>
+                    </div>
+                  )}
+
+                  {(bgmTracksByCategory[bgmCategory] ?? []).map(
+                    (track, idx) => {
+                      const key = `${track.id}-${idx}`
+                      const streamUrl = getStreamUrl(track.id)
+                      const isSelected = bgmUrl === streamUrl
                       const isPreviewing = previewBgmKey === key
                       return (
                         <div
@@ -1944,19 +2010,24 @@ export default function VideoEditor() {
                               : 'border-gray-700 bg-gray-800'
                           }`}
                         >
-                          <span
-                            className={`min-w-0 flex-1 truncate text-sm ${
-                              isSelected
-                                ? 'font-bold text-brand-300'
-                                : 'text-gray-200'
-                            }`}
-                          >
-                            {bgm.title}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className={`truncate text-sm ${
+                                isSelected
+                                  ? 'font-bold text-brand-300'
+                                  : 'text-gray-200'
+                              }`}
+                            >
+                              {track.title}
+                            </div>
+                            <div className="truncate text-[11px] text-gray-400">
+                              {track.user.name}
+                            </div>
+                          </div>
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => togglePreviewBgm(bgm.url, key)}
+                              onClick={() => togglePreviewBgm(streamUrl, key)}
                               aria-label="미리듣기"
                               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition hover:bg-gray-700"
                             >
@@ -1968,7 +2039,7 @@ export default function VideoEditor() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => selectBgm(bgm.url)}
+                              onClick={() => selectBgm(track)}
                               className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
                                 isSelected
                                   ? 'bg-brand-500 text-white'
@@ -2002,6 +2073,27 @@ export default function VideoEditor() {
                         onChange={(e) => setBgmVolume(Number(e.target.value))}
                         className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-700 accent-brand-500"
                       />
+                    </div>
+                  )}
+
+                  {/* CC-BY attribution — Jamendo 라이선스 의무 노출. 작은 글씨로 패널 하단. */}
+                  {bgmAttribution && (
+                    <div className="border-t border-gray-800 pt-3 text-[11px] text-gray-500">
+                      <span className="block">
+                        BGM:{' '}
+                        <span className="text-gray-400">
+                          "{bgmAttribution.title}" by {bgmAttribution.artist}
+                        </span>
+                      </span>
+                      <a
+                        href={bgmAttribution.licenseUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-brand-400 hover:underline"
+                      >
+                        Audius 에서 트랙 보기
+                      </a>{' '}
+                      · via Audius
                     </div>
                   )}
                 </div>
