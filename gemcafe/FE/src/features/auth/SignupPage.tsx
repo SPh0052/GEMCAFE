@@ -30,11 +30,24 @@ export default function SignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ── 실시간 인라인 검증 ──
+  // 입력값이 비어있을 땐 에러 표시하지 않음 (사용자가 입력을 시작했을 때만 노출).
+  // 버튼 disable 은 별도로 canSubmit 로 처리하되, 사용자가 *왜* 비활성화됐는지
+  // 알 수 있도록 에러 메시지를 각 필드 아래에 함께 표시.
+  const emailError = form.email ? validateEmail(form.email) : null
+  const passwordError = form.password ? validatePassword(form.password) : null
+  const passwordMismatchError =
+    form.passwordConfirm && form.password !== form.passwordConfirm
+      ? '비밀번호가 일치하지 않습니다.'
+      : null
+
   const canSubmit =
     form.name &&
     form.email &&
+    !emailError &&
     form.phone &&
     form.password &&
+    !passwordError &&
     form.password === form.passwordConfirm &&
     agreements.service &&
     agreements.privacy
@@ -129,6 +142,7 @@ export default function SignupPage() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             autoComplete="email"
+            error={emailError}
           />
           <TextField
             label="전화번호"
@@ -141,10 +155,11 @@ export default function SignupPage() {
           <TextField
             label="비밀번호"
             type="password"
-            placeholder="비밀번호를 입력해주세요"
+            placeholder="영문·숫자 12자 이상"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             autoComplete="new-password"
+            error={passwordError}
           />
           <TextField
             label="비밀번호 확인"
@@ -155,6 +170,7 @@ export default function SignupPage() {
               setForm({ ...form, passwordConfirm: e.target.value })
             }
             autoComplete="new-password"
+            error={passwordMismatchError}
           />
 
           <div className="space-y-2 pt-2">

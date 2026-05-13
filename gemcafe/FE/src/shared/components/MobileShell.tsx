@@ -11,9 +11,9 @@ interface Props {
 //  · 1024px+ (데스크톱): 720px 폭, 더 넓은 카드 형태 PWA UI
 export default function MobileShell({ children, className = '' }: Props) {
   return (
-    <div className="flex min-h-screen justify-center bg-gray-100">
+    <div className="flex min-h-screen justify-center bg-white">
       <div
-        className={`relative flex min-h-screen w-full max-w-107.5 flex-col bg-white shadow-none sm:max-w-150 sm:shadow-sm md:max-w-180 lg:max-w-200 ${className}`}
+        className={`relative flex min-h-screen w-full max-w-107.5 flex-col bg-white shadow-none sm:max-w-150 md:max-w-180 lg:max-w-200 ${className}`}
       >
         {children}
       </div>
