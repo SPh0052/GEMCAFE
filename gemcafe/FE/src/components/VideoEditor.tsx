@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { api } from '@/shared/lib/axios'
 import {
   Check,
+  Download,
   Home,
   Loader2,
   Music,
@@ -16,7 +17,6 @@ import {
   Trash2,
   Type,
   Upload,
-  UploadCloud,
 } from 'lucide-react'
 import {
   requestWatermarkDownload,
@@ -343,6 +343,8 @@ export default function VideoEditor() {
   const [watermarkLoading, setWatermarkLoading] = useState(false)
   /** 저장 시 편집본 자동 합성 진행 중 (텍스트·스티커·BGM 을 영상에 baked) */
   const [bakingForSave, setBakingForSave] = useState(false)
+  /** 워터마크 다운로드 진행 중 (버튼 spinner + 중복 클릭 방지) */
+  const [downloading, setDownloading] = useState(false)
   // 저장 가능 조건 — videoId 가 있으면 언제든 PATCH 가능 (BE 가 idempotent 하게 처리)
   // 텍스트·스티커는 로컬 상태라 별도 추적 안 함 — 녹화로 baked 되어야 BE 반영됨
   const canSave = !!incomingVideo?.videoId && !savingChanges
@@ -633,6 +635,99 @@ export default function VideoEditor() {
       console.error('[VideoEditor] 클립보드 복사 실패', err)
       setSaveStatus('error')
       setSaveMessage('공유에 실패했습니다.')
+    }
+  }
+
+  /**
+   * 다운로드: 변경사항 저장 → 워터마크 합성 → 로컬 파일 저장.
+   *
+   *  - videoId 있을 때만 워터마크 흐름 사용 (BE 에 등록된 영상이 워터마크 대상).
+   *  - 오버레이(텍스트·스티커·BGM) 있고 미녹화 시 자동 합성 후 PATCH.
+   *  - 워터마크 API 응답의 downloadUrl 에서 blob 받아 <a download> 클릭으로 저장.
+   *  - videoId 없는(생짜 업로드) 케이스는 기존 MediaRecorder 녹화 흐름으로 fallback.
+   */
+  const handleDownload = async () => {
+    if (downloading || savingChanges) return
+
+    // videoId 없으면 BE 측 영상이 없으므로 워터마크 불가 — 로컬 녹화로 fallback
+    if (!incomingVideo?.videoId) {
+      if (isRecording) stopRecording()
+      else await startRecording()
+      return
+    }
+
+    setDownloading(true)
+    try {
+      // 1) 저장 (공유 흐름과 동일 — 오버레이 있으면 자동 baking)
+      setSavingChanges(true)
+      try {
+        let videoBlob: Blob | null = editedVideoBlob
+        let thumbBlob: Blob | null = editedThumbnailBlob
+        const hasOverlays =
+          texts.length > 0 || stickers.length > 0 || !!bgmUrl
+        if (hasOverlays && !videoBlob) {
+          setBakingForSave(true)
+          try {
+            const r = await recordAndGetBlob()
+            videoBlob = r.video
+            thumbBlob = r.thumbnail
+          } finally {
+            setBakingForSave(false)
+          }
+        }
+
+        const trimmedName = fileName.trim()
+        await updateVideo(incomingVideo.videoId, {
+          ...(trimmedName ? { request: { title: trimmedName } } : {}),
+          ...(videoBlob ? { videoFile: videoBlob } : {}),
+          ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
+        })
+        setEditedVideoBlob(null)
+        setEditedThumbnailBlob(null)
+      } catch (err) {
+        console.error('[PATCH /videos/{id}] 다운로드 전 저장 실패', err)
+        setSaveStatus('error')
+        setSaveMessage('저장에 실패해 다운로드를 중단했어요.')
+        return
+      } finally {
+        setSavingChanges(false)
+      }
+
+      // 2) 워터마크 합성 요청 → downloadUrl 수신
+      setWatermarkLoading(true)
+      let meta: { downloadUrl: string; fileName: string }
+      try {
+        meta = await requestWatermarkDownload(incomingVideo.videoId)
+      } catch (err) {
+        console.error('[VideoEditor] 워터마크 요청 실패', err)
+        setSaveStatus('error')
+        setSaveMessage('워터마크 처리에 실패했습니다.')
+        return
+      } finally {
+        setWatermarkLoading(false)
+      }
+
+      // 3) blob 받아 <a download> 로 저장
+      try {
+        const blob = await fetchBlobFromUrl(meta.downloadUrl)
+        const objUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = objUrl
+        a.download =
+          meta.fileName || `${fileName.trim() || 'gemcafe'}.mp4`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(objUrl)
+        setSaveStatus('success')
+        setSaveMessage('다운로드를 시작했어요.')
+      } catch (err) {
+        console.error('[VideoEditor] 워터마크 영상 fetch 실패', err)
+        setSaveStatus('error')
+        setSaveMessage('다운로드에 실패했습니다.')
+      }
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -1308,18 +1403,18 @@ export default function VideoEditor() {
             <Share2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">공유</span>
           </button>
-          {/* 녹화 / 다운로드 */}
+          {/* 다운로드 — 워터마크 합성(POST /videos/{id}/watermark-download) 후 로컬 저장 */}
           <button
             type="button"
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={!videoLoaded}
-            aria-label={isRecording ? '녹화 중지 및 다운로드' : '편집본 다운로드'}
+            onClick={handleDownload}
+            disabled={!videoLoaded || downloading || savingChanges}
+            aria-label="워터마크 영상 다운로드"
             className="flex h-10 w-10 items-center justify-center rounded-full text-brand-400 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isRecording ? (
+            {downloading || isRecording ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <UploadCloud className="h-5 w-5" />
+              <Download className="h-5 w-5" />
             )}
           </button>
         </div>
