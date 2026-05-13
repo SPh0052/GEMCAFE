@@ -115,8 +115,8 @@ NEGATIVE_PER_SIMULATION = {
         "fork presses gently, indentation stays controlled"
     ),
     "fork_bite": (
-        "no hands holding fork, no cream dripping unrealistically, "
-        "no plate appearing, bite moves smoothly upward"
+        "abrupt jump, sudden cut, flicker, camera shake, hands, person, "
+        "plate movement, cake sliding, toppings falling, crumbs, debris"
     ),
     "cut_in_half": (
         "no crumbling, no hands holding knife, no cake breaking apart, "
