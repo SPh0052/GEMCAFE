@@ -252,15 +252,27 @@ async def verify_watermark(
     admin_id: int,
     video_id: str | None,
 ) -> WatermarkVerifyData:
-    """videoId로 등록된 영상에서 워터마크를 추출하고 등록부와 매칭."""
+    """videoId로 워터마크 영상 검증.
+
+    검색 경로 (우선순위):
+      1. in-memory 등록부 (gemmark 어드민 업로드 흐름)
+      2. WATERMARKED_DIR/<uuid>.mp4 직접 (gemcafe origin 등 외부 등록 영상)
+    """
     if not video_id:
         raise VerifyVideoIdMissingError()
 
-    info = video_service.get_video_info(video_id)
-    if info is None:
-        raise VerifyVideoNotFoundError()
+    video_uuid = _strip_video_prefix(video_id)
 
-    src_path = _resolve_verify_target(info, video_id)
+    info = video_service.get_video_info(video_id)
+    if info is not None:
+        src_path = _resolve_verify_target(info, video_id)
+    else:
+        # 등록부 miss — gemcafe origin 등 외부에서 embed-from-path 로 들어온 영상.
+        # WATERMARKED_DIR 에 같은 uuid 의 워터마크 파일이 있으면 그것으로 검증.
+        candidate = settings.WATERMARKED_DIR / f"{video_uuid}.mp4"
+        if not candidate.exists():
+            raise VerifyVideoNotFoundError()
+        src_path = candidate
 
     try:
         extracted_bits, _stats = await asyncio.to_thread(
