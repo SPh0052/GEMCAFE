@@ -73,13 +73,15 @@ def download_watermarked_endpoint(video_id: str) -> FileResponse:
 @router.post(
     "/embed-from-path",
     response_model=WatermarkEmbedFromPathResponse,
-    summary="gemcafe→gemmark 내부 호출 전용 워터마크 삽입. 파일 경로 직접 전달, DB/등록부 skip.",
+    summary="gemcafe→gemmark 내부 호출 전용 워터마크 삽입. 파일 경로 직접 전달, video_watermarked DB 행 INSERT (verify 매칭용).",
 )
 async def embed_watermark_from_path_endpoint(
     req: WatermarkEmbedFromPathRequest,
+    db: AsyncSession = Depends(get_db),
 ) -> WatermarkEmbedFromPathResponse:
     # gateway-net 내부 호출만 도달 가능. 인증 우회.
     data = await embed_watermark_external(
+        db=db,
         source_file_path=req.sourceFilePath,
         downloader_user_id=req.downloaderUserId,
         alpha=req.alpha,

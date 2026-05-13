@@ -141,14 +141,17 @@ async def embed_watermark(
 
 
 async def embed_watermark_external(
+    db: AsyncSession,
     source_file_path: str,
     downloader_user_id: str,
     alpha: int | None = None,
 ) -> dict:
     """gemcafe 등 외부 서비스가 호출하는 경량 워터마크 삽입.
 
-    - in-memory 등록부 / video_watermarked DB 기록 모두 skip
+    - in-memory 등록부 skip (gemmark 어드민 UI 흐름과 무관)
     - 원본 파일 경로를 직접 받아 같은 파일명으로 WATERMARKED_DIR 에 저장
+    - video_watermarked DB 행은 기록 (verify 시 매칭되도록)
+        admin_id 는 settings.WATERMARK_SYSTEM_ADMIN_ID 의 system 계정 사용
     - 인증 없음 (gateway-net 내부 호출만 도달 가능한 전제)
     """
     src_path = Path(source_file_path)
@@ -177,11 +180,45 @@ async def embed_watermark_external(
         dest_path.unlink(missing_ok=True)
         raise WatermarkEmbedError()
 
+    payload_hex = bits_to_hex(payload)
+
+    # 썸네일 생성 (검증 결과 UI 등에서 활용)
+    thumb_path = settings.WATERMARKED_DIR / f"{video_uuid}.jpg"
+    thumb_ok = await asyncio.to_thread(save_first_frame, dest_path, thumb_path)
+    thumbnail_name = thumb_path.name if thumb_ok else None
+
+    # video_watermarked 행 INSERT — verify 시 watermark_hex 매칭에 사용.
+    # admin_id 는 gemcafe origin 영상용 system 계정 (사전에 admin 테이블에 존재해야 함).
+    record = VideoWatermarked(
+        admin_id=settings.WATERMARK_SYSTEM_ADMIN_ID,
+        content_uuid=video_uuid,
+        watermark_hex=payload_hex,
+        alpha=effective_alpha,
+        original_file_name=src_path.name,
+        stored_file_name=dest_path.name,
+        thumbnail_name=thumbnail_name,
+        file_type=dest_path.suffix.lstrip(".").lower(),
+        file_size=dest_path.stat().st_size,
+        duration_sec=stats["duration_sec"],
+        embed_psnr=stats["psnr"],
+        processing_time=stats.get("processing_time"),
+        processing_fps=stats.get("processing_fps"),
+    )
+    try:
+        db.add(record)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        dest_path.unlink(missing_ok=True)
+        if thumbnail_name:
+            thumb_path.unlink(missing_ok=True)
+        raise WatermarkEmbedError()
+
     return {
         "storedFileName": dest_path.name,
         "fileSize": dest_path.stat().st_size,
         "durationSec": stats["duration_sec"],
-        "watermarkHex": bits_to_hex(payload),
+        "watermarkHex": payload_hex,
         "processingTime": stats.get("processing_time"),
     }
 
