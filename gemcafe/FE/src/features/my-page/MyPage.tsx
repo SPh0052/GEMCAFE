@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ChevronRight,
   FileText,
   Loader2,
   LogOut,
@@ -12,14 +11,15 @@ import {
 import { useAuthStore } from '@/shared/stores/useAuthStore'
 import { logout as logoutApi } from '@/features/auth/api'
 
+// 출시 전 placeholder — 실제 화면이 아직 없어 비활성화. 컴포넌트는 disabled 스타일로 노출만.
 const menus = [
-  { label: '이용약관', href: '#', icon: FileText },
-  { label: '개인정보처리방침', href: '#', icon: Shield },
+  { label: '이용약관', icon: FileText },
+  { label: '개인정보처리방침', icon: Shield },
 ]
 
 export default function MyPage() {
   const navigate = useNavigate()
-  const { user, logout, chargeGem } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const [loggingOut, setLoggingOut] = useState(false)
 
   const handleLogout = async () => {
@@ -113,37 +113,43 @@ export default function MyPage() {
             </span>
           </div>
 
+          {/* 충전 — 결제 연동 전이라 비활성화. 디자인은 유지하되 disabled 톤 다운. */}
           <button
             type="button"
-            onClick={() => chargeGem(5000)}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-br from-brand-500 to-orange-500 py-3.5 text-sm font-bold text-white shadow-md shadow-brand-500/30 transition hover:from-brand-600 hover:to-orange-600 active:scale-[0.98]"
+            disabled
+            aria-disabled="true"
+            className="mt-5 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-gray-200 py-3.5 text-sm font-bold text-gray-500"
           >
             <Plus className="h-4 w-4" />
-            충전하기
+            충전하기 (준비 중)
           </button>
         </div>
       </section>
 
       {/* ───── 메뉴 리스트 ───── */}
       <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+        {/* 이용약관·개인정보처리방침 — 실제 페이지 준비 전까지 disabled 표시.
+            <a> 가 아니라 <div aria-disabled> 로 처리해서 키보드 포커스·클릭 모두 차단. */}
         {menus.map((m, i) => {
           const Icon = m.icon
           return (
-            <a
+            <div
               key={m.label}
-              href={m.href}
-              className={`group flex items-center justify-between px-5 py-4 text-sm text-gray-700 transition hover:bg-gray-50 ${
+              aria-disabled="true"
+              className={`flex cursor-not-allowed items-center justify-between px-5 py-4 text-sm text-gray-400 ${
                 i !== menus.length - 1 ? 'border-b border-gray-100' : ''
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition group-hover:bg-brand-50 group-hover:text-brand-500">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
                   <Icon className="h-4 w-4" />
                 </span>
                 <span className="font-medium">{m.label}</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500" />
-            </a>
+              <span className="text-[11px] font-medium text-gray-400">
+                준비 중
+              </span>
+            </div>
           )
         })}
 

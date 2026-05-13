@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { Home, PlusCircle, Scissors, Video, User } from 'lucide-react'
+import { Home, PlusCircle, Video, User } from 'lucide-react'
 
+// 편집 탭은 의도적으로 제외 — 편집은 "내 영상 → 상세 → 편집하기" 진입 흐름만 노출.
+// 빈 편집기로 직접 들어와 영상 업로드부터 시작하는 시나리오는 더 이상 메인 동선이 아님.
 const tabs = [
   { to: '/', label: '홈', icon: Home, end: true },
   { to: '/create', label: '생성하기', icon: PlusCircle },
-  { to: '/editor', label: '편집', icon: Scissors },
   { to: '/videos', label: '내 영상', icon: Video },
   { to: '/me', label: '마이페이지', icon: User },
 ]

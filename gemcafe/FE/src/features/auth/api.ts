@@ -51,6 +51,29 @@ export async function login(req: LoginRequest): Promise<LoginResponse> {
   return res.data.data
 }
 
+// ─── 내 정보 조회 ───────────────────────────────────────────
+export interface MeResponse {
+  userId: number
+  email: string
+  name: string
+  profileImage: string
+  gem: number
+  provider: 'LOCAL' | 'GOOGLE' | string
+  createdAt: string
+}
+
+/**
+ * 내 정보 조회.
+ * GET /api/v1/users/me
+ *
+ * 로그인 직후 토큰만 받았을 때 사용자 프로필(이름·프로필 이미지·잼 잔액)을 채우기 위해 호출.
+ * accessToken 은 axios 요청 인터셉터가 localStorage 에서 자동으로 첨부해줌.
+ */
+export async function getMe(): Promise<MeResponse> {
+  const res = await api.get<ApiResponse<MeResponse>>('/users/me')
+  return res.data.data
+}
+
 /**
  * 로그아웃.
  * POST /api/v1/auth/logout
