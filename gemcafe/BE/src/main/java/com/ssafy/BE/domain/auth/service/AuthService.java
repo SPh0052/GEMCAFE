@@ -74,6 +74,56 @@ public class AuthService {
     }
 
     /**
+     * Refresh 토큰으로 새 토큰 페어 발급.
+     *
+     *  1. refresh 토큰 파싱/서명 검증
+     *  2. type == "refresh" 인지 확인 (access 토큰으로 갱신 시도 차단)
+     *  3. jti 가 블랙리스트(로그아웃 처리됨)에 있는지 확인
+     *  4. 옛 refresh 의 jti 를 블랙리스트에 등록 (rotation — 1회 사용 후 폐기)
+     *  5. 새 access + refresh 페어 발급해 반환
+     */
+    public TokenPair refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
+
+        Claims claims;
+        try {
+            claims = jwtTokenProvider.parse(refreshToken);
+        } catch (JwtException e) {
+            throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
+
+        String type = claims.get("type", String.class);
+        if (!"refresh".equals(type)) {
+            throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
+
+        String jti = claims.getId();
+        if (tokenBlacklistService.isBlacklisted(jti)) {
+            throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
+
+        Integer userId;
+        try {
+            userId = Integer.valueOf(claims.getSubject());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
+
+        // rotation: 옛 refresh 의 남은 TTL 동안 블랙리스트 → 재사용 차단
+        long ttl = (claims.getExpiration().getTime() - System.currentTimeMillis()) / 1000;
+        if (ttl > 0) {
+            tokenBlacklistService.blacklist(jti, ttl);
+        }
+
+        String newAccess = jwtTokenProvider.createAccessToken(userId);
+        String newRefresh = jwtTokenProvider.createRefreshToken(userId);
+        log.info("[TOKEN-REFRESH] userId={} oldJti={}", userId, jti);
+        return new TokenPair(newAccess, newRefresh, jwtTokenProvider.accessExpireSeconds());
+    }
+
+    /**
      * 로그아웃 — refresh 토큰의 jti를 Redis 블랙리스트에 등록.
      * access는 짧은 TTL(1시간)로 자연 만료 — 추후 /refresh 호출 차단으로 사실상 무효화.
      */
