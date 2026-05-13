@@ -179,11 +179,19 @@ export default function CreateVideoPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 px-5 pb-6 pt-5">
-      <h1 className="text-xl font-bold text-gray-900">영상 만들기</h1>
+    <div className="flex flex-1 flex-col gap-6 px-5 pb-6 pt-6">
+      <header>
+        <p className="text-sm font-medium text-brand-500">Create</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900">
+          영상 만들기
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          메뉴 사진과 옵션을 골라 AI 가 자동으로 만들어드려요.
+        </p>
+      </header>
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
           {error}
         </div>
       )}
@@ -201,7 +209,7 @@ export default function CreateVideoPage() {
           type="button"
           onClick={handleImagePick}
           disabled={analyzing}
-          className="relative flex h-44 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-gray-500 transition hover:border-brand-300 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-70"
+          className="relative flex h-48 w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl border-2 border-dashed border-gray-200 bg-linear-to-br from-gray-50 to-orange-50/40 text-gray-500 transition hover:border-brand-300 hover:from-brand-50 hover:to-orange-50/60 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {imagePreview ? (
             <>
@@ -484,7 +492,10 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold text-gray-700">{title}</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-700">
+        <span className="h-1 w-4 rounded-full bg-brand-500" />
+        {title}
+      </h2>
       {children}
     </section>
   )

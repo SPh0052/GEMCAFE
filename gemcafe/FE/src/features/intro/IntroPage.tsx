@@ -16,6 +16,7 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react'
+import SiteFooter from '@/layout/SiteFooter'
 
 const ASSET = (file: string) => `${import.meta.env.BASE_URL}${file}`
 
@@ -72,7 +73,7 @@ export default function IntroPage() {
               <span className="absolute inset-0 animate-ping rounded-full bg-brand-400 opacity-75" />
               <span className="relative h-2 w-2 rounded-full bg-brand-500" />
             </span>
-            AI BETA · 카페 영상 자동 생성
+            카페 영상 자동 생성
           </span>
 
           <h1 className="mx-auto mt-7 max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
@@ -119,17 +120,17 @@ export default function IntroPage() {
 
           {/* Hero visual — big centered phone with decorations */}
           <div className="relative mx-auto mt-16 w-full max-w-2xl">
-            {/* Floating left chip */}
-            <div className="absolute -left-2 top-8 z-20 rotate-[-8deg] rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-gray-900/10 ring-1 ring-gray-100 sm:-left-12">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                <Sparkles className="h-4 w-4 text-brand-500" />
+            {/* Floating left chip — 약 3배 사이즈 */}
+            <div className="absolute -left-4 top-2 z-20 rotate-[-8deg] rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-gray-900/15 ring-1 ring-gray-100 sm:-left-16 sm:px-8 sm:py-5">
+              <div className="flex items-center gap-3 text-lg font-semibold text-gray-800 sm:gap-4 sm:text-2xl">
+                <Sparkles className="h-6 w-6 text-brand-500 sm:h-8 sm:w-8" />
                 AI 가 분석 중...
               </div>
             </div>
-            {/* Floating right chip */}
-            <div className="absolute -right-2 bottom-32 z-20 rotate-6 rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-gray-900/10 ring-1 ring-gray-100 sm:-right-12">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                <Clock3 className="h-4 w-4 text-orange-500" />
+            {/* Floating right chip — 약 3배 사이즈 */}
+            <div className="absolute -right-4 bottom-24 z-20 rotate-6 rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-gray-900/15 ring-1 ring-gray-100 sm:-right-16 sm:px-8 sm:py-5">
+              <div className="flex items-center gap-3 text-lg font-semibold text-gray-800 sm:gap-4 sm:text-2xl">
+                <Clock3 className="h-6 w-6 text-orange-500 sm:h-8 sm:w-8" />
                 1분이면 완성
               </div>
             </div>
@@ -202,7 +203,9 @@ export default function IntroPage() {
       </section>
 
       {/* ═══════════════════════════════════ INPUT → OUTPUT FLOW ═══════════════════════════════════ */}
-      <section className="bg-linear-to-b from-white via-orange-50/30 to-white py-24 sm:py-32">
+      <section className="relative overflow-hidden bg-linear-to-b from-white via-orange-50/50 to-amber-50/40 py-24 sm:py-32">
+        <div className="pointer-events-none absolute -right-32 top-32 -z-10 h-80 w-80 rounded-full bg-orange-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 bottom-20 -z-10 h-72 w-72 rounded-full bg-amber-200/40 blur-3xl" />
         <div className="mx-auto max-w-6xl px-7 sm:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
@@ -274,7 +277,12 @@ export default function IntroPage() {
       </section>
 
       {/* ═══════════════════════════════════ 4 STEP DETAIL ═══════════════════════════════════ */}
-      <section id="how" className="bg-white py-24 sm:py-32">
+      <section
+        id="how"
+        className="relative overflow-hidden bg-linear-to-b from-amber-50/40 via-white to-orange-50/30 py-24 sm:py-32"
+      >
+        <div className="pointer-events-none absolute -left-32 top-20 -z-10 h-96 w-96 rounded-full bg-amber-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-32 bottom-0 -z-10 h-96 w-96 rounded-full bg-rose-200/30 blur-3xl" />
         <div className="mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
@@ -469,7 +477,8 @@ export default function IntroPage() {
       </section>
 
       {/* ═══════════════════════════════════ FAQ ═══════════════════════════════════ */}
-      <section className="bg-white py-24 sm:py-32">
+      <section className="relative overflow-hidden bg-linear-to-b from-white via-amber-50/30 to-orange-50/40 py-24 sm:py-32">
+        <div className="pointer-events-none absolute left-1/2 top-1/3 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-orange-200/25 blur-3xl" />
         <div className="mx-auto max-w-3xl px-7 sm:px-8">
           <div className="text-center">
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
@@ -543,23 +552,7 @@ export default function IntroPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════ FOOTER ═══════════════════════════════════ */}
-      <footer className="border-t border-gray-100 bg-white py-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-7 sm:flex-row sm:px-8">
-          <div className="flex items-center gap-2">
-            <UtensilsCrossed className="h-4 w-4 text-brand-500" />
-            <span className="text-sm font-semibold tracking-tight">
-              <span className="text-brand-500">gem</span>.cafe
-            </span>
-            <span className="text-xs text-gray-400">
-              · AI 카페 영상 자동 생성
-            </span>
-          </div>
-          <div className="text-xs text-gray-400">
-            © 2026 gem.cafe. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

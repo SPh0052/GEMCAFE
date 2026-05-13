@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { Download, Loader2, Pencil, Share2 } from 'lucide-react'
-import Button from '@/shared/components/Button'
 import { AuthedVideo } from '@/shared/components/AuthedMedia'
 import { api } from '@/shared/lib/axios'
-import { getVideoDetail, type VideoDetail } from './api'
+import {
+  getVideoDetail,
+  requestWatermarkDownload,
+  type VideoDetail,
+} from './api'
 
 export default function VideoDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -17,6 +20,9 @@ export default function VideoDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null)
+  /** 워터마크 처리 중 → 풀스크린 로딩 모달 표시용 */
+  const [watermarkLoading, setWatermarkLoading] = useState(false)
 
   // 토스트 자동 해제
   useEffect(() => {
@@ -106,41 +112,85 @@ export default function VideoDetailPage() {
       state: {
         videoId: detail.videoId,
         title: detail.title,
+        originFileName: detail.originFileName,
         videoUrl: detail.videoUrl,
         thumbnailUrl: detail.thumbnailUrl,
       },
     })
   }
 
+  /**
+   * 워터마크 처리 + blob 반환. 로딩 모달 표시는 호출자가 관리.
+   * 원본 영상이 외부로 나가지 않도록 모든 외부 export 가 이 함수를 거침.
+   */
+  const fetchWatermarkedBlob = async (): Promise<{
+    blob: Blob
+    fileName: string
+  }> => {
+    if (!detail) throw new Error('영상 정보 없음')
+    const meta = await requestWatermarkDownload(detail.videoId)
+    console.log('[POST /videos/.../watermark-download] response:', meta)
+    const blob = await fetchVideoBlob(meta.downloadUrl)
+    return { blob, fileName: meta.fileName }
+  }
+
+  /**
+   * 다운로드: 워터마크 합성 → 로컬 저장.
+   */
   const handleDownload = async () => {
     if (!detail || downloading) return
     setDownloading(true)
+    setDownloadProgress(null)
+    setWatermarkLoading(true)
     try {
-      const blob = await fetchVideoBlob(detail.videoUrl)
+      const { blob, fileName } = await fetchWatermarkedBlob()
       const objUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = objUrl
-      a.download = `${detail.title || 'gemcafe'}.mp4`
+      a.download = fileName || `${detail.originFileName || 'gemcafe'}.mp4`
       document.body.appendChild(a)
       a.click()
       a.remove()
       URL.revokeObjectURL(objUrl)
+      setToast('다운로드를 시작했어요.')
     } catch (err) {
-      console.error('[VideoDetail] 다운로드 실패', err)
+      console.error('[VideoDetail] 워터마크 다운로드 실패', err)
       setToast('다운로드에 실패했습니다.')
     } finally {
+      setWatermarkLoading(false)
       setDownloading(false)
     }
   }
 
   const handleShare = async () => {
-    if (!detail) return
+    if (!detail || watermarkLoading) return
 
-    // 1) 파일 공유 시도 — blob 으로 받아서 file 첨부
-    if ('canShare' in navigator) {
+    // 데스크톱은 file share 미지원이라 canShare 가 false → 미리 체크해서 분기
+    const canShareFiles = supportsFileShare()
+
+    setWatermarkLoading(true)
+    let blob: Blob | null = null
+    let fileName = ''
+    try {
+      const meta = await requestWatermarkDownload(detail.videoId)
+      console.log('[POST /videos/.../watermark-download] response:', meta)
+      fileName = meta.fileName
+      // 파일 공유 가능한 환경에서만 blob 까지 받아 File 첨부
+      if (canShareFiles) {
+        blob = await fetchVideoBlob(meta.downloadUrl)
+      }
+    } catch (err) {
+      console.error('[VideoDetail] 워터마크 요청 실패', err)
+      setToast('공유 준비에 실패했습니다.')
+      setWatermarkLoading(false)
+      return
+    }
+    setWatermarkLoading(false)
+
+    // 1) 파일 공유 (모바일)
+    if (canShareFiles && blob) {
       try {
-        const blob = await fetchVideoBlob(detail.videoUrl)
-        const file = new File([blob], `${detail.title}.mp4`, {
+        const file = new File([blob], fileName, {
           type: blob.type || 'video/mp4',
         })
         const filePayload = {
@@ -153,11 +203,12 @@ export default function VideoDetailPage() {
           return
         }
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
         console.warn('[VideoDetail] 파일 공유 실패, URL 공유로 fallback', err)
       }
     }
 
-    // 2) URL/텍스트 공유
+    // 2) URL 공유 (데스크톱 / 파일 공유 실패)
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({
@@ -210,61 +261,93 @@ export default function VideoDetailPage() {
   }
 
   return (
-    <div className="flex h-full min-h-full flex-1 flex-col">
-      {/* 비디오 플레이어 */}
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {/* 비디오 플레이어 — 남은 공간 채우고 영상은 자기 비율로 letterbox */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black">
-        <div className="relative h-full max-h-full" style={{ aspectRatio: '9 / 16' }}>
-          <AuthedVideo
-            src={detail.videoUrl}
-            className="h-full w-full object-contain"
-            controls
-          />
+        <AuthedVideo
+          src={detail.videoUrl}
+          className="h-full max-h-full w-full max-w-full object-contain"
+          controls
+        />
 
-          {/* 제목 — 좌상단 오버레이 */}
-          <div className="pointer-events-none absolute left-4 right-16 top-4 z-10">
-            <h1 className="text-base font-bold leading-tight text-white drop-shadow-md sm:text-lg">
-              {detail.title}
+        {/* 제목 — 영상 위 상단 카드 형태로 (가독성 강화) */}
+        <div className="pointer-events-none absolute left-4 right-16 top-4 z-10">
+          <div className="inline-flex max-w-full flex-col gap-1 rounded-2xl bg-black/55 px-4 py-2.5 backdrop-blur-md">
+            <h1 className="break-all text-base font-extrabold leading-tight text-white sm:text-lg">
+              {detail.originFileName || detail.title}
             </h1>
-            <p className="mt-1 text-[11px] text-white/80 drop-shadow">
-              AI 생성 영상 · {formatDate(detail.createdAt)}
+            <p className="text-[11px] font-medium text-white/75">
+              {formatDate(detail.createdAt)}
             </p>
           </div>
-
-          {/* 다운로드 — 우상단 아이콘 */}
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={downloading}
-            aria-label="영상 다운로드"
-            className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60"
-          >
-            {downloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-          </button>
         </div>
+
+        {/* 다운로드 — 우상단 (다운로드 중에는 진행률 표시) */}
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
+          aria-label="영상 워터마크 다운로드"
+          className={`absolute right-3 top-3 z-10 flex items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-black/60 disabled:opacity-90 ${
+            downloading && downloadProgress !== null
+              ? 'h-10 gap-1.5 px-3'
+              : 'h-10 w-10'
+          }`}
+        >
+          {downloading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {downloadProgress !== null && (
+                <span className="text-xs font-bold">
+                  {Math.round(downloadProgress)}%
+                </span>
+              )}
+            </>
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+        </button>
       </div>
 
       {/* 액션 버튼 */}
       <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" size="lg" onClick={handleEdit}>
-            <Pencil className="h-4 w-4" />
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={handleEdit}
+            className="group flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 text-base font-semibold text-gray-800 transition hover:border-brand-200 hover:bg-brand-50 active:scale-[0.98]"
+          >
+            <Pencil className="h-4 w-4 text-gray-500 transition group-hover:text-brand-500" />
             편집하기
-          </Button>
-          <Button size="lg" onClick={handleShare}>
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="group flex items-center justify-center gap-2 rounded-2xl bg-linear-to-br from-brand-500 to-orange-600 px-5 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98]"
+          >
             <Share2 className="h-4 w-4" />
             공유하기
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* 토스트 */}
       {toast && (
-        <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full bg-black/80 px-4 py-2 text-sm text-white shadow-lg">
+        <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-gray-900/95 px-5 py-3 text-sm font-medium text-white shadow-xl backdrop-blur-md">
           {toast}
+        </div>
+      )}
+
+      {/* 워터마크 처리 중 — 풀스크린 로딩 모달 */}
+      {watermarkLoading && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="rounded-3xl bg-white px-10 py-8 text-center shadow-2xl">
+            <Loader2 className="mx-auto h-10 w-10 animate-spin text-brand-500" />
+            <p className="mt-4 text-base font-bold text-gray-900">
+              워터마크 삽입 중
+            </p>
+            <p className="mt-1 text-sm text-gray-500">잠시만 기다려주세요...</p>
+          </div>
         </div>
       )}
     </div>
@@ -281,5 +364,17 @@ function formatDate(iso: string): string {
     })
   } catch {
     return iso
+  }
+}
+
+/** 파일 공유 가능한 환경인지 (대부분 모바일 브라우저) — async 호출 전 동기 체크. */
+function supportsFileShare(): boolean {
+  if (typeof navigator === 'undefined') return false
+  if (!('canShare' in navigator)) return false
+  try {
+    const dummy = new File(['x'], 't.mp4', { type: 'video/mp4' })
+    return navigator.canShare({ files: [dummy] })
+  } catch {
+    return false
   }
 }

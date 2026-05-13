@@ -10,8 +10,6 @@
 
 const HANGUL_REGEX = /[가-힣ㄱ-ㅎㅏ-ㅣ]/
 const WHITESPACE_REGEX = /\s/
-// 비밀번호용 특수문자 (이스케이프 주의)
-const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~`]/
 
 /**
  * 이메일 검증.
@@ -32,9 +30,9 @@ export function validateEmail(value: string): string | null {
 
 /**
  * 비밀번호 검증.
- * - 한글 / 공백 불가
+ * - 영문(대소문자 무관) + 숫자만 허용
+ * - 한글 / 공백 / 특수문자 불가
  * - 최소 12자 이상
- * - 대문자 / 소문자 / 특수문자 각 1개 이상 포함
  */
 export function validatePassword(value: string): string | null {
   if (!value) return '비밀번호를 입력해주세요.'
@@ -42,12 +40,8 @@ export function validatePassword(value: string): string | null {
   if (WHITESPACE_REGEX.test(value))
     return '비밀번호에 공백은 사용할 수 없습니다.'
   if (value.length < 12) return '비밀번호는 12자 이상이어야 합니다.'
-  if (!/[a-z]/.test(value))
-    return '비밀번호에 영문 소문자가 1자 이상 포함되어야 합니다.'
-  if (!/[A-Z]/.test(value))
-    return '비밀번호에 영문 대문자가 1자 이상 포함되어야 합니다.'
-  if (!SPECIAL_CHAR_REGEX.test(value))
-    return '비밀번호에 특수문자가 1자 이상 포함되어야 합니다.'
+  if (!/^[a-zA-Z0-9]+$/.test(value))
+    return '비밀번호는 영문과 숫자만 사용 가능합니다.'
   return null
 }
 

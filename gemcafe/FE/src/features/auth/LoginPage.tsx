@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { Mail, Lock, UtensilsCrossed, Loader2 } from 'lucide-react'
+import { Mail, Lock, Loader2 } from 'lucide-react'
 import MobileShell from '@/shared/components/MobileShell'
-import Button from '@/shared/components/Button'
+import SiteFooter from '@/layout/SiteFooter'
 import TextField from '@/shared/components/TextField'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
 import {
@@ -136,100 +136,154 @@ export default function LoginPage() {
     setError(err.message)
   }, [])
 
-  // GIS 초기화 + 공식 구글 버튼 렌더링
+  // GIS 초기화 + 공식 구글 버튼 렌더링.
+  // index.html 의 `async defer` 스크립트가 늦게 로드될 수 있어, window.google
+  // 가 준비될 때까지 폴링 (최대 5초). 그 안에 로드 안 되면 에러 표시.
   useEffect(() => {
-    initGoogleSignIn({
-      onSuccess: handleGoogleSuccess,
-      onError: handleGoogleError,
-    })
-    if (googleBtnRef.current) {
-      // 컨테이너의 실측 너비를 픽셀로 전달 (renderButton 은 % 미지원)
-      const width = Math.min(googleBtnRef.current.clientWidth || 320, 400)
-      renderGoogleButton(googleBtnRef.current, { width })
+    let cancelled = false
+    let elapsed = 0
+    const POLL_INTERVAL = 100
+    const MAX_WAIT = 5000
+
+    const tryInit = () => {
+      if (cancelled) return
+
+      if (window.google?.accounts?.id) {
+        initGoogleSignIn({
+          onSuccess: handleGoogleSuccess,
+          onError: handleGoogleError,
+        })
+        if (googleBtnRef.current) {
+          const width = Math.min(googleBtnRef.current.clientWidth || 320, 400)
+          renderGoogleButton(googleBtnRef.current, { width })
+        }
+        return
+      }
+
+      elapsed += POLL_INTERVAL
+      if (elapsed >= MAX_WAIT) {
+        handleGoogleError(
+          new Error(
+            'Google 로그인 스크립트를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.',
+          ),
+        )
+        return
+      }
+      setTimeout(tryInit, POLL_INTERVAL)
+    }
+
+    tryInit()
+    return () => {
+      cancelled = true
     }
   }, [handleGoogleSuccess, handleGoogleError])
 
   return (
-    <MobileShell>
-      <div className="flex flex-1 flex-col justify-center px-6 py-10">
-        <div className="mb-8 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2">
-            <UtensilsCrossed className="h-7 w-7 text-brand-500" />
-            <span className="text-3xl font-bold">
-              <span className="text-brand-500">gem</span>.cafe
-            </span>
+    <>
+      <MobileShell>
+        <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-10">
+          {/* 배경 그라데이션 + 블러 orb */}
+          <div className="pointer-events-none absolute inset-0 -z-20 bg-linear-to-b from-orange-50/60 via-white to-amber-50/40" />
+          <div className="pointer-events-none absolute -left-20 top-10 -z-10 h-60 w-60 rounded-full bg-brand-100/60 blur-3xl" />
+          <div className="pointer-events-none absolute -right-20 bottom-20 -z-10 h-72 w-72 rounded-full bg-amber-200/40 blur-3xl" />
+
+          {/* ───── 로고 ───── */}
+          <div className="mb-8 flex flex-col items-center gap-3">
+            <div className="flex items-center gap-4">
+              <img
+                src={`${import.meta.env.BASE_URL}logo.png`}
+                alt="gem.cafe 로고"
+                className="h-19 w-19"
+              />
+              <img
+                src={`${import.meta.env.BASE_URL}logo_text.png`}
+                alt="gem.cafe"
+                className="h-13"
+              />
+            </div>
+            <p className="text-sm text-gray-500">
+              로그인하고 영상을 만들어보세요.
+            </p>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
-            다시 오신 것을 환영합니다
+
+        {/* ───── 폼 카드 ───── */}
+        <div className="rounded-3xl border border-gray-100 bg-white/90 p-6 shadow-md shadow-brand-100/30 backdrop-blur">
+          <div className="space-y-4">
+            <TextField
+              label="이메일"
+              type="email"
+              placeholder="name@example.com"
+              icon={<Mail className="h-4 w-4" />}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+
+            <TextField
+              label="비밀번호"
+              type="password"
+              placeholder="••••••••"
+              icon={<Lock className="h-4 w-4" />}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              rightSlot={
+                <a
+                  href="#"
+                  className="text-xs font-semibold text-brand-500 transition hover:text-brand-600 hover:underline"
+                >
+                  비밀번호 찾기
+                </a>
+              }
+            />
+
+            <button
+              type="button"
+              onClick={handleLogin}
+              disabled={submitting}
+              className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-br from-brand-500 to-orange-500 px-5 py-3.5 text-base font-bold text-white shadow-lg shadow-brand-500/30 transition hover:from-brand-600 hover:to-orange-600 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
+            >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? '로그인 중...' : '로그인'}
+            </button>
+
+            <div className="relative flex items-center py-1">
+              <div className="flex-1 border-t border-gray-200" />
+              <span className="px-4 text-xs font-medium text-gray-400">
+                또는
+              </span>
+              <div className="flex-1 border-t border-gray-200" />
+            </div>
+
+            {/* 구글 공식 버튼 — GIS 가 직접 렌더링 */}
+            <div className="flex justify-center">
+              <div ref={googleBtnRef} className="w-full max-w-100" />
+            </div>
+            {googleLoading && (
+              <div className="flex justify-center text-sm text-gray-500">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                구글 로그인 처리 중...
+              </div>
+            )}
+
+            {error && (
+              <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-center text-sm font-medium text-rose-600">
+                {error}
+              </p>
+            )}
+          </div>
+        </div>
+
+          <p className="mt-6 text-center text-sm text-gray-600">
+            계정이 없으신가요?{' '}
+            <Link
+              to="/signup"
+              className="font-bold text-brand-500 transition hover:text-brand-600 hover:underline"
+            >
+              회원가입
+            </Link>
           </p>
         </div>
-
-        <div className="space-y-4">
-          <TextField
-            label="이메일"
-            type="email"
-            placeholder="name@example.com"
-            icon={<Mail className="h-4 w-4" />}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <TextField
-            label="비밀번호"
-            type="password"
-            placeholder="••••••••"
-            icon={<Lock className="h-4 w-4" />}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            rightSlot={
-              <a
-                href="#"
-                className="text-xs font-medium text-brand-500 hover:underline"
-              >
-                비밀번호 찾기
-              </a>
-            }
-          />
-
-          <Button
-            size="lg"
-            fullWidth
-            onClick={handleLogin}
-            disabled={submitting}
-          >
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {submitting ? '로그인 중...' : '로그인'}
-          </Button>
-
-          <div className="relative flex items-center py-3">
-            <div className="flex-1 border-t border-gray-200" />
-            <span className="px-4 text-xs text-gray-400">또는</span>
-            <div className="flex-1 border-t border-gray-200" />
-          </div>
-
-          {/* 구글 공식 버튼 — GIS 가 직접 렌더링 */}
-          <div className="flex justify-center">
-            <div ref={googleBtnRef} className="w-full max-w-100" />
-          </div>
-          {googleLoading && (
-            <div className="flex justify-center text-sm text-gray-500">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              구글 로그인 처리 중...
-            </div>
-          )}
-
-          {error && (
-            <p className="text-center text-sm text-rose-600">{error}</p>
-          )}
-        </div>
-
-        <p className="mt-8 text-center text-sm text-gray-500">
-          계정이 없으신가요?{' '}
-          <Link to="/signup" className="font-semibold text-brand-500">
-            회원가입
-          </Link>
-        </p>
-      </div>
-    </MobileShell>
+      </MobileShell>
+      <SiteFooter />
+    </>
   )
 }
