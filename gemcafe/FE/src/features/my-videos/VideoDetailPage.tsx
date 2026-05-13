@@ -239,7 +239,7 @@ export default function VideoDetailPage() {
   // ── 로딩 / 에러 ──
   if (loading) {
     return (
-      <div className="flex h-full min-h-full flex-1 items-center justify-center bg-black">
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-white/60" />
       </div>
     )
@@ -247,7 +247,7 @@ export default function VideoDetailPage() {
 
   if (error || !detail) {
     return (
-      <div className="flex h-full min-h-full flex-1 flex-col items-center justify-center gap-4 bg-black px-6 text-center">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-black px-6 text-center">
         <p className="text-sm text-white/80">{error ?? '데이터가 없습니다.'}</p>
         <button
           type="button"
@@ -261,12 +261,19 @@ export default function VideoDetailPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      {/* 비디오 플레이어 — 남은 공간 채우고 영상은 자기 비율로 letterbox */}
+    // 명시적 dvh 기반 height 으로 viewport 안에 강제 fit.
+    //  - AppHeader 약 3.75rem (py-3 + h-9 + border)
+    //  - 모바일: BottomNav 영역 5rem + env(safe-area)
+    //  - 데스크톱: BottomNav 없음 (SideNav 사용) → md:에서는 BottomNav 분량 제외
+    //
+    // flex chain (flex-1 + min-h-0) 만으론 <video> 같은 replaced element 의 h-full 이
+    // 안정적으로 해석 안 됨 (parent height 이 계산값이라 % 가 0 으로 fallback).
+    <div className="flex h-[calc(100dvh-3.75rem-5rem-env(safe-area-inset-bottom,0))] flex-col overflow-hidden md:h-[calc(100dvh-3.75rem)]">
+      {/* 비디오 플레이어 — flex-1 로 남은 공간만 차지, 영상은 absolute inset-0 + object-contain 으로 letterbox */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black">
         <AuthedVideo
           src={detail.videoUrl}
-          className="h-full max-h-full w-full max-w-full object-contain"
+          className="absolute inset-0 h-full w-full object-contain"
           controls
         />
 

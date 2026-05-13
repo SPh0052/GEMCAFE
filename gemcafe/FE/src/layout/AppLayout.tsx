@@ -34,7 +34,9 @@ export default function AppLayout() {
               pb-[5rem]: BottomNav 가 fixed 라서 main 콘텐츠가 nav 뒤로 숨지 않게 여백 확보.
               padding 영역에서 sticky bottom-0 가 자동으로 nav 위에 위치함. */}
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom,0))] md:pb-0">
-            <div className="mx-auto flex w-full flex-1 flex-col md:max-w-3xl lg:max-w-5xl">
+            {/* min-h-0 필수 — 없으면 자식이 h-full / overflow-hidden 으로 viewport 안에 맞추려 해도
+                flex-1 의 자연 사이즈가 콘텐츠를 따라가서 main 이 스크롤됨 (VideoDetailPage 케이스). */}
+            <div className="mx-auto flex min-h-0 w-full flex-1 flex-col md:max-w-3xl lg:max-w-5xl">
               <Outlet />
             </div>
           </main>
