@@ -47,12 +47,14 @@ CAMERA_DIRECTIVES = {
         "Fork enters from top of frame. Subtle push-in as the indentation forms."
     ),
     "fork_bite": (
-        "Camera tracks upward following the lifted bite. "
-        "Starts at eye level, ends slightly above as the fork rises."
+        "Steady camera at a slight high angle. Framing widens gently as the bite "
+        "is lifted, keeping both the cake and the lifted fork comfortably in view."
     ),
     "cut_in_half": (
-        "Static camera at eye level. Knife enters from top of frame. "
-        "Slight push-in as the cake separates and the cross-section reveals."
+        "Camera starts wide on the full cake slice, then slowly and continuously "
+        "pushes in to an extreme macro close-up on the split area where the fork "
+        "meets the cake. Fork enters from behind the cake with the handle extending "
+        "away from the camera into the background."
     ),
     "cream_scoop": (
         "Camera tracks upward following the lifted spoonful of cream. "
@@ -115,12 +117,17 @@ NEGATIVE_PER_SIMULATION = {
         "fork presses gently, indentation stays controlled"
     ),
     "fork_bite": (
-        "no hands holding fork, no cream dripping unrealistically, "
-        "no plate appearing, bite moves smoothly upward"
+        "abrupt jump, sudden cut, flicker, camera shake, hands, person, "
+        "plate movement, cake sliding, toppings falling, crumbs, debris"
     ),
     "cut_in_half": (
-        "no crumbling, no hands holding knife, no cake breaking apart, "
-        "preserve cross-section integrity"
+        "hands, fingers, human body parts, faces, people, text, watermark, logo, "
+        "subtitles, captions, distorted fork, bent fork, deformed fork, multiple forks, "
+        "fork changing shape, cake moving on its own, cake rotating, cake bouncing, "
+        "shaky camera, handheld camera shake, jittery motion, abrupt camera cuts, "
+        "sudden zoom jumps, flickering, color shifting, blurry artifacts, low quality, "
+        "oversaturated colors, cartoon style, illustration, 3D render look, "
+        "plastic-looking food, fake-looking cream"
     ),
     "cream_scoop": (
         "no hands holding spoon, no cream dripping violently, "
