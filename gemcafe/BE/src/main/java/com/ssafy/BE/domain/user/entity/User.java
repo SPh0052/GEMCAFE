@@ -45,6 +45,9 @@ public class User {
     @Column(nullable = false)
     private int gem;
 
+    @Column(name = "profile_url", length = 255)
+    private String profileUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -58,7 +61,8 @@ public class User {
 
     @Builder
     public User(String email, String password, String name, String phone,
-                Provider provider, String providerUserId, Integer gem, Boolean emailVerified) {
+                Provider provider, String providerUserId, Integer gem, Boolean emailVerified,
+                String profileUrl) {
         this.email = email;
         this.password = password;
         this.name = name;
@@ -67,6 +71,11 @@ public class User {
         this.providerUserId = providerUserId;
         this.emailVerified = emailVerified != null && emailVerified;
         this.gem = gem != null ? gem : 0;
+        this.profileUrl = profileUrl;
+    }
+
+    public void updateProfileUrl(String profileUrl) {
+        this.profileUrl = profileUrl;
     }
 
     public boolean isDeleted() {

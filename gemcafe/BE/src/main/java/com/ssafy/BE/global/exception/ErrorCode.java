@@ -22,6 +22,7 @@ public enum ErrorCode {
     // User
     USER_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "USER-001", "이미 가입된 이메일입니다"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-002", "해당 사용자를 찾을 수 없습니다"),
+    PROFILE_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-003", "프로필 이미지가 설정되어 있지 않습니다"),
 
     // Image upload
     IMAGE_INVALID_FORMAT(HttpStatus.BAD_REQUEST, "IMAGE-001", "지원하지 않는 파일 형식입니다 (jpg/jpeg/png만 허용)"),
