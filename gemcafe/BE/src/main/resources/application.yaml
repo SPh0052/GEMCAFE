@@ -73,6 +73,16 @@ app-gemmark:
   connect-timeout-ms: ${GEMMARK_CONNECT_TIMEOUT_MS:5000}
   read-timeout-ms: ${GEMMARK_READ_TIMEOUT_MS:120000}
 
+app-uploadpost:
+  base-url: ${UPLOAD_POST_BASE_URL:https://api.upload-post.com}
+  api-key: ${UPLOAD_POST_API_KEY:}
+  # Upload-Post 의 프로필명. 데모용 1개 계정. 사용자별 분리는 추후 작업.
+  default-user: ${UPLOAD_POST_DEFAULT_USER:gemcafe-demo}
+  # 워터마크된 영상 파일을 읽을 컨테이너 내부 경로 (docker-compose 마운트 결과).
+  watermarked-mount: ${UPLOAD_POST_WATERMARKED_MOUNT:/app/watermarked-uploads}
+  connect-timeout-ms: ${UPLOAD_POST_CONNECT_TIMEOUT_MS:5000}
+  read-timeout-ms: ${UPLOAD_POST_READ_TIMEOUT_MS:300000}
+
 jwt:
   secret: ${JWT_SECRET:CHANGE_ME_IN_PROD_min_32_chars_required_for_HS256}
   access-expire-minutes: ${JWT_ACCESS_EXPIRE_MINUTES:60}
