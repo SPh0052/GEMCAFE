@@ -182,3 +182,57 @@ export async function requestWatermarkDownload(
   )
   return res.data.data
 }
+
+// ─── SNS 자동 게시 ──────────────────────────────────────────
+export type SocialPlatform = 'youtube' | 'instagram'
+
+export interface SocialUploadRequest {
+  /** 업로드할 플랫폼 — 최소 1개 */
+  platforms: SocialPlatform[]
+  /** 제목 — 1~100자 (필수) */
+  title: string
+  /** YouTube 설명 — ~5000자 (선택) */
+  description?: string
+  /** YouTube 태그 — 쉼표 구분 (선택) */
+  tags?: string
+  /** Instagram 캡션 — 생략 시 title 사용 (선택) */
+  instagramCaption?: string
+  /** 예약 게시 — ISO-8601 UTC (선택) */
+  scheduledDate?: string
+  /** 예약 시 타임존 (선택) */
+  timezone?: string
+}
+
+export interface PlatformResult {
+  platform: SocialPlatform
+  success: boolean
+  jobId: string | null
+  status: string
+  /** 실패 시 사유 — UI 에 노출 */
+  reason: string | null
+}
+
+export interface SocialUploadResponse {
+  results: PlatformResult[]
+}
+
+/**
+ * SNS 자동 게시 요청.
+ * POST /api/v1/videos/{videoId}/social-upload
+ *
+ * 5~30초 소요 (영상 크기에 따라). **HTTP 200 이어도 플랫폼별로 일부 실패 가능**.
+ * 각 결과의 `success` 로 개별 판정.
+ *
+ * 사전조건: 워터마크 파일이 생성돼 있어야 함 (SOC-001 방지).
+ * 미생성이면 호출 직전에 `requestWatermarkDownload` 를 한 번 돌려야 함.
+ */
+export async function requestSocialUpload(
+  videoId: number,
+  payload: SocialUploadRequest,
+): Promise<SocialUploadResponse> {
+  const res = await api.post<ApiResponse<SocialUploadResponse>>(
+    `/videos/${videoId}/social-upload`,
+    payload,
+  )
+  return res.data.data
+}
