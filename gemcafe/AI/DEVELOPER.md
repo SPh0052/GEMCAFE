@@ -156,7 +156,7 @@ Veo 3.1로 영상 생성. start/end + prompt 받아서 호출.
 ---
 
 ### 1.7 [llm_client.py](./llm_client.py)
-Gemini 3.1 Flash-Lite 래퍼. 3가지 시스템 프롬프트.
+Gemini 2.5 Flash-Lite (SSAFY GMS 게이트웨이 경유) 래퍼. 3가지 시스템 프롬프트.
 
 **공개 함수**
 | 함수 | 역할 | 반환 |
@@ -170,7 +170,7 @@ Gemini 3.1 Flash-Lite 래퍼. 3가지 시스템 프롬프트.
 |---|---|
 | `_get_client()` | Gemini 클라이언트 lazy init |
 | `_call_gemini(system, user, temperature)` | 공통 호출 |
-| `_MODEL` | 모델 ID (`"gemini-3.1-flash-lite"`) |
+| `_MODEL` | 모델 ID (`"gemini-2.5-flash-lite"`, SSAFY GMS 경유) |
 | `SYSTEM_PROMPT_PREVIEW` | Phase 1 시스템 프롬프트 (예시 2개 포함) |
 | `SYSTEM_PROMPT_TRANSLATE` | Phase 2 시스템 프롬프트 (한국 음식 음역 사전 등) |
 | `SYSTEM_PROMPT_HINT_EXPAND` | 힌트 확장 시스템 프롬프트 |
