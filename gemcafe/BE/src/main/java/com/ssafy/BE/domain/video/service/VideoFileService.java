@@ -127,6 +127,9 @@ public class VideoFileService {
         return idx >= 0 ? fileName.substring(idx + 1) : "";
     }
 
+    // 영상 끝 부분 fade-out / 마지막 프레임 정지 같은 거 제거용. AI 생성 직후 호출.
+    private static final double TRIM_TAIL_SECONDS = 1.0;
+
     public StoredVideo downloadAndThumbnail(String videoUrl) {
         String uuid = UUID.randomUUID().toString();
         String storedFileName = uuid + ".mp4";
@@ -140,7 +143,9 @@ public class VideoFileService {
         try {
             Files.createDirectories(videoDir);
             Files.createDirectories(thumbDir);
-            long size = downloadToDisk(videoUrl, videoPath);
+            downloadToDisk(videoUrl, videoPath);
+            trimTail(videoPath, TRIM_TAIL_SECONDS);
+            long size = Files.size(videoPath);
             extractThumbnail(videoPath, thumbPath);
             return new StoredVideo(storedFileName, size, thumbnailFileName);
         } catch (IOException e) {
@@ -153,6 +158,91 @@ public class VideoFileService {
         log.info("[VIDEO-FILE] downloading {} -> {}", url, target);
         try (InputStream in = URI.create(url).toURL().openStream()) {
             return Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * 영상 끝 N초 잘라내기. 재인코딩 없이 stream copy 라 빠르고 화질 손실 0.
+     * keyframe 단위로 잘라서 정밀도는 ±0.5초 정도 — 마지막 1초 정리 용도라 충분.
+     */
+    private void trimTail(Path videoPath, double secondsToCut) throws IOException {
+        double duration = probeDuration(videoPath);
+        if (duration <= secondsToCut + 0.5) {
+            log.warn("[VIDEO-FILE] trim skipped (too short): duration={}s cut={}s", duration, secondsToCut);
+            return;
+        }
+        double targetDuration = duration - secondsToCut;
+        Path tempOut = videoPath.resolveSibling(videoPath.getFileName() + ".trim.mp4");
+
+        log.info("[VIDEO-FILE] trimming {}s -> keeping {}s ({})", secondsToCut, targetDuration, videoPath);
+        ProcessBuilder pb = new ProcessBuilder(
+                ffmpegPath,
+                "-y",
+                "-i", videoPath.toString(),
+                "-t", String.format(java.util.Locale.ROOT, "%.3f", targetDuration),
+                "-c", "copy",
+                "-movflags", "+faststart",
+                tempOut.toString()
+        );
+        pb.redirectErrorStream(true);
+
+        Process process = pb.start();
+        try (InputStream in = process.getInputStream()) {
+            in.readAllBytes();
+        }
+
+        try {
+            boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                Files.deleteIfExists(tempOut);
+                throw new IOException("ffmpeg trim timeout");
+            }
+            if (process.exitValue() != 0) {
+                Files.deleteIfExists(tempOut);
+                throw new IOException("ffmpeg trim exit=" + process.exitValue());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Files.deleteIfExists(tempOut);
+            throw new IOException("ffmpeg trim interrupted", e);
+        }
+
+        Files.move(tempOut, videoPath,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    /**
+     * ffprobe 로 영상 길이(초) 측정.
+     */
+    private double probeDuration(Path videoPath) throws IOException {
+        ProcessBuilder pb = new ProcessBuilder(
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                videoPath.toString()
+        );
+        Process process = pb.start();
+        String out;
+        try (InputStream in = process.getInputStream()) {
+            out = new String(in.readAllBytes()).trim();
+        }
+        try {
+            boolean finished = process.waitFor(10, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new IOException("ffprobe timeout");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("ffprobe interrupted", e);
+        }
+        try {
+            return Double.parseDouble(out);
+        } catch (NumberFormatException e) {
+            throw new IOException("ffprobe parse failed: '" + out + "'", e);
         }
     }
 
