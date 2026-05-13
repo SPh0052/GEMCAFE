@@ -3,13 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   ArrowDown,
-  Camera,
   ChevronRight,
   Clock3,
   Image as ImageIcon,
   LogOut,
   Music,
-  Play,
   Share2,
   Sparkles,
   Type,
@@ -21,7 +19,9 @@ import SiteFooter from '@/layout/SiteFooter'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
 import { logout as logoutApi } from '@/features/auth/api'
 
-const ASSET = (file: string) => `${import.meta.env.BASE_URL}${file}`
+// 한글/공백 포함 파일명도 URL safe 하도록 인코딩 — 영문/숫자만 있는 파일명은 no-op.
+const ASSET = (file: string) =>
+  `${import.meta.env.BASE_URL}${encodeURIComponent(file)}`
 
 export default function IntroPage() {
   const navigate = useNavigate()
@@ -157,7 +157,8 @@ export default function IntroPage() {
             </a>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs font-medium text-gray-500">
+          {/* 20% 키운 라벨 — text-xs(0.75rem) → text-[0.9rem] */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[0.9rem] font-medium text-gray-500">
             <Tick>가입 즉시 무료 체험</Tick>
             <Tick>카드 등록 불필요</Tick>
             <Tick>모바일 PWA 지원</Tick>
@@ -184,17 +185,17 @@ export default function IntroPage() {
             <div className="absolute inset-0 -z-10 translate-y-10 scale-95 rounded-[3rem] bg-linear-to-br from-brand-400/40 via-orange-300/30 to-rose-300/40 blur-3xl" />
 
             <div className="relative mx-auto w-72 rotate-3 overflow-hidden rounded-[2.5rem] border-10 border-gray-900 bg-gray-900 shadow-2xl shadow-gray-900/40 transition hover:rotate-0 sm:w-80">
-              <div
-                className="relative aspect-9/16 w-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${ASSET('hanok.png')})` }}
-              >
+              <div className="relative aspect-9/16 w-full bg-gray-900">
+                {/* 목업 안에서 자동 재생되는 데모 영상(gif). object-cover 로 9:16 프레임 꽉 채움. */}
+                <img
+                  src={ASSET('mock.gif')}
+                  alt="gem.cafe 광고 영상 데모"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
                 <div className="absolute left-1/2 top-3 z-20 h-5 w-24 -translate-x-1/2 rounded-full bg-gray-900" />
                 <div className="absolute inset-0 bg-linear-to-b from-black/0 via-black/0 to-black/70" />
 
-                <div className="absolute inset-0 flex flex-col justify-between p-6">
-                  <div className="mt-6 self-start rounded-full bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand-600">
-                    AI 생성 · 00:45
-                  </div>
+                <div className="absolute inset-0 flex flex-col justify-end p-6">
                   <div>
                     <div className="text-2xl font-semibold text-white drop-shadow-lg">
                       딸기 생크림
@@ -202,7 +203,7 @@ export default function IntroPage() {
                       케이크
                     </div>
                     <div className="mt-1 text-xs font-medium text-white/85">
-                      한옥 카페 · 흘러내리기 효과
+                      피크닉 · 포크로 자르기
                     </div>
                     <div className="mt-4 flex items-center gap-2">
                       <div className="h-1 flex-1 rounded-full bg-white/30">
@@ -215,13 +216,6 @@ export default function IntroPage() {
                   </div>
                 </div>
 
-                {/* play button */}
-                <button
-                  type="button"
-                  className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-xl backdrop-blur transition hover:scale-110"
-                >
-                  <Play className="h-7 w-7 fill-brand-500 text-brand-500" />
-                </button>
               </div>
             </div>
           </div>
@@ -238,7 +232,8 @@ export default function IntroPage() {
                 <div className="bg-linear-to-br from-brand-300 to-orange-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
                   {s.value}
                 </div>
-                <div className="mt-1.5 text-xs font-medium tracking-wide text-gray-400 sm:text-sm">
+                {/* 20% 확대: text-xs(0.75rem)→text-[0.9rem], sm:text-sm(0.875rem)→sm:text-[1.05rem] */}
+                <div className="mt-1.5 text-[0.9rem] font-medium tracking-wide text-gray-400 sm:text-[1.05rem]">
                   {s.label}
                 </div>
               </div>
@@ -253,7 +248,7 @@ export default function IntroPage() {
         <div className="pointer-events-none absolute -left-20 bottom-20 -z-10 h-72 w-72 rounded-full bg-amber-200/40 blur-3xl" />
         <div className="mx-auto max-w-6xl px-7 sm:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
+            <span className="rounded-full bg-brand-50 px-3 py-1 text-[0.9rem] font-semibold uppercase tracking-widest text-brand-600">
               How it works
             </span>
             <h2 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
@@ -274,47 +269,27 @@ export default function IntroPage() {
             <FlowCard
               title="① 메뉴 사진"
               subtitle="딸기 생크림 케이크.jpg"
-              icon={Camera}
-              bg={ASSET('flow.png')}
+              bg={ASSET('딸기 생크림 케이크.jpg')}
               accent="from-amber-100 to-orange-100"
             />
 
             <FlowArrow />
 
-            {/* AI */}
-            <div className="relative flex flex-col rounded-4xl border border-gray-100 bg-linear-to-br from-gray-900 to-gray-950 p-7 text-white shadow-xl">
-              <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-brand-500/30 blur-3xl" />
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-                <Sparkles className="h-6 w-6 text-brand-300" />
-              </div>
-              <div className="relative mt-6">
-                <div className="text-xs font-semibold uppercase tracking-widest text-brand-300">
-                  ② AI 가 분석
-                </div>
-                <div className="mt-2 text-xl font-semibold">
-                  색·질감·재료 자동 인식
-                </div>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {['딸기', '크림', '촉촉함'].map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full border border-white/20 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/90"
-                    >
-                      # {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+            {/* AI — 다른 카드들과 동일한 FlowCard 레이아웃 (텍스트 하단 정렬, chop.png 배경) */}
+            <FlowCard
+              title="② AI 가 분석"
+              subtitle="색·질감·재료 자동 인식"
+              bg={ASSET('chop.png')}
+              accent="from-gray-100 to-brand-100"
+              tags={['딸기', '크림', '촉촉함']}
+            />
 
             <FlowArrow />
 
-            {/* Video */}
+            {/* Video — gif 가 그대로 자동 재생 */}
             <FlowCard
               title="③ 광고 영상"
-              subtitle="00:45 · 한옥 카페"
-              icon={Play}
-              bg={ASSET('hanok.png')}
+              bg={ASSET('mock.gif')}
               accent="from-rose-100 to-brand-100"
             />
           </div>
@@ -366,7 +341,7 @@ export default function IntroPage() {
       <section className="bg-linear-to-b from-orange-50/30 via-white to-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
+            <span className="rounded-full bg-gray-900 px-3 py-1 text-[0.9rem] font-semibold uppercase tracking-widest text-white">
               Features
             </span>
             <h2 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
@@ -607,34 +582,52 @@ export default function IntroPage() {
 function FlowCard({
   title,
   subtitle,
-  icon: Icon,
   bg,
   accent,
+  tags,
 }: {
   title: string
-  subtitle: string
-  icon: typeof Camera
-  bg: string
+  subtitle?: string
+  /** 배경 이미지 — png/jpg/gif 모두 허용 (gif 는 자동 재생). */
+  bg?: string
   accent: string
+  /** 하단 라벨 아래에 해시 태그 칩으로 표시 (옵션). */
+  tags?: string[]
 }) {
   return (
     <div className="group relative overflow-hidden rounded-4xl border border-gray-100 bg-white shadow-xl transition hover:-translate-y-1">
       <div className={`relative aspect-4/5 bg-linear-to-br ${accent}`}>
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${bg})` }}
-        />
-        <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
-        <div className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/95 text-brand-500 shadow-md backdrop-blur">
-          <Icon className="h-5 w-5" />
-        </div>
+        {bg && (
+          // <img> 로 깔면 gif 도 자연스럽게 재생됨. object-cover 로 4:5 프레임 채움.
+          <img
+            src={bg}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        {/* 하단 텍스트 가독성용 그라데이션 */}
+        <div className="absolute inset-0 bg-linear-to-t from-black/65 via-black/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-5 text-white">
           <div className="text-xs font-semibold uppercase tracking-widest text-white/80 drop-shadow">
             {title}
           </div>
-          <div className="mt-1 text-lg font-semibold tracking-tight drop-shadow-lg">
-            {subtitle}
-          </div>
+          {subtitle && (
+            <div className="mt-1 text-lg font-semibold tracking-tight drop-shadow-lg">
+              {subtitle}
+            </div>
+          )}
+          {tags && tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm"
+                >
+                  # {t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -779,9 +772,10 @@ const marqueeWords = [
 /* ───────── 보조 ───────── */
 
 function Tick({ children }: { children: React.ReactNode }) {
+  // ✓ 배지·체크마크 20% 확대: h-4 w-4 (1rem) → h-[1.2rem] w-[1.2rem], text-[10px] → text-[12px]
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-linear-to-br from-brand-400 to-orange-500 text-[10px] font-extrabold text-white shadow-sm">
+      <span className="flex h-[1.2rem] w-[1.2rem] items-center justify-center rounded-full bg-linear-to-br from-brand-400 to-orange-500 text-[12px] font-extrabold text-white shadow-sm">
         ✓
       </span>
       {children}

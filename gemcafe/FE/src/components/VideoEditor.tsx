@@ -1016,45 +1016,111 @@ export default function VideoEditor() {
     }
   }
 
+  // 미리듣기 blob URL — stopPreviewBgm 에서 revoke 해야 메모리 누수 X
+  const previewBlobUrlRef = useRef<string | null>(null)
+  /** 최신 미리듣기 요청 식별자 — 비동기 fetch 중간에 다른 트랙 눌리면 cancel 판단용 */
+  const previewReqIdRef = useRef(0)
+
   const stopPreviewBgm = () => {
+    // reqId 무효화 — 진행 중인 fetch 가 끝나도 그 결과를 적용 안 함
+    previewReqIdRef.current++
     if (previewAudioRef.current) {
       previewAudioRef.current.pause()
       previewAudioRef.current = null
     }
+    if (previewBlobUrlRef.current) {
+      URL.revokeObjectURL(previewBlobUrlRef.current)
+      previewBlobUrlRef.current = null
+    }
     setPreviewBgmKey(null)
   }
 
-  const togglePreviewBgm = (url: string, key: string) => {
+  /**
+   * BGM 미리듣기.
+   *
+   * Pixabay CDN 은 referer 헤더로 hotlink 를 차단 (403). `<audio referrerpolicy="...">`
+   * 는 표준이 아니라 브라우저가 무시하므로, **fetch + Blob URL** 로 우회한다:
+   *  1. fetch 에 `referrerPolicy: 'no-referrer'` 명시 → 요청에 referer 헤더 빠짐
+   *  2. 받아온 binary 를 `URL.createObjectURL` 로 blob 화 → audio.src 로 사용
+   *  3. 정지 시 blob URL revoke
+   */
+  const togglePreviewBgm = async (url: string, key: string) => {
     if (previewBgmKey === key) {
       stopPreviewBgm()
       return
     }
     stopPreviewBgm()
-    const audio = new Audio()
-    // Pixabay CDN 등이 referer 헤더 보고 hotlink 차단 (403) — referrer 안 보내게 처리.
-    // HTMLAudioElement 타입엔 referrerPolicy 가 없어서 setAttribute 로 우회 (런타임 동작 동일).
-    audio.setAttribute('referrerpolicy', 'no-referrer')
-    audio.src = url
-    audio.volume = 0.6
-    audio.play().catch((err) => {
-      console.error('[BGM preview] play failed', err)
-      setPreviewBgmKey(null)
-    })
-    audio.onended = () => setPreviewBgmKey(null)
-    previewAudioRef.current = audio
-    setPreviewBgmKey(key)
+    setPreviewBgmKey(key) // 낙관적 UI — 로딩 중에도 '재생중' 표시
+    const reqId = ++previewReqIdRef.current
+    try {
+      const res = await fetch(url, {
+        referrerPolicy: 'no-referrer',
+        mode: 'cors',
+      })
+      if (!res.ok) throw new Error(`fetch ${res.status}`)
+      const blob = await res.blob()
+      // 같은 reqId 가 아니면 그 사이 새 트랙이 눌린 것 — 무시.
+      // state 가 아니라 ref 로 검사해야 closure stale value 문제 회피.
+      if (reqId !== previewReqIdRef.current) return
+      const blobUrl = URL.createObjectURL(blob)
+      previewBlobUrlRef.current = blobUrl
+      const audio = new Audio(blobUrl)
+      audio.volume = 0.6
+      audio.onended = () => stopPreviewBgm()
+      await audio.play()
+      previewAudioRef.current = audio
+    } catch (err) {
+      console.error('[BGM preview] failed', err)
+      // 사용자에게 보이는 토스트 — Pixabay hotlink 차단 케이스 안내
+      setSaveStatus('error')
+      setSaveMessage(
+        'BGM 을 불러오지 못했어요. (CDN 정책으로 차단된 경우 배포 환경에선 정상 동작할 수 있어요)',
+      )
+      // reqId 일치할 때만 state 정리 (오래된 요청이 최신 트랙 정지시키지 않게)
+      if (reqId === previewReqIdRef.current) setPreviewBgmKey(null)
+    }
   }
 
-  const selectBgm = (url: string) => {
+  /** 선택된 BGM 의 blob URL — selectBgm 갱신·언마운트 시 revoke */
+  const bgmBlobUrlRef = useRef<string | null>(null)
+
+  /**
+   * 영상 합성용 BGM 선택.
+   *
+   * Pixabay hotlink 차단 회피를 위해 togglePreviewBgm 과 동일하게 fetch + Blob URL 사용.
+   * + Web Audio API 의 createMediaElementSource 로 gain · 녹화 destination 에 연결.
+   * + 같은 URL 의 미리듣기와 충돌 안 나도록 blob URL 은 별도 ref 로 관리.
+   */
+  const selectBgm = async (url: string) => {
     ensureAudio()
     const ctx = audioCtxRef.current!
     stopPreviewBgm()
 
+    // 기존 연결 해제 + 이전 blob URL revoke
     if (bgmAudioRef.current) bgmAudioRef.current.pause()
     if (bgmSourceRef.current) bgmSourceRef.current.disconnect()
     if (bgmGainRef.current) bgmGainRef.current.disconnect()
+    if (bgmBlobUrlRef.current) {
+      URL.revokeObjectURL(bgmBlobUrlRef.current)
+      bgmBlobUrlRef.current = null
+    }
 
-    const audio = new Audio(url)
+    let audioSrc = url
+    try {
+      const res = await fetch(url, {
+        referrerPolicy: 'no-referrer',
+        mode: 'cors',
+      })
+      if (!res.ok) throw new Error(`fetch ${res.status}`)
+      const blob = await res.blob()
+      audioSrc = URL.createObjectURL(blob)
+      bgmBlobUrlRef.current = audioSrc
+    } catch (err) {
+      console.error('[BGM] fetch 실패 — 원본 URL 로 fallback', err)
+      // fallback: 원본 URL 그대로 (브라우저가 다시 referer 보내며 403 가능)
+    }
+
+    const audio = new Audio(audioSrc)
     audio.crossOrigin = 'anonymous'
     audio.loop = true
     audio.preload = 'auto'
@@ -1070,7 +1136,7 @@ export default function VideoEditor() {
     bgmAudioRef.current = audio
     bgmSourceRef.current = source
     bgmGainRef.current = gain
-    setBgmUrl(url)
+    setBgmUrl(url) // 원본 URL 보존 — 저장·재선택 비교용
 
     if (isPlaying) audio.play().catch(() => {})
   }
@@ -1640,13 +1706,23 @@ export default function VideoEditor() {
             <div className="p-4 md:p-5">
               {activeTab === 'text' && (
                 <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    placeholder="추가할 문구를 입력하세요"
-                    className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="추가할 문구를 입력하세요"
+                      className="min-w-0 flex-1 rounded-xl border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                    />
+                    {/* 텍스트 객체 명시적 생성 — 입력값 + 현재 폰트/크기/색상으로 추가 */}
+                    <button
+                      type="button"
+                      onClick={addText}
+                      className="shrink-0 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 active:scale-[0.98]"
+                    >
+                      텍스트 생성
+                    </button>
+                  </div>
 
                   <div>
                     <label className="text-xs font-medium text-gray-400">
@@ -1942,18 +2018,7 @@ export default function VideoEditor() {
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  const next = isActive ? null : key
-                  setActiveTab(next)
-                  // 텍스트 탭 새로 열 때 — 다른 객체 선택 안 됐으면 자동으로 새 텍스트 생성
-                  if (
-                    next === 'text' &&
-                    !selectedTextId &&
-                    !selectedStickerId
-                  ) {
-                    addText()
-                  }
-                }}
+                onClick={() => setActiveTab(isActive ? null : key)}
                 className={`flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-medium transition ${
                   isActive
                     ? 'text-brand-400'
