@@ -22,6 +22,8 @@ import fal_client
 import requests
 from dotenv import load_dotenv
 
+import prompt_locks
+
 load_dotenv()
 
 # =====================================================================
@@ -78,15 +80,16 @@ def load_latest_keyframe_metadata() -> dict:
     return meta
 
 
-def resolve_frames_from_metadata(meta: dict) -> tuple[str, str, str]:
-    """frame_strategy에 따라 start/end URL 결정. video_prompt도 같이 반환."""
+def resolve_frames_from_metadata(meta: dict) -> tuple[str, str, str, Optional[str]]:
+    """frame_strategy에 따라 start/end URL 결정. video_prompt + simulation 키도 같이 반환."""
     base_url = meta["base_url"]
     keyframe_url = meta["keyframe_url"]
     strategy = meta["frame_strategy"]
+    simulation = meta.get("simulation")
     if strategy == "i2i_is_end":
-        return base_url, keyframe_url, meta["video_prompt"]
+        return base_url, keyframe_url, meta["video_prompt"], simulation
     else:  # "i2i_is_start"
-        return keyframe_url, base_url, meta["video_prompt"]
+        return keyframe_url, base_url, meta["video_prompt"], simulation
 
 
 def download_file(url: str, save_path: str) -> str:
@@ -196,19 +199,25 @@ def main():
         raise SystemExit("FAL_KEY 미설정")
 
     # 입력 결정 — 수동 지정 vs 자동 로드
+    # 자동 모드일 때만 시뮬레이션별 부정 프롬프트가 잡힘.
+    # 수동 모드는 simulation 정보가 없으므로 generate_video의 기본 부정 프롬프트로 폴백.
     if START_URL and END_URL and VIDEO_PROMPT:
         print("[수동 모드] 스크립트 상단 URL 사용")
         start, end, prompt = START_URL, END_URL, VIDEO_PROMPT
+        negative = None
     else:
         print("[자동 모드] 가장 최근 keyframe_* 메타데이터에서 URL 로드")
         meta = load_latest_keyframe_metadata()
-        start, end, prompt = resolve_frames_from_metadata(meta)
+        start, end, prompt, simulation = resolve_frames_from_metadata(meta)
+        negative = prompt_locks.get_negative_prompt(simulation) if simulation else None
         print(f"      simulation: {meta.get('simulation')} × focus: {meta.get('focus')}")
         print(f"      strategy:   {meta.get('frame_strategy')}")
         print(f"      keyframe:   {meta.get('save_dir')}")
+        if negative:
+            print(f"      negative:   {negative[:80]}...")
         print()
 
-    result = generate_video(start, end, prompt)
+    result = generate_video(start, end, prompt, negative_prompt=negative)
 
     print("\n" + "=" * 60)
     print(f"영상 생성 완료")
