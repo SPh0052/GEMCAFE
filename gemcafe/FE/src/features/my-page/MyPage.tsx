@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileText,
@@ -9,7 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
-import { logout as logoutApi } from '@/features/auth/api'
+import { getMe, logout as logoutApi } from '@/features/auth/api'
 
 // 출시 전 placeholder — 실제 화면이 아직 없어 비활성화. 컴포넌트는 disabled 스타일로 노출만.
 const menus = [
@@ -19,8 +19,35 @@ const menus = [
 
 export default function MyPage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
+  const { user, logout, setUser } = useAuthStore()
   const [loggingOut, setLoggingOut] = useState(false)
+
+  // 마이페이지 진입 시 /users/me 로 최신 프로필 + 잼 잔액 동기화.
+  // 실패해도 기존 store user 그대로 표시 — 화면 끊김 방지.
+  useEffect(() => {
+    let cancelled = false
+    getMe()
+      .then((me) => {
+        if (cancelled) return
+        console.log('[GET /users/me] response:', me)
+        setUser({
+          sub: String(me.userId),
+          nickname: me.name || user?.nickname || '',
+          email: me.email || user?.email || '',
+          picture: me.profileImage || user?.picture,
+          phone: user?.phone,
+          gem: me.gem ?? 0,
+        })
+      })
+      .catch((err) => {
+        console.warn('[GET /users/me] 실패 — 기존 user 유지', err)
+      })
+    return () => {
+      cancelled = true
+    }
+    // mount 시 1회만 — user 변경에 반응해 다시 부르면 setUser 가 다시 mount effect 트리거 위험.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleLogout = async () => {
     if (loggingOut) return
@@ -70,9 +97,6 @@ export default function MyPage() {
                 />
               )}
             </div>
-            <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-white shadow ring-2 ring-white">
-              <Sparkles className="h-2.5 w-2.5" />
-            </span>
           </div>
           <div className="flex-1">
             <div className="text-base font-extrabold text-gray-900">
