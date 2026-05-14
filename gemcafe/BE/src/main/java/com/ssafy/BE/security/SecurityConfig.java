@@ -1,5 +1,6 @@
 package com.ssafy.BE.security;
 
+import com.ssafy.BE.security.jwt.JwtAuthenticationEntryPoint;
 import com.ssafy.BE.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +18,7 @@ public class SecurityConfig {
 
     private final UrlBasedCorsConfigurationSource corsConfigurationSource;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -26,6 +28,9 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 인증 실패 시 401 응답 (만료/위변조 토큰 → FE refresh 흐름 진입).
+                // accessDeniedHandler 는 기본 동작(403) 그대로 — 권한 부족용.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 HttpMethod.POST,
