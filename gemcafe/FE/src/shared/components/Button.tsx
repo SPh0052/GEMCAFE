@@ -25,10 +25,12 @@ export default function Button({
   children,
   fullWidth = false,
   className = '',
+  type = 'button',
   ...rest
 }: Props) {
   return (
     <button
+      type={type}
       className={`inline-flex items-center justify-center gap-2 rounded-xl font-medium transition ${
         fullWidth ? 'w-full' : ''
       } ${variantMap[variant]} ${sizeMap[size]} disabled:opacity-50 ${className}`}

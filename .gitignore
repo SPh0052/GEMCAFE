@@ -16,6 +16,14 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# ========================
+# AI 코딩 도구 (Claude Code, Cursor 등)
+# ========================
+.claude/
+.cursor/
+.aider*
+.continue/
  
 # ========================
 # 공통 로그
@@ -37,6 +45,7 @@ env/
 .env
 .env.*
 !.env.example
+
 
 # Spring Boot — 로컬 dev 비밀값 (절대 commit X)
 **/src/main/resources/application-local.yaml
@@ -62,3 +71,8 @@ __pycache__/
 # 기타
 # ========================
 .vscode
+.pem
+
+# Docker
+**/docker-compose.local.yml
+**/docker-compose.local.yaml

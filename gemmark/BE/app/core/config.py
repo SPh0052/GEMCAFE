@@ -37,6 +37,9 @@ class Settings(BaseSettings):
 
     WATERMARK_ALPHA: float = 20.0
     WATERMARK_KEY: int = 42
+    # gemcafe → gemmark embed-from-path 호출 시 video_watermarked.admin_id 로 기록할 시스템 admin id.
+    # 사전에 admin 테이블에 해당 id 의 system 계정이 존재해야 함.
+    WATERMARK_SYSTEM_ADMIN_ID: int = 1
 
     # JWT 인증
     JWT_SECRET: str = Field(..., min_length=32)  # 검증도 같이 가능

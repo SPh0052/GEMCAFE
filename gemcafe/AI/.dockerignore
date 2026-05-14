@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pkl
+.venv/
+venv/
+.env
+.env.*
+outputs/
+uploads/
+_tmp_*.png
+output_test.mp4
+test_*.jpg
+.git/
+.gitignore
+.dockerignore
+README.md

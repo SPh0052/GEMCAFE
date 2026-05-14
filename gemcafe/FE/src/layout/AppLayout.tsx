@@ -19,7 +19,7 @@ import SideNav from '@/layout/SideNav'
  */
 export default function AppLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-gray-100 md:bg-white">
+    <div className="flex h-screen flex-col bg-gray-100 md:bg-white">
       {/* 풀 너비 헤더 — 모바일·데스크톱 공통, 화면 최상단에 sticky */}
       <AppHeader />
 
@@ -28,14 +28,20 @@ export default function AppLayout() {
         <SideNav />
 
         {/* 본문 영역 — 모바일은 폰 너비 가운데, 데스크톱은 사이드 네비 옆 전체 폭 */}
-        <div className="mx-auto flex w-full max-w-107.5 flex-1 flex-col bg-white md:mx-0 md:max-w-none">
-          <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto w-full md:max-w-3xl lg:max-w-5xl">
+        <div className="mx-auto flex min-h-0 w-full max-w-107.5 flex-1 flex-col bg-white md:mx-0 md:max-w-none">
+          {/* main 을 flex column 으로 만들어 페이지가 flex-1 로 가득 채울 수 있게.
+              min-h-0: 콘텐츠 길이만큼 grow 안 하도록.
+              pb-[5rem]: BottomNav 가 fixed 라서 main 콘텐츠가 nav 뒤로 숨지 않게 여백 확보.
+              padding 영역에서 sticky bottom-0 가 자동으로 nav 위에 위치함. */}
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom,0))] md:pb-0">
+            {/* min-h-0 필수 — 없으면 자식이 h-full / overflow-hidden 으로 viewport 안에 맞추려 해도
+                flex-1 의 자연 사이즈가 콘텐츠를 따라가서 main 이 스크롤됨 (VideoDetailPage 케이스). */}
+            <div className="mx-auto flex min-h-0 w-full flex-1 flex-col md:max-w-3xl lg:max-w-5xl">
               <Outlet />
             </div>
           </main>
 
-          {/* 모바일 전용 하단 네비 */}
+          {/* AppLayout 에선 데스크톱에 SideNav 가 있으니 BottomNav 는 모바일만 */}
           <div className="md:hidden">
             <BottomNav />
           </div>
