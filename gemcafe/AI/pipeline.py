@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 
 import generate_keyframe
 import generate_video
+import prompt_builder
 
 load_dotenv()
 
@@ -60,6 +61,26 @@ USER_HINT: Optional[str] = None
 # 키프레임 시드 (None=랜덤, 정수=재현)
 SEED: Optional[int] = None
 
+# =====================================================================
+# LLM 오토 프롬프팅 (production parity)
+# =====================================================================
+# USE_LLM_PROMPT
+#   True  → API 흐름과 동일하게 LLM Phase 1 (한국어 미리보기 생성) + Phase 2
+#           (한→영 번역 + 잠금 라이브러리 결합) 까지 거쳐 최종 영상 프롬프트 생성.
+#           production 사장님이 만들 영상과 동일한 프롬프트로 Veo 호출.
+#           추가 비용 ~$0.0002 (LLM 2회), 추가 시간 ~3~5초.
+#   False → SIMULATIONS[sim].video_template 의 {focus} 치환본을 그대로 Veo 에 전달
+#           (구 동작). LLM 키 없이 빠른 검증 가능하지만 production 과 다른 결과.
+USE_LLM_PROMPT: bool = True
+
+# EDIT_PROMPT_INTERACTIVELY
+#   USE_LLM_PROMPT=True 일 때만 의미 있음.
+#   True  → LLM 한국어 미리보기 후 일시정지. 결과를 korean_preview.txt 로 저장하고
+#           사용자가 본인 에디터로 파일 편집 후 터미널에서 Enter 누르면, 수정본을
+#           다시 읽어 LLM Phase 2 로 진행. (사장님이 textarea 편집하는 것과 등가)
+#   False → LLM 한국어 미리보기를 그대로 사용 (편집 단계 skip).
+EDIT_PROMPT_INTERACTIVELY: bool = False
+
 OUTPUT_DIR = "outputs"
 
 
@@ -92,6 +113,74 @@ def main():
         save_dir=run_dir,    # ← 같은 폴더에 저장하도록 지정
     )
 
+    # ─── (옵션) Phase 1.5 — LLM 오토 프롬프팅 (production parity) ───
+    # USE_LLM_PROMPT=True 면 API 흐름과 동일한 LLM Phase 1+2 거쳐 최종 영상 프롬프트 생성.
+    # USE_LLM_PROMPT=False 면 video_template 의 {focus} 치환본을 그대로 사용 (구 동작).
+    video_prompt: str
+    negative_prompt: Optional[str] = None
+    duration: Optional[str] = None
+    if USE_LLM_PROMPT:
+        print("\n" + "=" * 60)
+        print("Phase 1.5 — LLM 오토 프롬프팅 (한국어 미리보기 + 한→영 + 잠금 결합)")
+        print("=" * 60)
+
+        # analysis 가 디스크에 있으면 cake_type 을 dessert_info 로 활용
+        analysis = None
+        try:
+            analysis = generate_keyframe.load_latest_analysis()
+        except FileNotFoundError:
+            pass
+        dessert_info = (analysis.get("cake_type") if analysis else None) or "케이크"
+
+        # LLM Phase 1 — 한국어 미리보기
+        print("[LLM Phase 1] 한국어 미리보기 생성 중...")
+        korean_preview = prompt_builder.build_korean_preview(
+            simulation=SIMULATION,
+            focus=kf["focus"],
+            background=BACKGROUND,
+            hint=USER_HINT,
+            dessert_info=dessert_info,
+            analysis=analysis,
+        )
+        print(f"\n[한국어 미리보기]\n{korean_preview}\n")
+
+        # (옵션) 사용자 편집 대기
+        if EDIT_PROMPT_INTERACTIVELY:
+            preview_path = run_dir / "korean_preview.txt"
+            preview_path.write_text(korean_preview, encoding="utf-8")
+            print(f"[편집 모드] {preview_path}")
+            print(f"   → 본인 에디터로 위 파일을 열어 한국어 묘사 수정 후")
+            print(f"   → 이 터미널로 돌아와 Enter 누르면 진행됩니다.")
+            input("[Enter 대기...] ")
+            korean_preview = preview_path.read_text(encoding="utf-8").strip()
+            print(f"\n[편집된 한국어 미리보기]\n{korean_preview}\n")
+
+        # LLM Phase 2 — 한→영 번역 + 잠금 라이브러리 결합
+        print("[LLM Phase 2] 영어 영상 프롬프트 + 잠금 결합 중...")
+        final = prompt_builder.assemble_final_video_prompt(
+            user_korean_text=korean_preview,
+            simulation=SIMULATION,
+            background=BACKGROUND,
+        )
+        video_prompt = final["prompt"]
+        negative_prompt = final["negative_prompt"]
+        duration = final["duration"]
+        print(f"\n[최종 영어 프롬프트]\n{video_prompt}\n")
+        print(f"[부정 프롬프트] {negative_prompt[:120]}...")
+        print(f"[duration]     {duration}\n")
+
+        # 디버깅용 저장 — 어떤 프롬프트로 영상이 만들어졌는지 추적 가능
+        (run_dir / "video_prompt_final.txt").write_text(
+            f"=== 한국어 미리보기 ===\n{korean_preview}\n\n"
+            f"=== 최종 영어 프롬프트 (Veo 입력) ===\n{video_prompt}\n\n"
+            f"=== 부정 프롬프트 ===\n{negative_prompt}\n\n"
+            f"=== duration ===\n{duration}\n",
+            encoding="utf-8",
+        )
+    else:
+        print("\n[USE_LLM_PROMPT=False] LLM skip — video_template 직접 사용")
+        video_prompt = kf["video_prompt"]
+
     # ─── Phase 2: 영상 생성 ───
     print("\n" + "=" * 60)
     print("Phase 2 — 영상 생성 (generate_video)")
@@ -108,8 +197,10 @@ def main():
     vid = generate_video.generate_video(
         start_url=start_url,
         end_url=end_url,
-        video_prompt=kf["video_prompt"],
+        video_prompt=video_prompt,
         save_dir=run_dir,    # ← 같은 폴더
+        duration=duration,
+        negative_prompt=negative_prompt,
     )
 
     # ─── 최종 요약 ───
@@ -122,6 +213,10 @@ def main():
     else:
         print(f"  (2_background.jpg   skip — BACKGROUND=None)")
     print(f"  3_keyframe.jpg      ({SIMULATION} × focus='{kf['focus']}')")
+    if USE_LLM_PROMPT:
+        print(f"  video_prompt_final.txt  (한국어 + 영어 + 부정 프롬프트 디버깅 로그)")
+        if EDIT_PROMPT_INTERACTIVELY:
+            print(f"  korean_preview.txt  (사용자 편집본)")
     print(f"  4_video.mp4         (Veo 3.1 first-last-frame)")
     print(f"  metadata.json       (키프레임 메타) ← Phase 1이 덮어씀")
     print()
