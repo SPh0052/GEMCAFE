@@ -55,7 +55,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             String type = claims.get("type", String.class);
             if (!JwtTokenProvider.TYPE_ACCESS.equals(type)) {
-                return; // refresh token으로는 일반 API 인증 X
+                // refresh token 으로는 일반 API 인증 X. context 안 채움 → EntryPoint 가 401
+                SecurityContextHolder.clearContext();
+                return;
             }
 
             Integer userId = Integer.valueOf(claims.getSubject());
@@ -63,7 +65,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(userId, null, List.of());
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (JwtException | NumberFormatException ignored) {
-            // 토큰이 유효하지 않으면 그냥 인증 미설정 → 다운스트림에서 401
+            // 토큰 만료/위변조/형식 오류 → context clear → 보호 endpoint 접근 시 EntryPoint 가 401
+            SecurityContextHolder.clearContext();
         }
     }
 
