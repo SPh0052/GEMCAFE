@@ -99,6 +99,31 @@ def main():
     run_dir.mkdir(parents=True, exist_ok=True)
     print(f"[풀 파이프라인 시작]\n저장 폴더: {run_dir}\n")
 
+    # ─── (디버깅용) 가장 최근 analyze_* 폴더의 결과물을 run_dir 로 복사 ───
+    # pipeline 이 Moondream 을 새로 호출하진 않지만 (analyze.py 단독 실행 의도),
+    # 이번 run 에 사용된 분석 결과 + reasoning 트레이스를 같은 폴더에 함께 보존해서
+    # 사후 디버깅 (모델이 케이크를 어떻게 인식했는지 / 왜 그 visual_identity 가 박혔는지)
+    # 추적이 쉽도록 한다.
+    analyze_dirs = sorted(
+        [p for p in Path(OUTPUT_DIR).glob("analyze_*") if p.is_dir()],
+        reverse=True,
+    )
+    if analyze_dirs:
+        src = analyze_dirs[0]
+        copied = []
+        for fname in ("analysis.json", "raw_response.txt", "full_response.json"):
+            src_path = src / fname
+            if src_path.exists():
+                (run_dir / f"0_{fname}").write_text(
+                    src_path.read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+                copied.append(fname)
+        if copied:
+            print(f"[Moondream 분석 결과 복사] {src.name} → {', '.join('0_' + f for f in copied)}\n")
+    else:
+        print(f"[Moondream 분석] outputs/analyze_* 폴더 없음 — analyze.py 먼저 실행 권장\n")
+
     # ─── Phase 1: 키프레임 생성 ───
     print("=" * 60)
     print("Phase 1 — 키프레임 생성 (generate_keyframe)")
@@ -207,6 +232,10 @@ def main():
     print("\n" + "=" * 60)
     print(f"풀 파이프라인 완료 — {run_dir}/")
     print("=" * 60)
+    if analyze_dirs:
+        print(f"  0_analysis.json     (Moondream3 정형 분석)")
+        print(f"  0_raw_response.txt  (Moondream3 원본 응답 — reasoning 사고 흐름 포함)")
+        print(f"  0_full_response.json (fal.ai 응답 전체)")
     print(f"  1_input.jpg         (원본)")
     if BACKGROUND:
         print(f"  2_background.jpg    (배경 교체 = '{BACKGROUND}')")
