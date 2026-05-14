@@ -380,14 +380,26 @@ def build_prompts(
     instruction = sim["instruction_template"].format(focus=focus_text)
     video = sim["video_template"].format(focus=focus_text)
 
-    # analysis 가 있으면 요소별 시각 식별 가이드를 instruction 앞에 prepend.
-    # (nano-banana 가 입력 이미지의 흰 크림을 치즈로 오인 등 시각적 모호성 차단)
+    # analysis 가 있으면 요소별 시각 식별 가이드 + 시트 촉촉도 형용사구를
+    # instruction 앞에 prepend.
+    #   - visual_identities: 흰 크림 → "fluffy whipped cream" 같이 재료 정체성
+    #     (nano-banana 가 입력 이미지의 재료를 치즈로 오인하는 시각적 모호성 차단)
+    #   - moisture descriptor: 분석된 시트 촉촉도 (moist/balanced/dry) 를 영어
+    #     형용사구로 ("moist sponge with visible moisture sheen..." 등). 키프레임에
+    #     시트 촉촉함이 시각적으로 반영되도록 유도.
     if analysis is not None:
         import prompt_locks
         elements = prompt_locks.collect_elements_from_analysis(analysis)
         visual_ids = prompt_locks.get_visual_identities(elements)
+        moisture_en = prompt_locks.get_moisture_descriptor_en(analysis)
+
+        prepend_lines = []
         if visual_ids:
-            instruction = f"{visual_ids}\n\n{instruction}"
+            prepend_lines.append(visual_ids)
+        if moisture_en:
+            prepend_lines.append(f"Sponge texture characteristic: {moisture_en}.")
+        if prepend_lines:
+            instruction = "\n\n".join(prepend_lines) + "\n\n" + instruction
 
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
@@ -448,11 +460,20 @@ def build_korean_preview(
     if cake_elements is None and analysis is not None:
         cake_elements = prompt_locks.collect_elements_from_analysis(analysis)
 
-    texture_guidance = (
+    # texture_guidance 는 요소별 반응 가이드 (기존) + 시트 촉촉도 가이드 (신규) 의 결합.
+    # 둘 다 LLM Phase 1 에 잠금 가이드로 전달되어 자연스러운 한국어 묘사로 녹여짐.
+    texture_lines = []
+    base_guidance = (
         prompt_locks.get_texture_guidance(cake_elements, simulation)
         if cake_elements
         else ""
     )
+    if base_guidance:
+        texture_lines.append(base_guidance)
+    moisture_kr = prompt_locks.get_moisture_descriptor_kr(analysis)
+    if moisture_kr:
+        texture_lines.append(moisture_kr)
+    texture_guidance = "\n".join(texture_lines)
 
     # hint가 있으면 LLM으로 4가지 측면(조명/모션/분위기/시각적 디테일)으로 확장.
     # 짧은 힌트("고급스럽게")를 풍부한 키워드로 풀어 Phase 1 입력 품질 향상.

@@ -56,6 +56,7 @@ Example 1 (a strawberry shortcake with whipped cream):
 "key_feature": "fresh strawberries on white whipped cream",
 "is_warm": false,
 "is_layered": true,
+"quality_attributes": {"moisture": "moist"},
 "suggested_focus": ["fresh_strawberries", "fluffy_whipped_cream", "soft_sponge_layers"]
 }
 
@@ -107,6 +108,27 @@ Do NOT invent new descriptors like "yellow_cake_blocks", "fresh_mango_pieces",
 
 (The "suggested_focus" field is allowed to use descriptive labels — those are
 user-facing options shown in the UI.)
+
+=== QUALITY ATTRIBUTES (visible from image) ===
+
+Also include a "quality_attributes" object in your JSON output:
+
+  "quality_attributes": {
+    "moisture": "moist" | "balanced" | "dry"
+  }
+
+Visual criteria for the moisture level of the sponge / base:
+  - moist:    visible moisture sheen on sponge cut faces, soft yielding crumb
+              that looks juicy, glossy fillings, well-soaked layers.
+              Common in fresh layered cakes, well-soaked tiramisu, custard-filled
+              or syrup-soaked cakes.
+  - balanced: natural moisture, not particularly wet or dry. Most typical
+              everyday cakes fall here.
+  - dry:      visibly dry crumb with no sheen, distinct/separated crumb
+              structure, powdery surface or stale-looking. Naturally drier
+              baked goods (pound cake style, biscotti-like).
+
+If moisture is hard to judge from the photo, default to "balanced".
 
 Now analyze the provided image. Output ONLY valid JSON in the same schema, no other text."""
 

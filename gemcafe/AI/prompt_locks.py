@@ -10,11 +10,14 @@
   - NEGATIVE_PROMPTS         시뮬레이션별 + 공통 부정 프롬프트
   - MOOD_LIGHTING            배경별 영어 묘사
   - DURATION_SETTINGS        시뮬레이션별 권장 영상 길이(초)
+  - TEXTURE_PROFILES         요소별 반응 / 시각 정체성 매핑
+  - MOISTURE_DESCRIPTIONS    시트 촉촉도 단계별 한/영 묘사
 
 확장 방법:
   - 새 시뮬레이션 추가 시 모든 dict에 같은 ID로 한 줄씩 추가.
   - 새 배경 추가 시 BACKGROUND_LABELS_KR + MOOD_LIGHTING 둘 다 추가.
 """
+from typing import Optional
 
 # =====================================================================
 # 시뮬레이션 / 배경 한국어 라벨 (사장님 화면 + LLM 슬롯)
@@ -505,3 +508,61 @@ def get_visual_identities(elements: list[str]) -> str:
     if not identities:
         return ""
     return "Materials visible in this cake: " + "; ".join(identities) + "."
+
+
+# =====================================================================
+# 품질 속성 — 시트 촉촉도 단계 묘사 (analysis.quality_attributes 에서 추출)
+# =====================================================================
+# 분석 단계에서 시각적으로 판별 가능한 시트의 촉촉도를 3단계로 매핑.
+# 한국어는 LLM Phase 1 (한국어 미리보기) 의 texture_guidance 에 박혀
+# 사장님 화면 묘사에 자연스럽게 녹음.
+# 영어는 I2I (nano-banana) 의 visual_identity prepend 에 추가되어
+# 키프레임에서 시트의 촉촉도 외형이 시각적으로 반영되도록 유도.
+MOISTURE_DESCRIPTIONS = {
+    "moist": {
+        "kr": "촉촉한 (수분이 충분히 살아있고 결이 부드러우며 윤기 있음)",
+        "en": "moist sponge with visible moisture sheen on cut faces, soft yielding crumb, well-soaked layers",
+    },
+    "balanced": {
+        "kr": "균형 잡힌 식감의 (촉촉함과 가벼움이 적절한)",
+        "en": "sponge with balanced natural moisture, soft crumb, neither dry nor overly wet",
+    },
+    "dry": {
+        "kr": "포슬한 (살짝 건조하고 결이 또렷하며 윤기 적음)",
+        "en": "drier sponge with distinct crumb structure, minimal moisture sheen, slightly crumbly texture",
+    },
+}
+
+
+def _get_moisture_level(analysis: Optional[dict]) -> Optional[str]:
+    """analysis dict 에서 quality_attributes.moisture 안전 추출. 없거나 유효하지 않으면 None."""
+    if not analysis:
+        return None
+    qa = analysis.get("quality_attributes") or {}
+    moisture = qa.get("moisture")
+    if moisture in MOISTURE_DESCRIPTIONS:
+        return moisture
+    return None
+
+
+def get_moisture_descriptor_kr(analysis: Optional[dict]) -> str:
+    """
+    analysis.quality_attributes.moisture → LLM Phase 1 texture_guidance 용
+    한국어 한 줄 묘사. 분석에 quality_attributes 가 없거나 moisture 가 유효하지
+    않으면 빈 문자열 (backward compatible — 옛 analysis.json 도 그대로 동작).
+    """
+    moisture = _get_moisture_level(analysis)
+    if moisture is None:
+        return ""
+    return f"- 시트 촉촉도: {MOISTURE_DESCRIPTIONS[moisture]['kr']}"
+
+
+def get_moisture_descriptor_en(analysis: Optional[dict]) -> str:
+    """
+    analysis.quality_attributes.moisture → I2I visual_identity 용 영어 구절.
+    분석에 quality_attributes 가 없거나 moisture 가 유효하지 않으면 빈 문자열.
+    """
+    moisture = _get_moisture_level(analysis)
+    if moisture is None:
+        return ""
+    return MOISTURE_DESCRIPTIONS[moisture]["en"]
