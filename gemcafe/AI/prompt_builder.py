@@ -380,14 +380,17 @@ def build_prompts(
     instruction = sim["instruction_template"].format(focus=focus_text)
     video = sim["video_template"].format(focus=focus_text)
 
-    # analysis 가 있으면 요소별 시각 식별 가이드를 instruction 앞에 prepend.
-    # (nano-banana 가 입력 이미지의 흰 크림을 치즈로 오인 등 시각적 모호성 차단)
+    # analysis 가 있으면 케이크 구조 컨텍스트 (역할별 base/cream/topping/coating + 시각 식별)
+    # 를 instruction 앞에 prepend. 모델이 "어떤 재료가 어느 자리에 있는지" 명확히 인식해서
+    # 액션 묘사 시 모든 요소를 자연스럽게 활용 가능. 빈 슬롯은 자동 omit.
+    # (이전 get_visual_identities 의 flat list 대비, 역할 정보가 살아있어서 fork_bite /
+    #  cut_in_half 같은 cross-section 시뮬레이션에서 LLM 이 cream 안 topping 같은
+    #  요소 간 관계도 묘사 가능.)
     if analysis is not None:
         import prompt_locks
-        elements = prompt_locks.collect_elements_from_analysis(analysis)
-        visual_ids = prompt_locks.get_visual_identities(elements)
-        if visual_ids:
-            instruction = f"{visual_ids}\n\n{instruction}"
+        structure_ctx = prompt_locks.get_cake_structure_context_en(analysis)
+        if structure_ctx:
+            instruction = f"{structure_ctx}\n\n{instruction}"
 
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
@@ -453,6 +456,15 @@ def build_korean_preview(
         if cake_elements
         else ""
     )
+
+    # dessert_info 에 케이크 구조 정보(역할별 시트/크림/토핑/코팅) 보강.
+    # 예: "딸기 생크림 조각 케이크" → "딸기 생크림 조각 케이크 (시트: 스펀지 시트, 크림: 생크림, 토핑: 딸기)"
+    # LLM 이 "크림 안에 있던 딸기가 단면에 드러난다" 같이 요소 간 관계를 묘사하도록 컨텍스트 제공.
+    # analysis 없거나 매핑 없는 요소뿐이면 suffix 가 빈 문자열 → 기존 동작 유지.
+    if analysis is not None:
+        structure_suffix = prompt_locks.get_cake_structure_suffix_kr(analysis)
+        if structure_suffix:
+            dessert_info = f"{dessert_info}{structure_suffix}"
 
     # hint가 있으면 LLM으로 4가지 측면(조명/모션/분위기/시각적 디테일)으로 확장.
     # 짧은 힌트("고급스럽게")를 풍부한 키워드로 풀어 Phase 1 입력 품질 향상.

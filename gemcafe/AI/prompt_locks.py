@@ -505,3 +505,160 @@ def get_visual_identities(elements: list[str]) -> str:
     if not identities:
         return ""
     return "Materials visible in this cake: " + "; ".join(identities) + "."
+
+
+# =====================================================================
+# 역할별 (base / cream / topping / coating) 요소 수집 + 구조 컨텍스트
+# (Optional slot — focus 만 활용하던 액션 묘사를 풍부하게 만들기 위한 인프라)
+# =====================================================================
+# 기존 collect_elements_from_analysis 는 모든 요소를 flat list 로 반환하지만,
+# I2I 모델 / LLM Phase 1 한국어 미리보기에는 "어느 역할 자리에 어떤 재료가 있는지"
+# 가 더 유용. 예: "크림 안에 있던 파인애플이 으스러진다" 같은 요소 간 관계 묘사.
+# 빈 슬롯은 자동 omit 되므로 단일 층 케이크 (Basque, 시폰 등) 도 무리없이 처리.
+_ROLE_TO_ANALYSIS_FIELD = {
+    "base":    "base",      # 시트
+    "cream":   "creams",    # 크림/필링
+    "topping": "toppings",  # 토핑
+}
+
+# I2I 영어 컨텍스트용 라벨
+_ROLE_LABELS_EN = {
+    "base":    "Base",
+    "cream":   "Cream",
+    "topping": "Topping",
+    "coating": "Coating",
+}
+
+# LLM Phase 1 한국어 dessert_info 보강용 라벨
+_ROLE_LABELS_KR = {
+    "base":    "시트",
+    "cream":   "크림",
+    "topping": "토핑",
+    "coating": "코팅",
+}
+
+
+def collect_elements_by_role(analysis: dict) -> dict[str, list[str]]:
+    """
+    분석 결과 dict → 역할별 정규화된 요소 dict.
+
+    반환:
+        {
+          "base":    ["sponge"],
+          "cream":   ["whipped_cream"],
+          "topping": ["strawberry"],
+          "coating": ["whipped_cream_coating"],   # 없으면 []
+        }
+    각 요소는 ELEMENT_ALIASES 로 정식 키로 정규화. 중복 제거. 빈 슬롯은 빈 리스트.
+    """
+    out: dict[str, list[str]] = {}
+    for role_key, analysis_key in _ROLE_TO_ANALYSIS_FIELD.items():
+        v = analysis.get(analysis_key)
+        normalized: list[str] = []
+        if isinstance(v, list):
+            seen: set[str] = set()
+            for e in v:
+                if not e:
+                    continue
+                canon = normalize_element(str(e))
+                if canon and canon not in seen:
+                    seen.add(canon)
+                    normalized.append(canon)
+        out[role_key] = normalized
+
+    # coating 은 단일 문자열 필드 (또는 "none")
+    coating = analysis.get("coating")
+    if coating and coating != "none":
+        out["coating"] = [normalize_element(str(coating))]
+    else:
+        out["coating"] = []
+    return out
+
+
+def get_cake_structure_context_en(analysis: dict) -> str:
+    """
+    분석 결과 → I2I 모델 (nano-banana-pro/edit) 용 영어 케이크 구조 컨텍스트.
+
+    visual_identity_en 을 역할별로 묶어서, 모델이 "어떤 재료가 어느 자리에 있는지"
+    명확히 인식하도록 도움. instruction_template 앞에 prepend 되어 사용.
+
+    빈 슬롯은 자동 omit → Basque (base 만) 같은 단순 구조도 자연스럽게 처리됨.
+    TEXTURE_PROFILES 에 매핑 없는 요소는 무시 → backward compatible.
+    완전히 빈 결과면 빈 문자열 반환.
+
+    예 (생크림+딸기 케이크):
+        "Cake structure visible in this image:
+        - Base: sponge cake (soft baked layers with airy crumb texture)
+        - Cream: whipped cream (light, airy, soft white dairy cream)
+        - Topping: fresh strawberry fruit (red whole or sliced berry)
+
+        The edit must faithfully reflect this structure — do not invent layers,
+        fillings, or toppings that are not visible in the original image."
+
+    예 (Basque 치즈케이크 — base 만):
+        "Cake structure visible in this image:
+        - Base: baked cheese (...)
+
+        The edit must faithfully reflect this structure — do not invent layers,
+        fillings, or toppings that are not visible in the original image."
+    """
+    by_role = collect_elements_by_role(analysis)
+    lines: list[str] = []
+    for role_key, label_en in _ROLE_LABELS_EN.items():
+        elements = by_role.get(role_key, [])
+        identities: list[str] = []
+        seen: set[str] = set()
+        for elem in elements:
+            profile = TEXTURE_PROFILES.get(elem)
+            if not profile:
+                continue
+            v = profile.get("visual_identity_en", "")
+            if v and v not in seen:
+                seen.add(v)
+                identities.append(v)
+        if identities:
+            lines.append(f"- {label_en}: " + "; ".join(identities))
+    if not lines:
+        return ""
+    return (
+        "Cake structure visible in this image:\n"
+        + "\n".join(lines)
+        + "\n\nThe edit must faithfully reflect this structure — "
+        + "do not invent layers, fillings, or toppings that are not visible in the original image."
+    )
+
+
+def get_cake_structure_suffix_kr(analysis: dict) -> str:
+    """
+    분석 결과 → LLM Phase 1 (한국어 미리보기) 용 dessert_info 보강 한국어 접미사.
+
+    LLM 이 "크림 안에 있던 딸기가 단면에 드러난다" 같이 요소 간 관계를 묘사할 수
+    있도록, dessert_info 뒤에 붙는 짧은 구조 정보. 빈 슬롯은 자동 omit.
+
+    반환 예 (생크림+딸기):
+        " (시트: 스펀지 시트, 크림: 생크림, 토핑: 딸기)"
+
+    반환 예 (Basque, base 만):
+        " (시트: 바스크 베이크드 치즈)"
+
+    매핑 없는 요소 / 분석 비어있으면 "" (빈 문자열).
+    """
+    by_role = collect_elements_by_role(analysis)
+    parts: list[str] = []
+    for role_key, label_kr in _ROLE_LABELS_KR.items():
+        elements = by_role.get(role_key, [])
+        labels: list[str] = []
+        seen: set[str] = set()
+        for elem in elements:
+            profile = TEXTURE_PROFILES.get(elem)
+            if not profile:
+                continue
+            lbl = profile.get("label_kr", "")
+            if lbl and lbl not in seen:
+                seen.add(lbl)
+                labels.append(lbl)
+        if labels:
+            parts.append(f"{label_kr}: " + ", ".join(labels))
+    if not parts:
+        return ""
+    return " (" + ", ".join(parts) + ")"
