@@ -27,15 +27,30 @@ export default function VideoDetailPage() {
   /** SNS 업로드 모달 open 여부 */
   const [socialOpen, setSocialOpen] = useState(false)
   /**
-   * 공유용 사전 준비된 mp4 File.
-   *
-   * Chrome 은 navigator.share 호출이 user gesture 컨텍스트 안에 있어야 함 (await 한 번이라도
-   * 거치면 gesture 만료 → NotAllowedError). 그래서 detail 로드되자마자 워터마크 + blob 을
-   * 미리 받아두고, 사용자가 공유 클릭하면 await 없이 즉시 share 호출.
+   * 공유 모달 상태 — 'preparing' / 'ready' / 'error'.
+   * Chrome user-gesture 우회를 위해 모달 안 "공유하기" 버튼이 진짜 share 트리거.
    */
-  const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null)
-  /** preload 진행/실패 상태 (실패 시 클릭 시점에 재시도) */
-  const [sharePrepareError, setSharePrepareError] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  type ShareStep = 'preparing' | 'ready' | 'error'
+  const [shareStep, setShareStep] = useState<ShareStep>('preparing')
+  /**
+   * 워터마크 File 캐시 — 공유/다운로드 양쪽이 공유.
+   * 한 번 생성하면 페이지 머무는 동안 재사용 → 두 번째 액션부터 BE 호출·재다운로드 안 함.
+   *
+   * 무효화 조건:
+   *  · 다른 video 페이지로 이동 (= 컴포넌트 unmount → state 자동 초기화)
+   *  · 같은 video 의 detail 가 새로 fetch 됨 (편집 후 돌아온 케이스 등)
+   *    → 아래 useEffect([detail?.videoId]) 가 처리
+   */
+  const [cachedWatermarkFile, setCachedWatermarkFile] = useState<File | null>(
+    null,
+  )
+
+  // detail 이 새로 로드되거나 다른 videoId 로 바뀌면 캐시 폐기.
+  // 편집기에서 편집 후 돌아온 케이스에서 stale 한 워터마크가 재사용되지 않게 보장.
+  useEffect(() => {
+    setCachedWatermarkFile(null)
+  }, [detail?.videoId])
 
   // 토스트 자동 해제
   useEffect(() => {
@@ -95,41 +110,6 @@ export default function VideoDetailPage() {
     }
   }, [videoId])
 
-  // 공유용 mp4 사전 prefetch — detail 로드 직후 시작.
-  // Chrome 의 user gesture 정책 (NotAllowedError) 회피용. 사용자가 공유 클릭 시점엔
-  // preparedShareFile 이 이미 채워져 있어서 await 없이 navigator.share 호출 가능.
-  useEffect(() => {
-    if (!detail) return
-    let cancelled = false
-    setPreparedShareFile(null)
-    setSharePrepareError(false)
-    ;(async () => {
-      try {
-        const meta = await requestWatermarkDownload(detail.videoId)
-        if (cancelled) return
-        console.log('[Share][prefetch] watermark meta:', meta)
-        const blob = await fetchVideoBlob(meta.downloadUrl)
-        if (cancelled) return
-        const file = new File([blob], meta.fileName, {
-          type: blob.type || 'video/mp4',
-        })
-        setPreparedShareFile(file)
-        console.log('[Share][prefetch] file ready:', {
-          size: file.size,
-          type: file.type,
-        })
-      } catch (err) {
-        if (cancelled) return
-        console.warn('[Share][prefetch] 실패 — 공유 클릭 시 재시도', err)
-        setSharePrepareError(true)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detail?.videoId])
-
   const shareTitle = detail ? `${detail.title} — gem.cafe` : 'gem.cafe'
   const shareText = detail
     ? `${detail.title} 영상을 확인해보세요!`
@@ -164,34 +144,41 @@ export default function VideoDetailPage() {
   }
 
   /**
-   * 워터마크 처리 + blob 반환. 로딩 모달 표시는 호출자가 관리.
-   * 원본 영상이 외부로 나가지 않도록 모든 외부 export 가 이 함수를 거침.
+   * 워터마크 File 보장 — 캐시 있으면 즉시 반환, 없으면 fetch + 캐시.
+   * 공유와 다운로드가 같은 File 을 공유해서 두 번째 호출부턴 BE 안 침.
    */
-  const fetchWatermarkedBlob = async (): Promise<{
-    blob: Blob
-    fileName: string
-  }> => {
+  const ensureWatermarkedFile = async (): Promise<File> => {
+    if (cachedWatermarkFile) {
+      console.log('[Watermark] 캐시 사용 — BE 호출 안 함')
+      return cachedWatermarkFile
+    }
     if (!detail) throw new Error('영상 정보 없음')
     const meta = await requestWatermarkDownload(detail.videoId)
     console.log('[POST /videos/.../watermark-download] response:', meta)
     const blob = await fetchVideoBlob(meta.downloadUrl)
-    return { blob, fileName: meta.fileName }
+    const file = new File([blob], meta.fileName, {
+      type: blob.type || 'video/mp4',
+    })
+    setCachedWatermarkFile(file)
+    return file
   }
 
   /**
-   * 다운로드: 워터마크 합성 → 로컬 저장.
+   * 다운로드: 워터마크 합성 → 로컬 저장. 캐시 있으면 BE 안 거치고 즉시 다운로드.
    */
   const handleDownload = async () => {
     if (!detail || downloading) return
     setDownloading(true)
     setDownloadProgress(null)
-    setWatermarkLoading(true)
+    // 캐시 있을 땐 로딩 모달 안 띄움 — 즉시 다운로드 시작 느낌
+    const showLoading = !cachedWatermarkFile
+    if (showLoading) setWatermarkLoading(true)
     try {
-      const { blob, fileName } = await fetchWatermarkedBlob()
-      const objUrl = URL.createObjectURL(blob)
+      const file = await ensureWatermarkedFile()
+      const objUrl = URL.createObjectURL(file)
       const a = document.createElement('a')
       a.href = objUrl
-      a.download = fileName || `${detail.originFileName || 'gemcafe'}.mp4`
+      a.download = file.name || `${detail.originFileName || 'gemcafe'}.mp4`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -201,78 +188,75 @@ export default function VideoDetailPage() {
       console.error('[VideoDetail] 워터마크 다운로드 실패', err)
       setToast('다운로드에 실패했습니다.')
     } finally {
-      setWatermarkLoading(false)
+      if (showLoading) setWatermarkLoading(false)
       setDownloading(false)
     }
   }
 
   /**
-   * 공유: 사전 prefetch 된 mp4 File 을 Web Share API 로 즉시 공유.
-   *
-   * Chrome 정책상 navigator.share 는 user gesture 컨텍스트 안에서만 동작 → 클릭 핸들러
-   * 시작 시점에 await 없이 바로 호출해야 함. preload 가 끝났으면 즉시 share, 안 끝났으면
-   * 클릭이 'gesture' 로 카운트되는 동안 다시 시도하라고 안내.
+   * 1단계: 공유 버튼 클릭 → 모달 오픈. 캐시 있으면 즉시 'ready', 없으면 prefetch 시작.
    */
   const handleShare = () => {
     if (!detail) return
-
     if (typeof navigator.share !== 'function') {
       setToast(
         '이 브라우저는 공유 기능을 지원하지 않아요. 다운로드 후 직접 공유해주세요.',
       )
       return
     }
-
-    // Preload 가 아직 진행 중이거나 실패한 경우 — share 호출 X (gesture 의미 없음).
-    if (!preparedShareFile) {
-      if (sharePrepareError) {
-        // 실패한 케이스: 재시도 트리거. detail.videoId 변경 effect 로 재실행되진 않으니
-        // 강제로 한 번 더 prefetch 시도.
-        setSharePrepareError(false)
-        ;(async () => {
-          try {
-            const meta = await requestWatermarkDownload(detail.videoId)
-            const blob = await fetchVideoBlob(meta.downloadUrl)
-            const file = new File([blob], meta.fileName, {
-              type: blob.type || 'video/mp4',
-            })
-            setPreparedShareFile(file)
-            setToast('공유 준비가 끝났어요. 공유 버튼을 다시 눌러주세요.')
-          } catch (err) {
-            console.error('[Share] 재시도 prefetch 실패', err)
-            setSharePrepareError(true)
-            setToast('영상 준비에 실패했어요. 잠시 후 다시 시도해주세요.')
-          }
-        })()
-      } else {
-        setToast('영상 공유 준비 중이에요. 잠시 후 다시 눌러주세요.')
-      }
-      return
+    setShareModalOpen(true)
+    if (cachedWatermarkFile) {
+      // 캐시 hit — preparing skip 하고 바로 'ready'
+      setShareStep('ready')
+    } else {
+      prepareShareFile()
     }
+  }
 
+  /** prefetch 본체 — 캐시 없을 때만 호출됨. 재시도 버튼에서도 사용. */
+  const prepareShareFile = async () => {
+    setShareStep('preparing')
+    try {
+      await ensureWatermarkedFile()
+      setShareStep('ready')
+    } catch (err) {
+      console.error('[Share] prefetch 실패', err)
+      setShareStep('error')
+    }
+  }
+
+  /**
+   * 2단계: 모달의 "공유하기" 버튼 클릭 → 이 클릭이 새 user gesture 라 navigator.share
+   * 즉시 통과. await 없이 바로 호출 (file 은 캐시에서 동기적으로 꺼냄).
+   */
+  const handleShareConfirm = () => {
+    if (!cachedWatermarkFile) return
     const payload: ShareData = {
-      files: [preparedShareFile],
+      files: [cachedWatermarkFile],
       title: shareTitle,
       text: shareText,
     }
-
     if (
       typeof navigator.canShare === 'function' &&
       !navigator.canShare(payload)
     ) {
-      console.warn('[Share] canShare(file) false')
       setToast(
         '이 기기에서는 영상 파일 공유를 지원하지 않아요. 우상단 ↓ 버튼으로 다운로드 후 직접 공유해주세요.',
       )
+      setShareModalOpen(false)
       return
     }
-
-    // await 없이 바로 호출 — gesture 컨텍스트 유지.
     navigator
       .share(payload)
-      .then(() => console.log('[Share] 공유 완료'))
+      .then(() => {
+        console.log('[Share] 공유 완료')
+        setShareModalOpen(false)
+      })
       .catch((err: unknown) => {
-        if (err instanceof Error && err.name === 'AbortError') return
+        if (err instanceof Error && err.name === 'AbortError') {
+          // 사용자가 share sheet 닫음 — 모달은 그대로 둠 (다시 공유 가능)
+          return
+        }
         console.error('[Share] navigator.share 실패', err)
         setToast(
           '공유에 실패했어요: ' +
@@ -418,6 +402,100 @@ export default function VideoDetailPage() {
         isOpen={socialOpen}
         onClose={() => setSocialOpen(false)}
       />
+
+      {/* 공유 준비 모달 — preparing/ready/error 3 step.
+          Chrome user-gesture 정책 회피 위해 모달 안의 "공유하기" 버튼이 진짜 share 트리거 */}
+      {shareModalOpen && (
+        <div
+          className="fixed inset-0 z-60 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+          onClick={() => setShareModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 pt-7 pb-5 text-center">
+              {shareStep === 'preparing' && (
+                <>
+                  <Loader2 className="mx-auto h-10 w-10 animate-spin text-brand-500" />
+                  <p className="mt-4 text-base font-bold text-gray-900">
+                    공유 준비 중
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    영상에 워터마크를 입히고 있어요...
+                  </p>
+                </>
+              )}
+              {shareStep === 'ready' && (
+                <>
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
+                    <Share2 className="h-6 w-6" />
+                  </span>
+                  <p className="mt-4 text-base font-bold text-gray-900">
+                    공유 준비 완료
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    아래 버튼을 눌러 SNS·메신저로 영상을 보내세요.
+                  </p>
+                </>
+              )}
+              {shareStep === 'error' && (
+                <>
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-500">
+                    <Share2 className="h-6 w-6" />
+                  </span>
+                  <p className="mt-4 text-base font-bold text-gray-900">
+                    준비 실패
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    영상 준비에 실패했어요. 다시 시도해주세요.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setShareModalOpen(false)}
+                className="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-gray-700 ring-1 ring-gray-200 transition hover:bg-gray-100"
+              >
+                닫기
+              </button>
+              {shareStep === 'ready' && (
+                <button
+                  type="button"
+                  // 이 onClick 이 새 user gesture — navigator.share 즉시 호출 가능
+                  onClick={handleShareConfirm}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-linear-to-br from-brand-500 to-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:from-brand-600 hover:to-orange-600"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  공유하기
+                </button>
+              )}
+              {shareStep === 'error' && (
+                <button
+                  type="button"
+                  onClick={prepareShareFile}
+                  className="flex-1 rounded-xl bg-linear-to-br from-brand-500 to-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:from-brand-600 hover:to-orange-600"
+                >
+                  다시 시도
+                </button>
+              )}
+              {shareStep === 'preparing' && (
+                <button
+                  type="button"
+                  disabled
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-200 px-4 py-3 text-sm font-semibold text-gray-500"
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  준비 중...
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
