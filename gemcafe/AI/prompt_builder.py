@@ -288,18 +288,18 @@ SIMULATIONS = {
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
             "Preserve the cake pixel-by-pixel: same shape, same toppings, same overall cream "
             "pattern, same plate, same background, same lighting. "
-            "ADD ONLY this change: a metal spoon is scooping out a small fluffy dollop of "
-            "{focus} from the top of the cake, lifted slightly upward. The spoon holds a soft "
-            "mound of {focus} on it. A small smooth indentation is visible on the cake where the "
-            "{focus} was scooped from. A thin strand of cream stretches between the spoon and "
-            "the cake. The toppings on the cake remain undisturbed. "
+            "ADD ONLY this change: a metal spoon is scooping out a small soft dollop of "
+            "{focus} from the top of the cake, lifted slightly upward. The spoon holds a "
+            "clean rounded mound of {focus} that keeps its shape on the spoon. A small smooth "
+            "indentation is visible on the cake where the {focus} was scooped from. The "
+            "toppings on the cake remain undisturbed. "
             "Do not alter the rest of the image. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
-            "A metal spoon scoops a small fluffy dollop of {focus} from the top of the cake and "
-            "lifts it gently upward. The {focus} stretches slightly as it separates from the "
-            "cake, forming a soft mound on the spoon. Smooth gentle motion, realistic physics, "
-            "no morphing of the cake."
+            "A metal spoon scoops a small soft dollop of {focus} from the top of the cake and "
+            "lifts it gently upward. The {focus} separates cleanly from the cake, forming a "
+            "soft rounded mound on the spoon that holds its shape. Smooth gentle motion, "
+            "realistic physics, no morphing of the cake."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
@@ -594,6 +594,7 @@ def assemble_final_video_prompt(
     simulation: str,
     background: Optional[str] = None,
     model_id: str = "veo-3.1",
+    focus: Optional[str] = None,
 ) -> dict:
     """
     사장님이 (편집한) 한국어 영상 묘사 → 영상 모델용 최종 영어 프롬프트로 변환.
@@ -601,6 +602,10 @@ def assemble_final_video_prompt(
     1. LLM(Gemini 2.5 Flash-Lite via SSAFY GMS)이 한국어 → 영어 영상 프롬프트로 의역
     2. 시스템이 잠금 라이브러리(카메라/기술/모델별/배경/길이/부정)를 결합
     3. fal.ai에 그대로 넘길 수 있는 dict 반환
+
+    focus 가 주어지면 카메라 디렉티브가 (simulation × focus) 조합에 맞게
+    선택됨 — 같은 시뮬레이션이라도 강조 요소에 따라 카메라가 무엇을 잡는지
+    달라진다.
 
     Returns:
         {
@@ -616,8 +621,9 @@ def assemble_final_video_prompt(
     # 1) 사장님 한국어 → 영어 (LLM)
     user_part_en = translate_to_video_prompt(user_korean_text)
 
-    # 2) 잠금 영역 조합
-    camera = prompt_locks.get_camera(simulation)
+    # 2) 잠금 영역 조합 — focus 가 있으면 정식 키로 정규화 후 카메라 조회
+    canonical_focus = normalize_focus(focus) if focus else None
+    camera = prompt_locks.get_camera(simulation, focus=canonical_focus)
     technical = prompt_locks.TECHNICAL_BASELINE
     model_extras = prompt_locks.get_model_extras(model_id)
     duration = prompt_locks.get_duration(simulation)

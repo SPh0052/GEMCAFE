@@ -209,17 +209,18 @@ def main():
         print("[자동 모드] 가장 최근 keyframe_* 메타데이터에서 URL 로드")
         meta = load_latest_keyframe_metadata()
         start, end, prompt, simulation = resolve_frames_from_metadata(meta)
+        focus = meta.get("focus")
         negative = prompt_locks.get_negative_prompt(simulation) if simulation else None
-        # 카메라 디렉티브를 영상 프롬프트 끝에 append (API 자동 경로와 동일 포맷)
-        if simulation:
-            camera = prompt_locks.get_camera(simulation)
-            if camera:
-                prompt = prompt.rstrip(". ") + f". Camera: {camera}"
-        print(f"      simulation: {meta.get('simulation')} × focus: {meta.get('focus')}")
+        # 카메라 디렉티브를 영상 프롬프트 끝에 append (API 자동 경로와 동일 포맷).
+        # focus 가 메타에 있으면 (simulation × focus) 조합으로 카메라 선택.
+        camera = prompt_locks.get_camera(simulation, focus=focus) if simulation else None
+        if camera:
+            prompt = prompt.rstrip(". ") + f". Camera: {camera}"
+        print(f"      simulation: {meta.get('simulation')} × focus: {focus}")
         print(f"      strategy:   {meta.get('frame_strategy')}")
         print(f"      keyframe:   {meta.get('save_dir')}")
-        if simulation:
-            print(f"      camera:     {prompt_locks.get_camera(simulation)[:80]}...")
+        if camera:
+            print(f"      camera:     {camera[:80]}...")
         if negative:
             print(f"      negative:   {negative[:80]}...")
         print()
