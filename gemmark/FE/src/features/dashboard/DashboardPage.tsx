@@ -1,41 +1,88 @@
+import { useEffect, useState } from 'react'
 import { Film, BadgeCheck, BarChart3, Gauge } from 'lucide-react'
 import KpiCard from '@/features/dashboard/components/KpiCard'
 import VerificationTrendChart from '@/features/dashboard/components/VerificationTrendChart'
 import AttackTypeStats from '@/features/dashboard/components/AttackTypeStats'
 import RecentActivity from '@/features/dashboard/components/RecentActivity'
+import { extractErrorMessage } from '@/shared/lib/errors'
+import { getDashboardSummary, type DashboardSummary } from './api'
 
 export default function Dashboard() {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    getDashboardSummary()
+      .then((res) => {
+        console.log('[GET /dashboard/summary] response:', res)
+        if (cancelled) return
+        setSummary(res)
+      })
+      .catch((err) => {
+        console.error('[GET /dashboard/summary] error:', err)
+        if (cancelled) return
+        setError(
+          extractErrorMessage(err, '대시보드 정보를 불러오지 못했습니다.'),
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div className="space-y-6">
       <div className="pt-2">
         <h1 className="text-2xl font-bold">대시보드</h1>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={Film}
-          badge="+142 오늘"
           label="누적 워터마크 영상"
-          value="12,847"
+          value={
+            loading
+              ? '...'
+              : (summary?.totalEmbeds ?? 0).toLocaleString('ko-KR')
+          }
         />
         <KpiCard
           icon={BadgeCheck}
-          badge="최근 영상 기준"
-          label="평균 삽입 처리 시간 (초)"
-          value="12.4s"
-          sub="[최근 1개 영상 평균]"
+          label="평균 삽입 처리 속도 (fps)"
+          value={
+            loading ? '...' : `${(summary?.avgSpeed ?? 0).toFixed(1)}fps`
+          }
         />
         <KpiCard
           icon={BarChart3}
-          badge="임계값 10% 이하"
           label="강건성 평균 BER"
-          value="2.1%"
+          value={
+            loading
+              ? '...'
+              : `${((summary?.avgBer ?? 0) * 100).toFixed(2)}%`
+          }
         />
         <KpiCard
           icon={Gauge}
-          badge="화질 양호 수준"
           label="강건성 평균 PSNR"
-          value="39.8 dB"
+          value={
+            loading ? '...' : `${(summary?.avgPsnr ?? 0).toFixed(1)} dB`
+          }
         />
       </div>
 

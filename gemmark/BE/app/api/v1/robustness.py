@@ -7,14 +7,20 @@ from app.core.db import get_db
 from app.core.security import verify_token
 from app.schemas.robustness import (
     RobustnessAttackResultResponse,
+    RobustnessHistoryResponse,
     RobustnessRunRequest,
     RobustnessRunResponse,
+    RobustnessStatusResponse,
     RobustnessTargetListResponse,
+    RobustnessTestDetailResponse,
     RobustnessVideoInfoResponse,
 )
 from app.services.robustness_service import (
     get_robustness_attack_results,
+    get_robustness_test_detail,
+    get_robustness_test_status,
     get_robustness_test_video_info,
+    list_robustness_history,
     list_robustness_target_videos,
     run_robustness_test,
 )
@@ -49,6 +55,34 @@ async def list_robustness_target_videos_endpoint(
 
 
 @router.get(
+    "/tests/{test_id}/status",
+    response_model=RobustnessStatusResponse,
+    summary="강건성 테스트 진행 상태 조회 (폴링용)",
+)
+async def get_robustness_test_status_endpoint(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessStatusResponse:
+    data = await get_robustness_test_status(db, test_id)
+    return RobustnessStatusResponse(data=data)
+
+
+@router.get(
+    "/tests/{test_id}",
+    response_model=RobustnessTestDetailResponse,
+    summary="강건성 테스트 상세 조회",
+)
+async def get_robustness_test_detail_endpoint(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessTestDetailResponse:
+    data = await get_robustness_test_detail(db, test_id)
+    return RobustnessTestDetailResponse(data=data)
+
+
+@router.get(
     "/tests/{test_id}/videos/{video_id}",
     response_model=RobustnessVideoInfoResponse,
     summary="강건성 테스트 상세 - 영상 기본 정보 조회",
@@ -76,6 +110,20 @@ async def get_robustness_attack_results_endpoint(
 ) -> RobustnessAttackResultResponse:
     data = await get_robustness_attack_results(db, test_id, video_id)
     return RobustnessAttackResultResponse(data=data)
+
+
+@router.get(
+    "/history",
+    response_model=RobustnessHistoryResponse,
+    summary="강건성 테스트 이력 조회",
+)
+async def list_robustness_history_endpoint(
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_token),
+) -> RobustnessHistoryResponse:
+    admin_id = int(token_payload["sub"])
+    data = await list_robustness_history(db, admin_id)
+    return RobustnessHistoryResponse(data=data)
 
 
 @router.post(

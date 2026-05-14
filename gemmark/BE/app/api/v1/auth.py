@@ -3,8 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.security import verify_token
-from app.schemas.auth import LoginRequest, LoginResponse, LogoutResponse
-from app.services.auth_service import login, logout
+from app.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    LogoutResponse,
+    RefreshRequest,
+    RefreshResponse,
+)
+from app.services.auth_service import login, logout, refresh_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,3 +38,13 @@ async def logout_endpoint(
 ) -> LogoutResponse:
     await logout(payload)
     return LogoutResponse()
+
+
+@router.post(
+    "/refresh",
+    response_model=RefreshResponse,
+    summary="access 토큰 재발급",
+)
+async def refresh_endpoint(req: RefreshRequest) -> RefreshResponse:
+    data = await refresh_access_token(req.refreshToken)
+    return RefreshResponse(data=data)

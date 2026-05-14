@@ -9,10 +9,11 @@ logger = logging.getLogger(__name__)
 
 import cv2
 import numpy as np
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.db import AsyncSessionLocal
 from app.core.exceptions import (
     InvalidDateRangeError,
     RobustnessExecutionError,
@@ -22,6 +23,7 @@ from app.core.exceptions import (
     RobustnessStartAfterEndError,
     RobustnessTestNotFoundError,
     RobustnessTestVideoNotFoundError,
+    RobustnessWatermarkFileNotFoundError,
 )
 from app.models.admin import Admin
 from app.models.robustness import (
@@ -36,7 +38,10 @@ from app.schemas.robustness import (
     FailedVideoItem,
     RobustnessAttackItem,
     RobustnessAttackResultData,
+    RobustnessHistoryItem,
     RobustnessRunData,
+    RobustnessStatusData,
+    RobustnessTestDetailData,
     RobustnessVideoInfoData,
     TestPassedStatus,
 )
@@ -56,8 +61,13 @@ from app.services.watermark.metrics import ber as calc_ber, psnr as calc_psnr
 from app.services.watermark.payload import PAYLOAD_BITS
 
 
-_PASS_BER_THRESHOLD = 0.1
+_PASS_BER_THRESHOLD = 0.3
+_PASS_PSNR_THRESHOLD = 30.0
 _N_SAMPLE_FRAMES = 5
+_MAX_CONCURRENT_RUNS = 2
+_run_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_RUNS)
+# create_task로 만든 백그라운드 태스크가 GC되지 않도록 강한 참조 유지
+_bg_tasks: set[asyncio.Task] = set()
 
 
 # ──────────────────────────────────────────────────────
@@ -239,13 +249,16 @@ async def run_robustness_test(
     start_date_str: str | None,
     end_date_str: str | None,
 ) -> RobustnessRunData:
-    """강건성 테스트 실행 (동기 처리, CPU 작업은 to_thread로 위임)."""
+    """강건성 테스트 실행 접수.
+
+    검증 + IN_PROGRESS 레코드 INSERT만 수행하고, 실제 영상 처리는
+    백그라운드 태스크(`_execute_robustness_test_bg`)로 분리해 즉시 반환한다.
+    """
     start_dt = _parse_date(start_date_str)
     end_dt = _parse_date(end_date_str)
     if start_dt > end_dt:
         raise RobustnessStartAfterEndError()
 
-    # 1) 대상 영상 조회
     rows_result = await db.execute(
         select(VideoWatermarked)
         .where(
@@ -260,13 +273,21 @@ async def run_robustness_test(
     if not videos:
         raise RobustnessNoTargetVideoError()
 
-    # 2) robustness_test 레코드 INSERT (IN_PROGRESS)
+    for video in videos:
+        src_path = settings.WATERMARKED_DIR / video.stored_file_name
+        if not src_path.exists():
+            logger.error(
+                "video_id=%s 워터마크 영상 파일 없음 (path=%s)", video.id, src_path
+            )
+            raise RobustnessWatermarkFileNotFoundError()
+
     test_record = RobustnessTest(
         admin_id=admin_id,
         filter_start_at=start_dt,
         filter_end_at=end_dt,
         status=RobustnessTestStatus.IN_PROGRESS,
         total_count=len(videos),
+        processed_count=0,
         success_count=0,
         fail_count=0,
         avg_ber=0.0,
@@ -282,34 +303,43 @@ async def run_robustness_test(
         await db.rollback()
         raise RobustnessExecutionError()
 
-    test_id = test_record.id  # rollback 후 lazy-load 방지용 로컬 캡처
+    test_id = test_record.id
 
-    try:
-        success_count = 0
-        fail_count = 0
-        total_ber = 0.0
-        total_psnr = 0.0
-        total_duration = 0.0
-        failed_items: list[FailedVideoItem] = []
+    video_ids = [video.id for video in videos]
+    task = asyncio.create_task(_execute_robustness_test_bg(test_id, video_ids))
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
 
-        for video in videos:
-            src_path = settings.WATERMARKED_DIR / video.stored_file_name
-            logger.warning(
-                "[ROB] video_id=%s 시작 stored=%s path=%s exists=%s",
-                video.id, video.stored_file_name, src_path, src_path.exists(),
-            )
-            if not src_path.exists():
-                # 파일 누락 → 실패로 카운트, 상세 기록은 0값
-                logger.warning(
-                    "video_id=%s 워터마크 영상 파일 없음 → fallback 사용 (path=%s)",
-                    video.id, src_path,
+    return RobustnessRunData(
+        testId=test_id,
+        status=RobustnessTestStatus.IN_PROGRESS,
+    )
+
+
+async def _execute_robustness_test_bg(
+    test_id: int,
+    video_ids: list[int],
+) -> None:
+    """백그라운드: 영상별 처리 → 영상마다 commit으로 진행률 갱신."""
+    async with _run_semaphore:
+        async with AsyncSessionLocal() as session:
+            try:
+                videos_result = await session.execute(
+                    select(VideoWatermarked)
+                    .where(VideoWatermarked.id.in_(video_ids))
+                    .order_by(VideoWatermarked.created_at.asc())
                 )
-                details = {
-                    aid: {"ber": 1.0, "psnr": 0.0, "duration": 0.0}
-                    for aid in ATTACK_TYPES.keys()
-                }
-            else:
-                try:
+                videos = videos_result.scalars().all()
+
+                success_count = 0
+                fail_count = 0
+                total_ber = 0.0
+                total_psnr = 0.0
+                total_duration = 0.0
+                processed = 0
+
+                for video in videos:
+                    src_path = settings.WATERMARKED_DIR / video.stored_file_name
                     details = await asyncio.to_thread(
                         _run_video_test,
                         src_path,
@@ -317,99 +347,135 @@ async def run_robustness_test(
                         float(video.alpha),
                         DEFAULT_KEY,
                     )
+
+                    avg_ber = sum(d["ber"] for d in details.values()) / len(details)
+                    psnr_vals = [
+                        d["psnr"] for d in details.values() if np.isfinite(d["psnr"])
+                    ]
+                    avg_psnr = (
+                        sum(psnr_vals) / len(psnr_vals) if psnr_vals else 0.0
+                    )
+                    avg_duration = sum(d["duration"] for d in details.values()) / len(
+                        details
+                    )
+
+                    attack_rows: list[tuple[str, dict, float, bool]] = []
+                    passed = True
+                    for attack_id, d in details.items():
+                        psnr_val = d["psnr"] if np.isfinite(d["psnr"]) else 0.0
+                        attack_passed = (
+                            d["ber"] <= _PASS_BER_THRESHOLD
+                            and psnr_val >= _PASS_PSNR_THRESHOLD
+                        )
+                        if not attack_passed:
+                            passed = False
+                        attack_rows.append((attack_id, d, psnr_val, attack_passed))
+
+                    video_record = RobustnessTestVideo(
+                        robustness_test_id=test_id,
+                        video_watermarked_id=video.id,
+                        avg_ber=round(avg_ber, 6),
+                        avg_psnr=round(avg_psnr, 4),
+                        avg_duration=round(avg_duration, 4),
+                        passed=passed,
+                    )
+                    session.add(video_record)
+                    await session.flush()
+
+                    for attack_id, d, psnr_val, attack_passed in attack_rows:
+                        session.add(
+                            RobustnessAttackDetail(
+                                robustness_test_video_id=video_record.id,
+                                attack_type_id=attack_id,
+                                ber=round(d["ber"], 6),
+                                psnr=round(psnr_val, 4),
+                                duration=round(d["duration"], 4),
+                                passed=attack_passed,
+                            )
+                        )
+
+                    if passed:
+                        success_count += 1
+                    else:
+                        fail_count += 1
+
+                    total_ber += avg_ber
+                    total_psnr += avg_psnr
+                    total_duration += avg_duration
+                    processed += 1
+
+                    await session.execute(
+                        update(RobustnessTest)
+                        .where(RobustnessTest.id == test_id)
+                        .values(
+                            processed_count=processed,
+                            success_count=success_count,
+                            fail_count=fail_count,
+                        )
+                    )
+                    await session.commit()
+
+                n = len(videos)
+                if n > 0:
+                    overall_ber = total_ber / n
+                    overall_psnr = total_psnr / n
+                    overall_duration = total_duration / n
+                else:
+                    overall_ber = overall_psnr = overall_duration = 0.0
+
+                await session.execute(
+                    update(RobustnessTest)
+                    .where(RobustnessTest.id == test_id)
+                    .values(
+                        avg_ber=round(overall_ber, 6),
+                        avg_psnr=round(overall_psnr, 4),
+                        avg_duration=round(overall_duration, 4),
+                        status=RobustnessTestStatus.COMPLETED,
+                    )
+                )
+                await session.commit()
+            except Exception:
+                logger.exception(
+                    "강건성 테스트 백그라운드 처리 실패 (test_id=%s)", test_id
+                )
+                await session.rollback()
+                try:
+                    await session.execute(
+                        update(RobustnessTest)
+                        .where(RobustnessTest.id == test_id)
+                        .values(status=RobustnessTestStatus.ERROR)
+                    )
+                    await session.commit()
                 except Exception:
                     logger.exception(
-                        "video_id=%s 강건성 테스트 실패 (path=%s)", video.id, src_path
+                        "test_record ERROR 상태 업데이트 실패 (test_id=%s)", test_id
                     )
-                    details = {
-                        aid: {"ber": 1.0, "psnr": 0.0, "duration": 0.0}
-                        for aid in ATTACK_TYPES.keys()
-                    }
+                    await session.rollback()
 
-            avg_ber = sum(d["ber"] for d in details.values()) / len(details)
-            psnr_vals = [d["psnr"] for d in details.values() if np.isfinite(d["psnr"])]
-            avg_psnr = sum(psnr_vals) / len(psnr_vals) if psnr_vals else 0.0
-            avg_duration = sum(d["duration"] for d in details.values()) / len(details)
-            passed = avg_ber < _PASS_BER_THRESHOLD
 
-            video_record = RobustnessTestVideo(
-                robustness_test_id=test_record.id,
-                video_watermarked_id=video.id,
-                avg_ber=round(avg_ber, 6),
-                avg_psnr=round(avg_psnr, 4),
-                avg_duration=round(avg_duration, 4),
-                passed=passed,
-            )
-            db.add(video_record)
-            await db.flush()
-
-            for attack_id, d in details.items():
-                psnr_val = d["psnr"] if np.isfinite(d["psnr"]) else 0.0
-                db.add(
-                    RobustnessAttackDetail(
-                        robustness_test_video_id=video_record.id,
-                        attack_type_id=attack_id,
-                        ber=round(d["ber"], 6),
-                        psnr=round(psnr_val, 4),
-                        duration=round(d["duration"], 4),
-                    )
-                )
-
-            if passed:
-                success_count += 1
-            else:
-                fail_count += 1
-                failed_items.append(
-                    FailedVideoItem(
-                        id=video.id,
-                        fileName=video.original_file_name,
-                        alpha=int(video.alpha),
-                        passed=False,
-                    )
-                )
-
-            total_ber += avg_ber
-            total_psnr += avg_psnr
-            total_duration += avg_duration
-
-        n = len(videos)
-        overall_ber = total_ber / n
-        overall_psnr = total_psnr / n
-        overall_duration = total_duration / n
-
-        test_record.success_count = success_count
-        test_record.fail_count = fail_count
-        test_record.avg_ber = round(overall_ber, 6)
-        test_record.avg_psnr = round(overall_psnr, 4)
-        test_record.avg_duration = round(overall_duration, 4)
-        test_record.status = RobustnessTestStatus.COMPLETED
-
-        await db.commit()
-
-        return RobustnessRunData(
-            totalCount=n,
-            successCount=success_count,
-            failCount=fail_count,
-            averageBer=round(overall_ber, 4),
-            averagePsnr=round(overall_psnr, 2),
-            averageProcessingTime=round(overall_duration, 2),
-            failedVideos=failed_items,
-        )
-    except Exception:
-        logger.exception("강건성 테스트 실행 중 예외 발생 (test_id=%s)", test_id)
-        await db.rollback()
-        try:
-            from sqlalchemy import update
-            await db.execute(
-                update(RobustnessTest)
-                .where(RobustnessTest.id == test_id)
-                .values(status=RobustnessTestStatus.ERROR)
-            )
-            await db.commit()
-        except Exception:
-            logger.exception("test_record ERROR 상태 업데이트 실패")
-            await db.rollback()
-        raise RobustnessExecutionError()
+async def get_robustness_test_status(
+    db: AsyncSession,
+    test_id: int,
+) -> RobustnessStatusData:
+    result = await db.execute(
+        select(
+            RobustnessTest.status,
+            RobustnessTest.processed_count,
+            RobustnessTest.total_count,
+            RobustnessTest.success_count,
+            RobustnessTest.fail_count,
+        ).where(RobustnessTest.id == test_id)
+    )
+    row = result.first()
+    if row is None:
+        raise RobustnessTestNotFoundError()
+    return RobustnessStatusData(
+        status=row.status,
+        processedCount=row.processed_count,
+        totalCount=row.total_count,
+        successCount=row.success_count,
+        failCount=row.fail_count,
+    )
 
 
 # ──────────────────────────────────────────────────────
@@ -507,6 +573,7 @@ async def get_robustness_attack_results(
             RobustnessAttackDetail.ber,
             RobustnessAttackDetail.psnr,
             RobustnessAttackDetail.duration,
+            RobustnessAttackDetail.passed,
         )
         .join(
             RobustnessAttackType,
@@ -523,6 +590,7 @@ async def get_robustness_attack_results(
             ber=row.ber,
             psnr=row.psnr,
             duration=row.duration,
+            passed=row.passed,
         )
         for row in rows
     ]
@@ -534,3 +602,129 @@ async def get_robustness_attack_results(
         totalScore=_calc_total_score(rtv.avg_ber, rtv.avg_psnr, rtv.avg_duration),
         attacks=attacks,
     )
+
+
+# ──────────────────────────────────────────────────────
+# 강건성 테스트 상세 조회
+# ──────────────────────────────────────────────────────
+async def get_robustness_test_detail(
+    db: AsyncSession,
+    test_id: int,
+) -> RobustnessTestDetailData:
+    test_result = await db.execute(
+        select(RobustnessTest, Admin.admin_id)
+        .join(Admin, Admin.id == RobustnessTest.admin_id)
+        .where(RobustnessTest.id == test_id)
+    )
+    row = test_result.first()
+    if row is None:
+        raise RobustnessTestNotFoundError()
+
+    test, admin_name = row
+
+    videos_result = await db.execute(
+        select(
+            RobustnessTestVideo.avg_ber,
+            RobustnessTestVideo.avg_psnr,
+            RobustnessTestVideo.avg_duration,
+        ).where(RobustnessTestVideo.robustness_test_id == test_id)
+    )
+    video_rows = videos_result.all()
+
+    if len(video_rows) > 1:
+        bers = np.array([r.avg_ber for r in video_rows], dtype=float)
+        psnrs = np.array([r.avg_psnr for r in video_rows], dtype=float)
+        durations = np.array([r.avg_duration for r in video_rows], dtype=float)
+        sd_ber = float(np.std(bers, ddof=1))
+        sd_psnr = float(np.std(psnrs, ddof=1))
+        sd_duration = float(np.std(durations, ddof=1))
+    else:
+        sd_ber = 0.0
+        sd_psnr = 0.0
+        sd_duration = 0.0
+
+    failed_result = await db.execute(
+        select(
+            VideoWatermarked.id,
+            VideoWatermarked.original_file_name,
+            VideoWatermarked.alpha,
+            RobustnessTestVideo.passed,
+        )
+        .join(
+            RobustnessTestVideo,
+            RobustnessTestVideo.video_watermarked_id == VideoWatermarked.id,
+        )
+        .where(
+            RobustnessTestVideo.robustness_test_id == test_id,
+            RobustnessTestVideo.passed.is_(False),
+        )
+        .order_by(VideoWatermarked.id.asc())
+    )
+    failed_rows = failed_result.all()
+
+    failed_videos = [
+        FailedVideoItem(
+            id=r.id,
+            fileName=r.original_file_name,
+            alpha=int(r.alpha),
+            passed=r.passed,
+        )
+        for r in failed_rows
+    ]
+
+    return RobustnessTestDetailData(
+        startDate=test.filter_start_at,
+        endDate=test.filter_end_at,
+        admin=admin_name,
+        totalCount=test.total_count,
+        successCount=test.success_count,
+        failCount=test.fail_count,
+        avgBer=test.avg_ber,
+        avgPsnr=test.avg_psnr,
+        avgDuration=test.avg_duration,
+        sdBer=round(sd_ber, 6),
+        sdPsnr=round(sd_psnr, 4),
+        sdDuration=round(sd_duration, 4),
+        failedVideos=failed_videos,
+    )
+
+
+# ──────────────────────────────────────────────────────
+# 강건성 테스트 이력 조회
+# ──────────────────────────────────────────────────────
+async def list_robustness_history(
+    db: AsyncSession,
+    admin_id: int,
+) -> list[RobustnessHistoryItem]:
+    result = await db.execute(
+        select(
+            RobustnessTest.id,
+            RobustnessTest.filter_start_at,
+            RobustnessTest.filter_end_at,
+            RobustnessTest.status,
+            RobustnessTest.total_count,
+            RobustnessTest.success_count,
+            RobustnessTest.fail_count,
+            RobustnessTest.created_at,
+            Admin.admin_id,
+        )
+        .join(Admin, Admin.id == RobustnessTest.admin_id)
+        .where(RobustnessTest.admin_id == admin_id)
+        .order_by(RobustnessTest.created_at.desc())
+    )
+    rows = result.all()
+
+    return [
+        RobustnessHistoryItem(
+            testId=row.id,
+            startDate=row.filter_start_at,
+            endDate=row.filter_end_at,
+            status=row.status,
+            totalCount=row.total_count,
+            successCount=row.success_count,
+            failCount=row.fail_count,
+            admin=row.admin_id,
+            testDate=row.created_at,
+        )
+        for row in rows
+    ]
