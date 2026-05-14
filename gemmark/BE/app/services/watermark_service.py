@@ -26,7 +26,7 @@ from app.core.exceptions import (
     WatermarkEmbedError,
     WatermarkVerifyError,
 )
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.models.verification import VerificationHistory, VerificationStatus
 from app.models.video import VideoWatermarked
@@ -186,6 +186,20 @@ async def embed_watermark_external(
     thumb_path = settings.WATERMARKED_DIR / f"{video_uuid}.jpg"
     thumb_ok = await asyncio.to_thread(save_first_frame, dest_path, thumb_path)
     thumbnail_name = thumb_path.name if thumb_ok else None
+
+    # 동일 content_uuid 의 기존 활성 행이 있으면 soft-delete 처리한 뒤 새 행 INSERT.
+    # → 사용자가 같은 영상 재공유 / alpha 재설정 등으로 여러 번 호출해도
+    #   "가장 최신 활성 행은 항상 1개" 가 보장돼, 영상 상세/검증 조회가 안 깨짐.
+    # → verification_history 의 FK 는 옛 행을 그대로 가리키므로 깨질 일 없음.
+    now = datetime.now(KST)
+    await db.execute(
+        update(VideoWatermarked)
+        .where(
+            VideoWatermarked.content_uuid == video_uuid,
+            VideoWatermarked.deleted_at.is_(None),
+        )
+        .values(deleted_at=now)
+    )
 
     # video_watermarked 행 INSERT — verify 시 watermark_hex 매칭에 사용.
     # admin_id 는 gemcafe origin 영상용 system 계정 (사전에 admin 테이블에 존재해야 함).
