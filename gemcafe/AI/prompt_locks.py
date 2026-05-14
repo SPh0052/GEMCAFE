@@ -405,13 +405,41 @@ def get_texture_guidance(elements: list[str], simulation_id: str) -> str:
 #   - whipped_cream_coating ≠ whipped_cream (위치/맥락 다름. 코팅은 외피)
 #   - vanilla_sponge / chocolate_sponge ≠ sponge (색이 다름. 보존됨)
 ELEMENT_ALIASES = {
-    "fluffy_whipped_cream": "whipped_cream",
-    "fresh_strawberries":   "strawberry",
-    "strawberries":         "strawberry",
-    "blueberries":          "blueberry",
-    "soft_sponge_layers":   "sponge",
-    "sponge_layers":        "sponge",
-    "cocoa_dusting":        "cocoa_powder",
+    # 크림 / 필링 변종
+    "fluffy_whipped_cream":   "whipped_cream",
+    "fluffy_cream":           "whipped_cream",
+    "white_whipped_cream":    "whipped_cream",
+    "soft_cream":             "cream",
+    "mascarpone_texture":     "mascarpone_cream",
+
+    # 시트 / 베이스 변종
+    "soft_sponge_layers":     "sponge",
+    "sponge_layers":          "sponge",
+    "vanilla_sponge_layers":  "vanilla_sponge",
+    "chocolate_sponge_layers": "chocolate_sponge",
+    "coffee_soaked_layers":   "ladyfinger_biscuit",
+
+    # 딸기 변종
+    "fresh_strawberries":     "strawberry",
+    "strawberries":           "strawberry",
+    "strawberry_slices":      "strawberry",
+
+    # 블루베리 변종
+    "blueberries":            "blueberry",
+
+    # 망고 변종 — Gemini Vision / Moondream 이 다양하게 응답 가능
+    "mango_cubes":            "mango",
+    "mango_jelly_cubes":      "mango",
+    "mango_jelly":            "mango",
+    "diced_mango":            "mango",
+    "fresh_mango":            "mango",
+    "yellow_cake_blocks":     "mango",   # Moondream 시절 잔재
+
+    # 파우더 / 더스팅 변종
+    "cocoa_dusting":          "cocoa_powder",
+
+    # 코팅 변종
+    "cream_coating":          "whipped_cream_coating",
 }
 
 

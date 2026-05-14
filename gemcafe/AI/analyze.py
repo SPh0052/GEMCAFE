@@ -15,14 +15,15 @@ prompt_builder) 은 변경 없이 그대로 작동.
     2) 아래 INPUT_IMAGE_PATH를 본인 케이스에 맞게 수정
     3) python analyze.py
 """
+import io
 import json
-import mimetypes
 import os
 import re
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
+from PIL import Image, ImageOps
 from google.genai import types as genai_types
 
 # llm_client 의 GMS 게이트웨이 클라이언트를 재사용 (base_url=GMS 가 박혀있음)
@@ -84,18 +85,67 @@ Example 3 (a tiramisu):
 "suggested_focus": ["cocoa_dusting", "mascarpone_texture", "coffee_soaked_layers"]
 }
 
+=== ELEMENT NAMING RULES (STRICT) ===
+
+For the data fields (base, creams, toppings, coating), output ONLY these
+canonical element keys. If the visible element doesn't exactly match a key,
+use the closest semantic match from this list:
+
+  Creams/fillings: whipped_cream, cream, mascarpone_cream, ganache, molten_chocolate
+  Sponge/base:     sponge, vanilla_sponge, chocolate_sponge, ladyfinger_biscuit, mousse
+  Toppings:        strawberry, blueberry, mango, powdered_sugar, cocoa_powder
+  Coating:         whipped_cream_coating, mirror_glaze, none
+
+Mapping examples (right side is what you MUST output):
+  - "mango cubes" / "diced mango" / "mango jelly cubes" → mango
+  - "fresh strawberries" / "strawberry slices" → strawberry
+  - "vanilla sponge layers" / "yellow sponge cake" → vanilla_sponge
+  - "fluffy whipped cream" / "white cream" → whipped_cream
+
+Do NOT invent new descriptors like "yellow_cake_blocks", "fresh_mango_pieces",
+"mango_jelly_cubes" for these four fields. Use ONLY the canonical keys above.
+
+(The "suggested_focus" field is allowed to use descriptive labels — those are
+user-facing options shown in the UI.)
+
 Now analyze the provided image. Output ONLY valid JSON in the same schema, no other text."""
 
 
 # =====================================================================
 # 핵심 함수
 # =====================================================================
-def _guess_mime_type(image_path: str) -> str:
-    """파일 확장자에서 MIME 타입 추론. 알 수 없으면 image/jpeg 폴백."""
-    mime, _ = mimetypes.guess_type(image_path)
-    if mime and mime.startswith("image/"):
-        return mime
-    return "image/jpeg"
+# GMS 게이트웨이가 일정 픽셀 수 / 비표준 JPEG 인코딩을 multimodal 요청에서 거부하는
+# 케이스가 관찰됨 (804x1042 실패 / 400x533 성공). 어떤 이미지가 와도 안전하게
+# 통과하도록 분석 전 표준 JPEG 으로 정규화한다.
+MAX_LONG_EDGE_PX = 1024   # 긴 변 1024px 로 제한 (≈1M pixels 이하 보장)
+
+
+def _normalize_image_for_gemini(image_path: str) -> tuple[bytes, str]:
+    """
+    입력 이미지를 GMS / Gemini multimodal 친화적 표준 JPEG 로 재인코딩.
+
+    적용 변환:
+      - EXIF orientation 적용 후 metadata 제거 (회전 정보가 파서 깨뜨릴 위험 차단)
+      - 비RGB 색공간 (CMYK / RGBA / palette) 을 RGB 로 변환
+      - 긴 변을 MAX_LONG_EDGE_PX 이하로 리사이즈 (LANCZOS 필터)
+      - JPEG quality=90 + optimize 로 재인코딩 (인코더 quirk 정규화)
+
+    Returns: (jpeg_bytes, "image/jpeg")
+    """
+    img = Image.open(image_path)
+    img = ImageOps.exif_transpose(img)
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    long_edge = max(img.size)
+    if long_edge > MAX_LONG_EDGE_PX:
+        ratio = MAX_LONG_EDGE_PX / long_edge
+        new_size = (round(img.size[0] * ratio), round(img.size[1] * ratio))
+        img = img.resize(new_size, Image.LANCZOS)
+
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=90, optimize=True)
+    return buf.getvalue(), "image/jpeg"
 
 
 def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
@@ -119,20 +169,39 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
       4) 응답 텍스트에서 JSON 추출
     """
     print(f"[1/1] Gemini 2.5 Pro 이미지 분석 중... ({GEMINI_VISION_MODEL})")
-    image_bytes = Path(image_path).read_bytes()
-    mime_type = _guess_mime_type(image_path)
+    # 입력 이미지를 정규화 (긴 변 1024px / 표준 JPEG / metadata 제거) — GMS 거부 회피
+    image_bytes, mime_type = _normalize_image_for_gemini(image_path)
+    print(f"      image: {len(image_bytes):,} bytes ({mime_type}, normalized ≤{MAX_LONG_EDGE_PX}px)")
+    print(f"      prompt: {len(prompt):,} chars")
+
+    # 명시적 Content + Part 구조로 직렬화. GMS 게이트웨이가 SDK 의 자동 변환
+    # ([Part, str] → Content) 결과를 제대로 못 forward 하는 경우 대비.
+    content_payload = genai_types.Content(
+        role="user",
+        parts=[
+            genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+            genai_types.Part.from_text(text=prompt),
+        ],
+    )
 
     client = _get_client()
-    response = client.models.generate_content(
-        model=GEMINI_VISION_MODEL,
-        contents=[
-            genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            prompt,
-        ],
-        config=genai_types.GenerateContentConfig(
-            temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
-        ),
-    )
+    try:
+        response = client.models.generate_content(
+            model=GEMINI_VISION_MODEL,
+            contents=[content_payload],
+            config=genai_types.GenerateContentConfig(
+                temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
+            ),
+        )
+    except Exception as e:
+        # GMS 게이트웨이/Gemini API 에러 디버깅 정보 출력
+        print(f"\n[ERROR] Gemini API 호출 실패")
+        print(f"        model: {GEMINI_VISION_MODEL}")
+        print(f"        image_size: {len(image_bytes):,} bytes")
+        print(f"        mime_type:  {mime_type}")
+        print(f"        error type: {type(e).__name__}")
+        print(f"        error:      {e}")
+        raise
 
     text = (response.text or "").strip()
     if not text:
