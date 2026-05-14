@@ -29,6 +29,13 @@ FOCUS_TEXT = {
     "sponge": "sponge cake layers",
     "strawberry": "strawberry",
     "whipped_cream": "whipped cream",
+    # 초코 케이크 / 라바 / 가나슈 케이크용
+    "ganache": "chocolate ganache",
+    "molten_chocolate": "molten chocolate",
+    # 티라미수용
+    "mascarpone_cream": "mascarpone cream",
+    # 치즈케이크용 (Basque / 뉴욕 / 수플레 공통)
+    "baked_cheese": "baked cheesecake filling",
 }
 
 # Moondream 등이 변형 키를 줄 때 정식 focus 키로 정규화하기 위한 별칭 표.
@@ -42,6 +49,34 @@ FOCUS_ALIASES = {
     "sponge_layers": "sponge",
     "soft_sponge_layers": "sponge",
     "vanilla_sponge": "sponge",
+    "chocolate_sponge": "sponge",  # 시트로 묶음 (시뮬 적용성 동일)
+
+    # 초코 / 가나슈 변종
+    "chocolate_ganache": "ganache",
+    "dark_ganache": "ganache",
+    "glossy_ganache": "ganache",
+
+    # 라바 변종
+    "warm_chocolate": "molten_chocolate",
+    "flowing_chocolate": "molten_chocolate",
+    "lava_filling": "molten_chocolate",
+    "molten_center": "molten_chocolate",
+
+    # 티라미수 변종
+    "mascarpone": "mascarpone_cream",
+    "mascarpone_texture": "mascarpone_cream",
+
+    # 치즈케이크 변종 — 사용자/Gemini suggested_focus 변종을 단일 focus 키로 정규화
+    "cheesecake":             "baked_cheese",
+    "basque":                 "baked_cheese",
+    "basque_cheesecake":      "baked_cheese",
+    "new_york_cheesecake":    "baked_cheese",
+    "souffle_cheesecake":     "baked_cheese",
+    "cheesecake_filling":     "baked_cheese",
+    "cream_cheese":           "baked_cheese",
+    "cream_cheese_filling":   "baked_cheese",
+    "caramelized_top":        "baked_cheese",   # Basque suggested_focus 변종
+    "creamy_interior":        "baked_cheese",   # Basque suggested_focus 변종
 }
 
 
@@ -76,7 +111,11 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "smash": {
         "label_kr": "뭉개기",
-        "applicable_focus": ["sponge", "whipped_cream"],
+        # 누르는 액션 — 부드럽고 변형 가능한 요소만. 흐르는 액체(molten_chocolate)는 부적합.
+        # baked_cheese 는 묵직한 점성이지만 함몰/갈라짐 묘사 가능.
+        "applicable_focus": [
+            "sponge", "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+        ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
@@ -99,31 +138,70 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "fork_bite": {
         "label_kr": "포크로 한 입 뜨기",
-        "applicable_focus": ["sponge", "whipped_cream"],
+        # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
+        # molten_chocolate 은 한 입 뜨면 단면에서 흘러나오는 게 라바 케이크 시그니처.
+        # baked_cheese 는 단일 층 단면이 시그니처 (Basque 의 겉/속 대비 등).
+        "applicable_focus": [
+            "sponge", "whipped_cream", "ganache", "molten_chocolate",
+            "mascarpone_cream", "baked_cheese",
+        ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
-            "Edit the input image of the cake. Add a silver dessert fork lifted to the upper "
-            "right of the cake, clearly separated from the cake with empty space between them "
-            "so the fork and the cake do not overlap in the frame. A single bite of cake is "
-            "impaled on the fork tines, sitting just above the base of the fork head — the "
-            "bite was lifted by pressing the fork tines down through the entire height of the "
-            "cake from top to bottom, so the tines pierce through the bite vertically and the "
-            "bite rests against the base of the tines. The lifted bite shows the full inner "
-            "cross-section of the cake on its cut faces, with the {focus} clearly visible and "
-            "emphasized as the most prominent feature on the exposed cross-section, "
-            "faithfully reflecting whatever layers, fillings, and inclusions actually exist "
-            "inside the cake in the input image — do not invent layers that are not visible "
-            "in the original. On the cake, in an area that avoids any prominent whole topping "
-            "(such as a whole fruit or a decorative piece sitting on top), remove a matching "
-            "bite-sized piece that goes all the way through the cake from top to bottom, "
-            "leaving a clean cavity that exposes the same inner cross-section, with the "
-            "{focus} also clearly visible inside the cavity. The cavity is shaped naturally "
-            "as if a fork just scooped that piece out, with soft slightly irregular edges, "
-            "not a rectangular slot. Keep everything else exactly the same as the input "
-            "image: the rest of the cake's shape, all toppings and decorations on the cake's "
-            "surface (except in the small area where the bite was removed), the surface or "
-            "plate or liner the cake sits on, the camera angle, the lighting, the background, "
-            "and the overall composition must remain identical."
+            "Edit the input image to add a 'fork lifting a piece of cake' moment "
+            "for a 9:16 vertical short-form video end frame.\n\n"
+
+            "PRESERVE FROM INPUT (highest priority):\n"
+            "- Keep the cake body's position, shape, internal layers/fillings, toppings, "
+            "cream pattern, plate or liner, colors, and surface texture EXACTLY as in "
+            "the input image (pixel-level fidelity)\n"
+            "- Keep the background, bokeh, lighting, and color temperature IDENTICAL "
+            "to the input\n"
+            "- Keep the 9:16 aspect ratio and overall composition unchanged\n"
+            "- Do NOT regenerate any existing element\n\n"
+
+            "ADD ONLY THIS — fork lifting a cake piece:\n"
+            "- A stainless steel dessert fork enters from the UPPER-RIGHT area of the "
+            "frame, angled diagonally with handle pointing toward the upper-right corner\n"
+            "- The fork tines hold a bite-sized piece of cake, LIFTED into the air "
+            "above the cake body\n"
+            "- Position of the lifted piece: in the UPPER half of the frame, clearly "
+            "separated from the cake body below with a visible air gap between them "
+            "(no visual overlap)\n"
+            "- The lifted piece shows a CLEAN CROSS-SECTION revealing the cake's "
+            "actual internal structure — layers, fillings, and inclusions that truly "
+            "exist inside the cake in the input image. The {focus} is clearly visible "
+            "and emphasized as the most prominent feature on the exposed cross-section. "
+            "Faithfully reflect whatever is actually inside the cake; do NOT invent "
+            "layers, fillings, or textures that are not visible in the original\n"
+            "- On the cake body below, in an area that AVOIDS any prominent whole "
+            "topping (such as a whole fruit or a decorative piece sitting on top), a "
+            "matching bite-sized wedge-shaped indentation is visible where the piece "
+            "was taken from, exposing the same cross-section, with the {focus} also "
+            "clearly visible inside the cavity\n"
+            "- A few small crumbs may be falling between the lifted piece and the "
+            "cake body\n"
+            "- Between the lifted piece and the cake body there should be ONLY clean "
+            "air — do not draw any stretched filling, dripping cream, honey-like "
+            "strand, melted strand, or flowing material connecting them, unless the "
+            "cake's actual filling is explicitly a flowing molten substance (e.g. "
+            "molten chocolate lava). For all other fillings (whipped cream, mascarpone, "
+            "cream cheese, ganache, custard, etc.) the connection between the bite and "
+            "the cake must be cleanly broken with no visible string or strand\n\n"
+
+            "CONSTRAINTS:\n"
+            "- The lifted piece and the cake body MUST NOT visually overlap\n"
+            "- The fork and the cake body MUST NOT visually overlap (except through "
+            "the lifted piece)\n"
+            "- Cross-section on both the lifted piece and the remaining cake body must "
+            "be visually consistent (same internal structure)\n"
+            "- All toppings and decorations on the cake's surface (except in the small "
+            "indentation area) remain intact and undisturbed\n"
+            "- The plate or liner, camera angle, lighting, background, and overall "
+            "composition must remain identical to the input\n"
+            "- Photorealistic, shallow depth of field with SHARP FOCUS on the LIFTED "
+            "PIECE and the fork tines holding it; the cake body below in noticeably "
+            "softer focus as supporting context (the lifted piece is the unambiguous "
+            "subject of the frame)"
         ),
         "video_template": (
             "A silver dessert fork enters the frame from the upper right and slowly descends "
@@ -144,7 +222,11 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "cut_in_half": {
         "label_kr": "반으로 자르기",
-        "applicable_focus": ["sponge", "whipped_cream"],
+        # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
+        "applicable_focus": [
+            "sponge", "whipped_cream", "ganache", "molten_chocolate",
+            "mascarpone_cream", "baked_cheese",
+        ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "Edit this image to show the fork now embedded inside the cake, having just cut "
@@ -197,7 +279,8 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "cream_scoop": {
         "label_kr": "크림만 떠내기",
-        "applicable_focus": ["whipped_cream"],
+        # 부드러운 dollop 떠올리는 액션 — 점성 크림류만. molten_chocolate 은 액체라 부적합.
+        "applicable_focus": ["whipped_cream", "ganache", "mascarpone_cream"],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
@@ -380,14 +463,17 @@ def build_prompts(
     instruction = sim["instruction_template"].format(focus=focus_text)
     video = sim["video_template"].format(focus=focus_text)
 
-    # analysis 가 있으면 요소별 시각 식별 가이드를 instruction 앞에 prepend.
-    # (nano-banana 가 입력 이미지의 흰 크림을 치즈로 오인 등 시각적 모호성 차단)
+    # analysis 가 있으면 케이크 구조 컨텍스트 (역할별 base/cream/topping/coating + 시각 식별)
+    # 를 instruction 앞에 prepend. 모델이 "어떤 재료가 어느 자리에 있는지" 명확히 인식해서
+    # 액션 묘사 시 모든 요소를 자연스럽게 활용 가능. 빈 슬롯은 자동 omit.
+    # (이전 get_visual_identities 의 flat list 대비, 역할 정보가 살아있어서 fork_bite /
+    #  cut_in_half 같은 cross-section 시뮬레이션에서 LLM 이 cream 안 topping 같은
+    #  요소 간 관계도 묘사 가능.)
     if analysis is not None:
         import prompt_locks
-        elements = prompt_locks.collect_elements_from_analysis(analysis)
-        visual_ids = prompt_locks.get_visual_identities(elements)
-        if visual_ids:
-            instruction = f"{visual_ids}\n\n{instruction}"
+        structure_ctx = prompt_locks.get_cake_structure_context_en(analysis)
+        if structure_ctx:
+            instruction = f"{structure_ctx}\n\n{instruction}"
 
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
@@ -453,6 +539,15 @@ def build_korean_preview(
         if cake_elements
         else ""
     )
+
+    # dessert_info 에 케이크 구조 정보(역할별 시트/크림/토핑/코팅) 보강.
+    # 예: "딸기 생크림 조각 케이크" → "딸기 생크림 조각 케이크 (시트: 스펀지 시트, 크림: 생크림, 토핑: 딸기)"
+    # LLM 이 "크림 안에 있던 딸기가 단면에 드러난다" 같이 요소 간 관계를 묘사하도록 컨텍스트 제공.
+    # analysis 없거나 매핑 없는 요소뿐이면 suffix 가 빈 문자열 → 기존 동작 유지.
+    if analysis is not None:
+        structure_suffix = prompt_locks.get_cake_structure_suffix_kr(analysis)
+        if structure_suffix:
+            dessert_info = f"{dessert_info}{structure_suffix}"
 
     # hint가 있으면 LLM으로 4가지 측면(조명/모션/분위기/시각적 디테일)으로 확장.
     # 짧은 힌트("고급스럽게")를 풍부한 키워드로 풀어 Phase 1 입력 품질 향상.

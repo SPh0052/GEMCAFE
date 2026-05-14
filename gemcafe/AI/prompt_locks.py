@@ -47,8 +47,11 @@ CAMERA_DIRECTIVES = {
         "Fork enters from top of frame. Subtle push-in as the indentation forms."
     ),
     "fork_bite": (
-        "Steady camera at a slight high angle. Framing widens gently as the bite "
-        "is lifted, keeping both the cake and the lifted fork comfortably in view."
+        "Steady camera at a slight high angle. Camera focus tracks the LIFTED PIECE "
+        "on the fork tines — sharp focus on the bite and the fork; the cake body "
+        "below stays in noticeably softer focus as supporting context. Framing keeps "
+        "both visible but the lifted piece is the unambiguous visual emphasis. "
+        "Shallow depth of field exaggerates the focus separation."
     ),
     "cut_in_half": (
         "Camera starts wide on the full cake slice, then slowly and continuously "
@@ -256,21 +259,48 @@ TEXTURE_PROFILES = {
     },
     "mascarpone_cream": {
         "label_kr": "마스카포네 크림",
-        "under_pressure_kr": "두툼하게 밀려 퍼짐",
-        "when_cut_kr": "매끈한 단면, 살짝 윤기",
+        # 마스카포네는 두툼한 점성 유제품. 들거나 자를 때 늘어지지 않고 깔끔하게 끊어짐
+        # — whipped_cream 보다 무겁고 ganache 보다 가벼움.
+        "under_pressure_kr": (
+            "두툼하고 묵직한 질감이 도구의 압력에 천천히 옆으로 밀려 퍼지며 살짝 윤기가 "
+            "흐르고 도구에 진하게 묻어남. 들어올릴 때 늘어지지 않고 깔끔하게 끊어짐."
+        ),
+        "when_cut_kr": (
+            "매끈하고 균질한 단면이 살짝 윤기를 띠며 깔끔하게 갈라짐. 결이 없는 점성 "
+            "질감이라 늘어지거나 부스러지지 않고 단면 모서리가 또렷함."
+        ),
         "visual_identity_en": "mascarpone cream (rich Italian dairy with smooth surface and slight sheen)",
     },
     "ganache": {
         "label_kr": "가나슈",
-        "under_pressure_kr": "천천히 함몰, 광택 유지",
-        "when_cut_kr": "매끈한 단면, 윤기",
+        # 가나슈는 식어서 광택 있는 점성 초콜릿. 차가운 상태면 부드럽게 함몰되고
+        # 따뜻한 상태면 살짝 늘어남. 카페 메뉴 기준 "잘 굳은 광택" 상태로 가정.
+        "under_pressure_kr": (
+            "광택 있는 점성 표면이 도구 압력에 천천히 함몰되며 진한 광택을 유지함. "
+            "도구에 진하게 묻어나면서 살짝 늘어지다 끊어지고, 함몰 자국 가장자리에 "
+            "윤기가 흐름."
+        ),
+        "when_cut_kr": (
+            "매끈한 단면이 강한 윤기를 띠며 깔끔하게 갈라짐. 단면 양쪽에 도구를 따라 "
+            "얇은 점성 자국이 남고, 진한 갈색이 또렷이 노출됨."
+        ),
         "visual_identity_en": "chocolate ganache (smooth glossy thick chocolate cream)",
     },
     "molten_chocolate": {
         "label_kr": "흐르는 초콜릿",
-        "under_pressure_kr": "내부에서 흘러나옴",
-        "when_cut_kr": "단면에서 진하게 흘러내림",
-        "visual_identity_en": "molten chocolate (warm dark flowing chocolate sauce)",
+        # 라바 케이크의 시그니처 — 따뜻한 점성 액체. 자르면 내부에서 천천히 흘러나오며
+        # 늘어지다 가는 실처럼 끊어짐. 단면에서 흘러내리는 모습이 핵심 비주얼.
+        "under_pressure_kr": (
+            "따뜻한 점성 액체가 내부에서 천천히 흘러나오며 도구에 끈적하게 늘어붙음. "
+            "들어올릴 때 가는 실처럼 늘어지다 천천히 끊어지고, 흐른 자국에 진한 광택이 "
+            "남음."
+        ),
+        "when_cut_kr": (
+            "단면을 가르는 순간 내부의 따뜻한 초콜릿이 천천히 흘러나와 진한 갈색 강이 "
+            "흘러내림. 점성 액체가 도구 양쪽에 늘어붙으며 가는 실처럼 늘어지다 끊어지고, "
+            "단면 아래쪽에 광택 있는 웅덩이가 고임."
+        ),
+        "visual_identity_en": "molten chocolate (warm dark flowing chocolate sauce with viscous glossy texture)",
     },
 
     # 베이스 / 시트 류
@@ -297,6 +327,35 @@ TEXTURE_PROFILES = {
         "under_pressure_kr": "살짝 부서지고 시럽이 배어남",
         "when_cut_kr": "단면에 시럽 자국 노출",
         "visual_identity_en": "ladyfinger biscuit (coffee-soaked golden sponge fingers)",
+    },
+    "baked_cheese": {
+        # ⚠️ 모델이 "cheese" 단어 보면 모짜렐라/체다처럼 늘어지고 녹는 치즈로 오해석함
+        # (Basque 영상에서 꿀처럼 줄줄 흐르는 strand 아티팩트 발생).
+        # 모든 묘사에서 "치즈" → "크림치즈" 일관, 부정 표현(전단/늘어남 없음) 명시적.
+        "label_kr": "베이크드 크림치즈",
+        "under_pressure_kr": (
+            "차가운 크림치즈 필링이 압력에 따라 꾸덕하게 압축되다가, 임계점에서 "
+            "부드럽게 밀려나며 갈라짐. 고밀도 점성 덕분에 으깨지기보다는 형태를 "
+            "유지하며 묵직하게 쪼개짐. 실 같은 점착성이나 늘어남 없이 단면이 매끈하게 "
+            "노출됨."
+        ),
+        "when_cut_kr": (
+            "결 없이 균일하고 매끈한 단면. 도구가 지나간 자리에 미세한 질감의 자국이 "
+            "남으며, 도구 면에 크림 일부가 두텁게 달라붙을 정도로 점착성이 있음. "
+            "그러나 실처럼 가느다랗게 늘어지는 탄성은 전혀 없으며, 단면은 연두부보다 "
+            "밀도 높은 푸딩이나 커스터드처럼 정적인 상태를 유지함. 수분기를 머금은 "
+            "은은한 반무광 표면. Basque 의 경우 겉면의 탄화된 거친 갈색 질감과 속의 "
+            "실크 같은 매끈한 크림색 단면이 극명한 대비를 이룸."
+        ),
+        "visual_identity_en": (
+            "baked cream cheese filling (highly dense, non-elastic, smooth texture; "
+            "behaves like chilled thick custard or pudding; clean sheared edges when "
+            "cut, NOT stretchy or stringy; zero stringiness, melt, or fibers like "
+            "mozzarella or cheddar; satin / semi-matte cream-colored interior; "
+            "visible stickiness on the cutting tool but no stretching fibers; "
+            "Basque-style has dramatic contrast between caramelized darker rough top "
+            "and silk-smooth pale interior)"
+        ),
     },
     "mousse": {
         "label_kr": "무스",
@@ -440,6 +499,29 @@ ELEMENT_ALIASES = {
 
     # 코팅 변종
     "cream_coating":          "whipped_cream_coating",
+
+    # 초코/가나슈 변종 (분석 결과 정규화 — focus aliases 와 키 일관성 유지)
+    "chocolate_ganache":      "ganache",
+    "dark_ganache":           "ganache",
+    "glossy_ganache":         "ganache",
+
+    # 라바/흐르는 초콜릿 변종
+    "warm_chocolate":         "molten_chocolate",
+    "flowing_chocolate":      "molten_chocolate",
+    "lava_filling":           "molten_chocolate",
+    "molten_center":          "molten_chocolate",
+
+    # 치즈케이크 변종 — Basque / 뉴욕 / 수플레 / 일반 치즈케이크 모두 단일 키로 매핑.
+    # (스타일별 시각적 차이는 visual_identity_en 안에서 묘사됨)
+    "basque_cheesecake":      "baked_cheese",
+    "new_york_cheesecake":    "baked_cheese",
+    "souffle_cheesecake":     "baked_cheese",
+    "cheesecake_filling":     "baked_cheese",
+    "cheese_filling":         "baked_cheese",
+    "cream_cheese_filling":   "baked_cheese",
+    "baked_cheesecake":       "baked_cheese",
+    "caramelized_top":        "baked_cheese",   # Basque suggested_focus 변종
+    "creamy_interior":        "baked_cheese",   # Basque suggested_focus 변종
 }
 
 
@@ -505,3 +587,160 @@ def get_visual_identities(elements: list[str]) -> str:
     if not identities:
         return ""
     return "Materials visible in this cake: " + "; ".join(identities) + "."
+
+
+# =====================================================================
+# 역할별 (base / cream / topping / coating) 요소 수집 + 구조 컨텍스트
+# (Optional slot — focus 만 활용하던 액션 묘사를 풍부하게 만들기 위한 인프라)
+# =====================================================================
+# 기존 collect_elements_from_analysis 는 모든 요소를 flat list 로 반환하지만,
+# I2I 모델 / LLM Phase 1 한국어 미리보기에는 "어느 역할 자리에 어떤 재료가 있는지"
+# 가 더 유용. 예: "크림 안에 있던 파인애플이 으스러진다" 같은 요소 간 관계 묘사.
+# 빈 슬롯은 자동 omit 되므로 단일 층 케이크 (Basque, 시폰 등) 도 무리없이 처리.
+_ROLE_TO_ANALYSIS_FIELD = {
+    "base":    "base",      # 시트
+    "cream":   "creams",    # 크림/필링
+    "topping": "toppings",  # 토핑
+}
+
+# I2I 영어 컨텍스트용 라벨
+_ROLE_LABELS_EN = {
+    "base":    "Base",
+    "cream":   "Cream",
+    "topping": "Topping",
+    "coating": "Coating",
+}
+
+# LLM Phase 1 한국어 dessert_info 보강용 라벨
+_ROLE_LABELS_KR = {
+    "base":    "시트",
+    "cream":   "크림",
+    "topping": "토핑",
+    "coating": "코팅",
+}
+
+
+def collect_elements_by_role(analysis: dict) -> dict[str, list[str]]:
+    """
+    분석 결과 dict → 역할별 정규화된 요소 dict.
+
+    반환:
+        {
+          "base":    ["sponge"],
+          "cream":   ["whipped_cream"],
+          "topping": ["strawberry"],
+          "coating": ["whipped_cream_coating"],   # 없으면 []
+        }
+    각 요소는 ELEMENT_ALIASES 로 정식 키로 정규화. 중복 제거. 빈 슬롯은 빈 리스트.
+    """
+    out: dict[str, list[str]] = {}
+    for role_key, analysis_key in _ROLE_TO_ANALYSIS_FIELD.items():
+        v = analysis.get(analysis_key)
+        normalized: list[str] = []
+        if isinstance(v, list):
+            seen: set[str] = set()
+            for e in v:
+                if not e:
+                    continue
+                canon = normalize_element(str(e))
+                if canon and canon not in seen:
+                    seen.add(canon)
+                    normalized.append(canon)
+        out[role_key] = normalized
+
+    # coating 은 단일 문자열 필드 (또는 "none")
+    coating = analysis.get("coating")
+    if coating and coating != "none":
+        out["coating"] = [normalize_element(str(coating))]
+    else:
+        out["coating"] = []
+    return out
+
+
+def get_cake_structure_context_en(analysis: dict) -> str:
+    """
+    분석 결과 → I2I 모델 (nano-banana-pro/edit) 용 영어 케이크 구조 컨텍스트.
+
+    visual_identity_en 을 역할별로 묶어서, 모델이 "어떤 재료가 어느 자리에 있는지"
+    명확히 인식하도록 도움. instruction_template 앞에 prepend 되어 사용.
+
+    빈 슬롯은 자동 omit → Basque (base 만) 같은 단순 구조도 자연스럽게 처리됨.
+    TEXTURE_PROFILES 에 매핑 없는 요소는 무시 → backward compatible.
+    완전히 빈 결과면 빈 문자열 반환.
+
+    예 (생크림+딸기 케이크):
+        "Cake structure visible in this image:
+        - Base: sponge cake (soft baked layers with airy crumb texture)
+        - Cream: whipped cream (light, airy, soft white dairy cream)
+        - Topping: fresh strawberry fruit (red whole or sliced berry)
+
+        The edit must faithfully reflect this structure — do not invent layers,
+        fillings, or toppings that are not visible in the original image."
+
+    예 (Basque 치즈케이크 — base 만):
+        "Cake structure visible in this image:
+        - Base: baked cheese (...)
+
+        The edit must faithfully reflect this structure — do not invent layers,
+        fillings, or toppings that are not visible in the original image."
+    """
+    by_role = collect_elements_by_role(analysis)
+    lines: list[str] = []
+    for role_key, label_en in _ROLE_LABELS_EN.items():
+        elements = by_role.get(role_key, [])
+        identities: list[str] = []
+        seen: set[str] = set()
+        for elem in elements:
+            profile = TEXTURE_PROFILES.get(elem)
+            if not profile:
+                continue
+            v = profile.get("visual_identity_en", "")
+            if v and v not in seen:
+                seen.add(v)
+                identities.append(v)
+        if identities:
+            lines.append(f"- {label_en}: " + "; ".join(identities))
+    if not lines:
+        return ""
+    return (
+        "Cake structure visible in this image:\n"
+        + "\n".join(lines)
+        + "\n\nThe edit must faithfully reflect this structure — "
+        + "do not invent layers, fillings, or toppings that are not visible in the original image."
+    )
+
+
+def get_cake_structure_suffix_kr(analysis: dict) -> str:
+    """
+    분석 결과 → LLM Phase 1 (한국어 미리보기) 용 dessert_info 보강 한국어 접미사.
+
+    LLM 이 "크림 안에 있던 딸기가 단면에 드러난다" 같이 요소 간 관계를 묘사할 수
+    있도록, dessert_info 뒤에 붙는 짧은 구조 정보. 빈 슬롯은 자동 omit.
+
+    반환 예 (생크림+딸기):
+        " (시트: 스펀지 시트, 크림: 생크림, 토핑: 딸기)"
+
+    반환 예 (Basque, base 만):
+        " (시트: 바스크 베이크드 치즈)"
+
+    매핑 없는 요소 / 분석 비어있으면 "" (빈 문자열).
+    """
+    by_role = collect_elements_by_role(analysis)
+    parts: list[str] = []
+    for role_key, label_kr in _ROLE_LABELS_KR.items():
+        elements = by_role.get(role_key, [])
+        labels: list[str] = []
+        seen: set[str] = set()
+        for elem in elements:
+            profile = TEXTURE_PROFILES.get(elem)
+            if not profile:
+                continue
+            lbl = profile.get("label_kr", "")
+            if lbl and lbl not in seen:
+                seen.add(lbl)
+                labels.append(lbl)
+        if labels:
+            parts.append(f"{label_kr}: " + ", ".join(labels))
+    if not parts:
+        return ""
+    return " (" + ", ".join(parts) + ")"

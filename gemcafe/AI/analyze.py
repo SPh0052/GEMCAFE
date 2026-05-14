@@ -85,6 +85,19 @@ Example 3 (a tiramisu):
 "suggested_focus": ["cocoa_dusting", "mascarpone_texture", "coffee_soaked_layers"]
 }
 
+Example 4 (a Basque-style baked cheesecake):
+{
+"cake_type": "basque_cheesecake",
+"base": ["baked_cheese"],
+"creams": [],
+"toppings": [],
+"coating": "none",
+"key_feature": "caramelized burnt top with creamy interior",
+"is_warm": false,
+"is_layered": false,
+"suggested_focus": ["baked_cheese", "caramelized_top", "creamy_interior"]
+}
+
 === ELEMENT NAMING RULES (STRICT) ===
 
 For the data fields (base, creams, toppings, coating), output ONLY these
@@ -92,7 +105,7 @@ canonical element keys. If the visible element doesn't exactly match a key,
 use the closest semantic match from this list:
 
   Creams/fillings: whipped_cream, cream, mascarpone_cream, ganache, molten_chocolate
-  Sponge/base:     sponge, vanilla_sponge, chocolate_sponge, ladyfinger_biscuit, mousse
+  Sponge/base:     sponge, vanilla_sponge, chocolate_sponge, ladyfinger_biscuit, mousse, baked_cheese
   Toppings:        strawberry, blueberry, mango, powdered_sugar, cocoa_powder
   Coating:         whipped_cream_coating, mirror_glaze, none
 
@@ -101,6 +114,9 @@ Mapping examples (right side is what you MUST output):
   - "fresh strawberries" / "strawberry slices" → strawberry
   - "vanilla sponge layers" / "yellow sponge cake" → vanilla_sponge
   - "fluffy whipped cream" / "white cream" → whipped_cream
+  - "basque cheesecake" / "new york cheesecake" / "souffle cheesecake" /
+    "cheesecake filling" / "cream cheese filling" → baked_cheese
+    (single-layer baked cheese — for Basque/New York/souffle style; goes in "base")
 
 Do NOT invent new descriptors like "yellow_cake_blocks", "fresh_mango_pieces",
 "mango_jelly_cubes" for these four fields. Use ONLY the canonical keys above.
