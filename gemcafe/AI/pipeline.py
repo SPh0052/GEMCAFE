@@ -42,18 +42,18 @@ INPUT_IMAGE_PATH = "./test_cake.jpg"
 #   "cream_scoop"        크림만 떠내기           (i2i = end frame)
 #   "strawberry_fall"    딸기가 케이크 위로 떨어짐 (i2i = start frame, 역방향)
 #   "strawberry_cascade" 딸기 우수수             (i2i = start frame, 역방향)
-SIMULATION = "cut_in_half"
+SIMULATION = "fork_bite"
 
 # 강조할 요소 (focus) — 정식 키: "sponge" / "whipped_cream" / "strawberry"
 #   None              → 자동 (analysis.json의 suggested_focus[0])
 #   "strawberry" 등   → 수동 지정 (별칭도 허용: fresh_strawberries / cream / sponge_layers ...)
-FOCUS: Optional[str] = None
+FOCUS: Optional[str] = "whipped_cream"
 
 # 배경
 #   None              → 배경 교체 skip
 #   "white_marble" / "cafe_interior" / "outdoor" / "wooden_table" /
 #   "minimalist_white" / "dark_moody"
-BACKGROUND: Optional[str] = None
+BACKGROUND: Optional[str] = "minimalist_white"
 
 # 사용자 자유 힌트
 USER_HINT: Optional[str] = None
