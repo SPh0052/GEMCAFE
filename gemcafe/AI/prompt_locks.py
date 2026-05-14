@@ -256,21 +256,48 @@ TEXTURE_PROFILES = {
     },
     "mascarpone_cream": {
         "label_kr": "마스카포네 크림",
-        "under_pressure_kr": "두툼하게 밀려 퍼짐",
-        "when_cut_kr": "매끈한 단면, 살짝 윤기",
+        # 마스카포네는 두툼한 점성 유제품. 들거나 자를 때 늘어지지 않고 깔끔하게 끊어짐
+        # — whipped_cream 보다 무겁고 ganache 보다 가벼움.
+        "under_pressure_kr": (
+            "두툼하고 묵직한 질감이 도구의 압력에 천천히 옆으로 밀려 퍼지며 살짝 윤기가 "
+            "흐르고 도구에 진하게 묻어남. 들어올릴 때 늘어지지 않고 깔끔하게 끊어짐."
+        ),
+        "when_cut_kr": (
+            "매끈하고 균질한 단면이 살짝 윤기를 띠며 깔끔하게 갈라짐. 결이 없는 점성 "
+            "질감이라 늘어지거나 부스러지지 않고 단면 모서리가 또렷함."
+        ),
         "visual_identity_en": "mascarpone cream (rich Italian dairy with smooth surface and slight sheen)",
     },
     "ganache": {
         "label_kr": "가나슈",
-        "under_pressure_kr": "천천히 함몰, 광택 유지",
-        "when_cut_kr": "매끈한 단면, 윤기",
+        # 가나슈는 식어서 광택 있는 점성 초콜릿. 차가운 상태면 부드럽게 함몰되고
+        # 따뜻한 상태면 살짝 늘어남. 카페 메뉴 기준 "잘 굳은 광택" 상태로 가정.
+        "under_pressure_kr": (
+            "광택 있는 점성 표면이 도구 압력에 천천히 함몰되며 진한 광택을 유지함. "
+            "도구에 진하게 묻어나면서 살짝 늘어지다 끊어지고, 함몰 자국 가장자리에 "
+            "윤기가 흐름."
+        ),
+        "when_cut_kr": (
+            "매끈한 단면이 강한 윤기를 띠며 깔끔하게 갈라짐. 단면 양쪽에 도구를 따라 "
+            "얇은 점성 자국이 남고, 진한 갈색이 또렷이 노출됨."
+        ),
         "visual_identity_en": "chocolate ganache (smooth glossy thick chocolate cream)",
     },
     "molten_chocolate": {
         "label_kr": "흐르는 초콜릿",
-        "under_pressure_kr": "내부에서 흘러나옴",
-        "when_cut_kr": "단면에서 진하게 흘러내림",
-        "visual_identity_en": "molten chocolate (warm dark flowing chocolate sauce)",
+        # 라바 케이크의 시그니처 — 따뜻한 점성 액체. 자르면 내부에서 천천히 흘러나오며
+        # 늘어지다 가는 실처럼 끊어짐. 단면에서 흘러내리는 모습이 핵심 비주얼.
+        "under_pressure_kr": (
+            "따뜻한 점성 액체가 내부에서 천천히 흘러나오며 도구에 끈적하게 늘어붙음. "
+            "들어올릴 때 가는 실처럼 늘어지다 천천히 끊어지고, 흐른 자국에 진한 광택이 "
+            "남음."
+        ),
+        "when_cut_kr": (
+            "단면을 가르는 순간 내부의 따뜻한 초콜릿이 천천히 흘러나와 진한 갈색 강이 "
+            "흘러내림. 점성 액체가 도구 양쪽에 늘어붙으며 가는 실처럼 늘어지다 끊어지고, "
+            "단면 아래쪽에 광택 있는 웅덩이가 고임."
+        ),
+        "visual_identity_en": "molten chocolate (warm dark flowing chocolate sauce with viscous glossy texture)",
     },
 
     # 베이스 / 시트 류

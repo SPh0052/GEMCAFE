@@ -219,9 +219,12 @@ def catalog() -> dict:
 
     # 요소(focus) — 정식 키 + 한국어 라벨. 별칭은 호환용으로만 노출.
     focus_labels_kr = {
-        "sponge":        "시트",
-        "strawberry":    "딸기",
-        "whipped_cream": "크림",
+        "sponge":           "시트",
+        "strawberry":       "딸기",
+        "whipped_cream":    "생크림",
+        "ganache":          "가나슈",
+        "molten_chocolate": "흐르는 초콜릿",
+        "mascarpone_cream": "마스카포네 크림",
     }
     focuses = [
         {

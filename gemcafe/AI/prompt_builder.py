@@ -29,6 +29,11 @@ FOCUS_TEXT = {
     "sponge": "sponge cake layers",
     "strawberry": "strawberry",
     "whipped_cream": "whipped cream",
+    # 초코 케이크 / 라바 / 가나슈 케이크용
+    "ganache": "chocolate ganache",
+    "molten_chocolate": "molten chocolate",
+    # 티라미수용
+    "mascarpone_cream": "mascarpone cream",
 }
 
 # Moondream 등이 변형 키를 줄 때 정식 focus 키로 정규화하기 위한 별칭 표.
@@ -42,6 +47,22 @@ FOCUS_ALIASES = {
     "sponge_layers": "sponge",
     "soft_sponge_layers": "sponge",
     "vanilla_sponge": "sponge",
+    "chocolate_sponge": "sponge",  # 시트로 묶음 (시뮬 적용성 동일)
+
+    # 초코 / 가나슈 변종
+    "chocolate_ganache": "ganache",
+    "dark_ganache": "ganache",
+    "glossy_ganache": "ganache",
+
+    # 라바 변종
+    "warm_chocolate": "molten_chocolate",
+    "flowing_chocolate": "molten_chocolate",
+    "lava_filling": "molten_chocolate",
+    "molten_center": "molten_chocolate",
+
+    # 티라미수 변종
+    "mascarpone": "mascarpone_cream",
+    "mascarpone_texture": "mascarpone_cream",
 }
 
 
@@ -76,7 +97,8 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "smash": {
         "label_kr": "뭉개기",
-        "applicable_focus": ["sponge", "whipped_cream"],
+        # 누르는 액션 — 부드럽고 변형 가능한 요소만. 흐르는 액체(molten_chocolate)는 부적합.
+        "applicable_focus": ["sponge", "whipped_cream", "ganache", "mascarpone_cream"],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
@@ -99,7 +121,11 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "fork_bite": {
         "label_kr": "포크로 한 입 뜨기",
-        "applicable_focus": ["sponge", "whipped_cream"],
+        # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
+        # molten_chocolate 은 한 입 뜨면 단면에서 흘러나오는 게 라바 케이크 시그니처.
+        "applicable_focus": [
+            "sponge", "whipped_cream", "ganache", "molten_chocolate", "mascarpone_cream",
+        ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "Edit the input image of the cake. Add a silver dessert fork lifted to the upper "
@@ -144,7 +170,10 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "cut_in_half": {
         "label_kr": "반으로 자르기",
-        "applicable_focus": ["sponge", "whipped_cream"],
+        # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
+        "applicable_focus": [
+            "sponge", "whipped_cream", "ganache", "molten_chocolate", "mascarpone_cream",
+        ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "Edit this image to show the fork now embedded inside the cake, having just cut "
@@ -197,7 +226,8 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "cream_scoop": {
         "label_kr": "크림만 떠내기",
-        "applicable_focus": ["whipped_cream"],
+        # 부드러운 dollop 떠올리는 액션 — 점성 크림류만. molten_chocolate 은 액체라 부적합.
+        "applicable_focus": ["whipped_cream", "ganache", "mascarpone_cream"],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
