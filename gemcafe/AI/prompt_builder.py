@@ -118,6 +118,7 @@ SIMULATIONS = {
         ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
+            "Edit the input image for a 9:16 vertical short-form video end frame. "
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
             "Preserve the cake pixel-by-pixel: same shape, same toppings, same overall cream "
             "pattern, same plate, same background, same lighting. "
@@ -229,8 +230,8 @@ SIMULATIONS = {
         ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
-            "Edit this image to show the fork now embedded inside the cake, having just cut "
-            "into it.\n\n"
+            "Edit this image for a 9:16 vertical short-form video end frame, showing the "
+            "fork now embedded inside the cake, having just cut into it.\n\n"
             "The fork enters the frame from behind the cake, with the handle extending away "
             "from the camera into the background. The fork tines push forward through the "
             "cake toward the camera, so the cut opens up facing the camera, exposing the "
@@ -283,6 +284,7 @@ SIMULATIONS = {
         "applicable_focus": ["whipped_cream", "ganache", "mascarpone_cream"],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
+            "Edit the input image for a 9:16 vertical short-form video end frame. "
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
             "Preserve the cake pixel-by-pixel: same shape, same toppings, same overall cream "
             "pattern, same plate, same background, same lighting. "
@@ -306,6 +308,7 @@ SIMULATIONS = {
         "applicable_focus": ["strawberry"],
         "frame_strategy": "i2i_is_start",   # 역방향: I2I = 딸기 없는 시작 상태
         "instruction_template": (
+            "Edit the input image for a 9:16 vertical short-form video start frame. "
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
             "Preserve the cake pixel-by-pixel: same shape, same cream, same plate, same "
             "background, same lighting. "
@@ -326,6 +329,7 @@ SIMULATIONS = {
         "applicable_focus": ["strawberry"],
         "frame_strategy": "i2i_is_start",   # 역방향: I2I = 토핑 없는 시작 상태
         "instruction_template": (
+            "Edit the input image for a 9:16 vertical short-form video start frame. "
             "Remove all toppings, fruits, decorations, garnishes, and any objects placed "
             "on the top surface of the cake, including any existing {focus} pieces "
             "already on top. This also includes any berries, chocolate pieces, nuts, "

@@ -54,22 +54,26 @@ CAMERA_DIRECTIVES = {
         "Shallow depth of field exaggerates the focus separation."
     ),
     "cut_in_half": (
-        "Camera starts wide on the full cake slice, then slowly and continuously "
-        "pushes in to an extreme macro close-up on the split area where the fork "
-        "meets the cake. Fork enters from behind the cake with the handle extending "
-        "away from the camera into the background."
+        "Camera starts framed on the full cake slice in vertical 9:16 composition, "
+        "then slowly and continuously pushes in to an extreme macro close-up on the "
+        "split area where the fork meets the cake. Fork enters from behind the cake "
+        "with the handle extending away from the camera into the background."
     ),
     "cream_scoop": (
         "Camera tracks upward following the lifted spoonful of cream. "
         "Macro close-up emphasizing cream texture and the stretched strand."
     ),
     "strawberry_fall": (
-        "Static camera, top-down 45-degree angle. "
-        "Captures full cake surface and the falling strawberry briefly."
+        "Static camera, top-down 45-degree angle, vertical 9:16 composition with "
+        "the cake framed in the lower-center of the frame and ample vertical room "
+        "above for the falling strawberry. Captures full cake surface and the "
+        "falling strawberry's downward arc briefly."
     ),
     "strawberry_cascade": (
-        "Static camera, top-down 45-degree angle, slightly wider framing. "
-        "Captures the full cake surface as multiple strawberries fall and settle."
+        "Static camera, top-down 45-degree angle, vertical 9:16 composition with "
+        "the cake framed in the lower-center of the frame and ample vertical room "
+        "above where multiple strawberries cascade down from. Captures the full "
+        "cake surface as the strawberries fall and settle."
     ),
     "default": "Static camera, macro close-up, eye level.",
 }
