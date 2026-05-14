@@ -85,10 +85,6 @@ export default function VideoDetailPage() {
     }
   }, [videoId])
 
-  const shareUrl =
-    typeof window !== 'undefined' && detail
-      ? `${window.location.origin}/videos/${detail.videoId}`
-      : ''
   const shareTitle = detail ? `${detail.title} — gem.cafe` : 'gem.cafe'
   const shareText = detail
     ? `${detail.title} 영상을 확인해보세요!`
@@ -165,77 +161,70 @@ export default function VideoDetailPage() {
     }
   }
 
+  /**
+   * 공유: 워터마크 영상 mp4 파일을 Web Share API 로만 공유.
+   * 링크 / 클립보드 fallback 없음 — Web Share API 지원 안 되거나 file share 불가하면
+   * 사용자에게 명확히 안내 (이 케이스에선 우상단 ↓ 다운로드 후 직접 공유).
+   */
   const handleShare = async () => {
     if (!detail || watermarkLoading) return
 
-    // 데스크톱은 file share 미지원이라 canShare 가 false → 미리 체크해서 분기
-    const canShareFiles = supportsFileShare()
+    // Web Share API 자체 미지원 (HTTP 환경, 구형 브라우저 등) → 즉시 안내 후 종료
+    if (typeof navigator.share !== 'function') {
+      setToast(
+        '이 브라우저는 공유 기능을 지원하지 않아요. 다운로드 후 직접 공유해주세요.',
+      )
+      return
+    }
 
     setWatermarkLoading(true)
-    let blob: Blob | null = null
-    let fileName = ''
+    let meta: { downloadUrl: string; fileName: string }
+    let blob: Blob
     try {
-      const meta = await requestWatermarkDownload(detail.videoId)
+      meta = await requestWatermarkDownload(detail.videoId)
       console.log('[POST /videos/.../watermark-download] response:', meta)
-      fileName = meta.fileName
-      // 파일 공유 가능한 환경에서만 blob 까지 받아 File 첨부
-      if (canShareFiles) {
-        blob = await fetchVideoBlob(meta.downloadUrl)
-      }
+      blob = await fetchVideoBlob(meta.downloadUrl)
+      console.log('[Share] blob ready:', { size: blob.size, type: blob.type })
     } catch (err) {
-      console.error('[VideoDetail] 워터마크 요청 실패', err)
-      setToast('공유 준비에 실패했습니다.')
+      console.error('[VideoDetail] 워터마크 fetch 실패', err)
+      setToast('영상 준비에 실패했습니다.')
       setWatermarkLoading(false)
       return
     }
     setWatermarkLoading(false)
 
-    // 1) 파일 공유 (모바일)
-    if (canShareFiles && blob) {
-      try {
-        const file = new File([blob], fileName, {
-          type: blob.type || 'video/mp4',
-        })
-        const filePayload = {
-          files: [file],
-          title: shareTitle,
-          text: shareText,
-        }
-        if (navigator.canShare(filePayload)) {
-          await navigator.share(filePayload)
-          return
-        }
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return
-        console.warn('[VideoDetail] 파일 공유 실패, URL 공유로 fallback', err)
-      }
+    const file = new File([blob], meta.fileName, {
+      type: blob.type || 'video/mp4',
+    })
+    const payload: ShareData = {
+      files: [file],
+      title: shareTitle,
+      text: shareText,
     }
 
-    // 2) URL 공유 (데스크톱 / 파일 공유 실패)
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-        })
-        return
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return
-        console.warn(
-          '[VideoDetail] Web Share API 실패, 클립보드 복사로 fallback',
-          err,
-        )
-      }
+    // canShare 가 정의돼있으면 호출 — false 면 이 단말기에서 파일 공유 불가능.
+    if (
+      typeof navigator.canShare === 'function' &&
+      !navigator.canShare(payload)
+    ) {
+      console.warn('[Share] canShare(file) false — 이 단말기 파일 공유 미지원')
+      setToast(
+        '이 기기에서는 영상 파일 공유를 지원하지 않아요. 우상단 ↓ 버튼으로 다운로드 후 직접 공유해주세요.',
+      )
+      return
     }
 
-    // 3) 클립보드 복사 fallback
     try {
-      await navigator.clipboard.writeText(shareUrl)
-      setToast('링크가 복사되었습니다.')
+      await navigator.share(payload)
+      console.log('[Share] 공유 완료')
     } catch (err) {
-      console.error('[VideoDetail] 클립보드 복사 실패', err)
-      setToast('공유에 실패했습니다.')
+      // 사용자가 share sheet 닫은 경우는 정상 — 토스트 X
+      if (err instanceof Error && err.name === 'AbortError') return
+      console.error('[Share] navigator.share 실패', err)
+      setToast(
+        '공유에 실패했어요: ' +
+          (err instanceof Error ? err.message : '알 수 없는 오류'),
+      )
     }
   }
 
@@ -393,14 +382,3 @@ function formatDate(iso: string): string {
   }
 }
 
-/** 파일 공유 가능한 환경인지 (대부분 모바일 브라우저) — async 호출 전 동기 체크. */
-function supportsFileShare(): boolean {
-  if (typeof navigator === 'undefined') return false
-  if (!('canShare' in navigator)) return false
-  try {
-    const dummy = new File(['x'], 't.mp4', { type: 'video/mp4' })
-    return navigator.canShare({ files: [dummy] })
-  } catch {
-    return false
-  }
-}
