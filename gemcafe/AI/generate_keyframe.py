@@ -188,15 +188,27 @@ def generate_keyframe(
           "seed":              Optional[int],
         }
     """
-    # 1) Focus 해석
-    resolved_focus, _loaded = resolve_focus(focus, analysis=analysis)
+    # 0) analysis 가 없으면 디스크에서 best-effort 로드 (visual identity 가이드용).
+    #    실패해도 fatal 아님 — instruction_prompt 에 시각 식별 정보만 빠지고 진행.
+    #    focus 가 None 인 경우엔 resolve_focus 가 어차피 load 시도하므로 여기서 미리 잡기.
+    if analysis is None:
+        try:
+            analysis = load_latest_analysis()
+            print(f"[analysis] 디스크에서 자동 로드 (visual identity 가이드용)")
+        except FileNotFoundError:
+            print(f"[analysis] 디스크에 없음 — visual identity 가이드 생략")
+            analysis = None
 
-    # 2) 프롬프트 빌드
+    # 1) Focus 해석
+    resolved_focus, _ = resolve_focus(focus, analysis=analysis)
+
+    # 2) 프롬프트 빌드 (analysis 가 있으면 visual identity 가이드가 instruction 앞에 박힘)
     prompts = prompt_builder.build_prompts(
         simulation=simulation,
         focus=resolved_focus,
         background=background,
         hint=hint,
+        analysis=analysis,
     )
     print(f"[시뮬레이션] {simulation} ({prompts['label_kr']}) × focus='{resolved_focus}'")
     print(f"[frame_strategy] {prompts['frame_strategy']}")

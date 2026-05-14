@@ -225,33 +225,144 @@ def get_background_label_kr(background_id: str) -> str:
 # =====================================================================
 TEXTURE_PROFILES = {
     # 크림 / 필링 류
-    "whipped_cream":     {"label_kr": "생크림",       "under_pressure_kr": "질척이며 늘어붙고 포크에 묻어남",   "when_cut_kr": "부드럽게 갈라짐, 결 따라 매끄럽게 분리"},
-    "fluffy_whipped_cream": {"label_kr": "부드러운 생크림", "under_pressure_kr": "질척이며 늘어붙고 포크에 묻어남", "when_cut_kr": "부드럽게 갈라짐, 결 따라 매끄럽게 분리"},
-    "cream":             {"label_kr": "크림",         "under_pressure_kr": "옆으로 밀려 퍼지고 도구에 묻어남",  "when_cut_kr": "부드럽게 갈라짐"},
-    "mascarpone_cream":  {"label_kr": "마스카포네 크림", "under_pressure_kr": "두툼하게 밀려 퍼짐",            "when_cut_kr": "매끈한 단면, 살짝 윤기"},
-    "ganache":           {"label_kr": "가나슈",       "under_pressure_kr": "천천히 함몰, 광택 유지",          "when_cut_kr": "매끈한 단면, 윤기"},
-    "molten_chocolate":  {"label_kr": "흐르는 초콜릿",  "under_pressure_kr": "내부에서 흘러나옴",              "when_cut_kr": "단면에서 진하게 흘러내림"},
+    "whipped_cream": {
+        "label_kr": "생크림",
+        "under_pressure_kr": "질척이며 늘어붙고 포크에 묻어남",
+        "when_cut_kr": "부드럽게 갈라짐, 결 따라 매끄럽게 분리",
+        "visual_identity_en": "fluffy whipped cream (light, airy, soft white dairy cream)",
+    },
+    "fluffy_whipped_cream": {
+        "label_kr": "부드러운 생크림",
+        "under_pressure_kr": "질척이며 늘어붙고 포크에 묻어남",
+        "when_cut_kr": "부드럽게 갈라짐, 결 따라 매끄럽게 분리",
+        "visual_identity_en": "fluffy whipped cream (light, airy, soft white dairy cream)",
+    },
+    "cream": {
+        "label_kr": "크림",
+        "under_pressure_kr": "옆으로 밀려 퍼지고 도구에 묻어남",
+        "when_cut_kr": "부드럽게 갈라짐",
+        "visual_identity_en": "soft cream (light dairy texture)",
+    },
+    "mascarpone_cream": {
+        "label_kr": "마스카포네 크림",
+        "under_pressure_kr": "두툼하게 밀려 퍼짐",
+        "when_cut_kr": "매끈한 단면, 살짝 윤기",
+        "visual_identity_en": "mascarpone cream (rich Italian dairy with smooth surface and slight sheen)",
+    },
+    "ganache": {
+        "label_kr": "가나슈",
+        "under_pressure_kr": "천천히 함몰, 광택 유지",
+        "when_cut_kr": "매끈한 단면, 윤기",
+        "visual_identity_en": "chocolate ganache (smooth glossy thick chocolate cream)",
+    },
+    "molten_chocolate": {
+        "label_kr": "흐르는 초콜릿",
+        "under_pressure_kr": "내부에서 흘러나옴",
+        "when_cut_kr": "단면에서 진하게 흘러내림",
+        "visual_identity_en": "molten chocolate (warm dark flowing chocolate sauce)",
+    },
 
     # 베이스 / 시트 류
-    "sponge":            {"label_kr": "스펀지 시트",   "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",     "when_cut_kr": "부스러기 발생, 결과 층 노출"},
-    "soft_sponge_layers":{"label_kr": "부드러운 시트",  "under_pressure_kr": "푹 짓눌렸다 살짝 복원",         "when_cut_kr": "부스러기 발생, 결과 층 노출"},
-    "vanilla_sponge":    {"label_kr": "바닐라 스펀지",  "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",     "when_cut_kr": "노란빛 결과 층 드러남"},
-    "chocolate_sponge":  {"label_kr": "초콜릿 스펀지",  "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",     "when_cut_kr": "진한 갈색 결과 층 드러남"},
-    "ladyfinger_biscuit":{"label_kr": "레이디핑거",    "under_pressure_kr": "살짝 부서지고 시럽이 배어남",      "when_cut_kr": "단면에 시럽 자국 노출"},
-    "mousse":            {"label_kr": "무스",         "under_pressure_kr": "푹 꺼지고 공기층 붕괴",          "when_cut_kr": "매끈하게 베이며 단면 부드러움"},
+    "sponge": {
+        "label_kr": "스펀지 시트",
+        "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",
+        "when_cut_kr": "부스러기 발생, 결과 층 노출",
+        "visual_identity_en": "sponge cake (soft baked layers with airy crumb texture)",
+    },
+    "soft_sponge_layers": {
+        "label_kr": "부드러운 시트",
+        "under_pressure_kr": "푹 짓눌렸다 살짝 복원",
+        "when_cut_kr": "부스러기 발생, 결과 층 노출",
+        "visual_identity_en": "soft sponge cake layers (light baked dough with airy crumb)",
+    },
+    "vanilla_sponge": {
+        "label_kr": "바닐라 스펀지",
+        "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",
+        "when_cut_kr": "노란빛 결과 층 드러남",
+        "visual_identity_en": "vanilla sponge cake (pale yellow soft baked layers)",
+    },
+    "chocolate_sponge": {
+        "label_kr": "초콜릿 스펀지",
+        "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",
+        "when_cut_kr": "진한 갈색 결과 층 드러남",
+        "visual_identity_en": "chocolate sponge cake (dark brown soft baked layers)",
+    },
+    "ladyfinger_biscuit": {
+        "label_kr": "레이디핑거",
+        "under_pressure_kr": "살짝 부서지고 시럽이 배어남",
+        "when_cut_kr": "단면에 시럽 자국 노출",
+        "visual_identity_en": "ladyfinger biscuit (coffee-soaked golden sponge fingers)",
+    },
+    "mousse": {
+        "label_kr": "무스",
+        "under_pressure_kr": "푹 꺼지고 공기층 붕괴",
+        "when_cut_kr": "매끈하게 베이며 단면 부드러움",
+        "visual_identity_en": "mousse (light airy whipped dessert with smooth surface)",
+    },
 
     # 토핑 류
-    "strawberry":        {"label_kr": "딸기",         "under_pressure_kr": "즙 살짝 터짐",                 "when_cut_kr": "단면에 즙 맺힘, 빨간 단면 노출"},
-    "fresh_strawberries":{"label_kr": "신선한 딸기",   "under_pressure_kr": "즙 살짝 터짐",                 "when_cut_kr": "단면에 즙 맺힘, 빨간 단면 노출"},
-    "blueberry":         {"label_kr": "블루베리",      "under_pressure_kr": "톡 터지며 즙 흘러나옴",           "when_cut_kr": "보라빛 즙 맺힘"},
-    "blueberries":       {"label_kr": "블루베리",      "under_pressure_kr": "톡 터지며 즙 흘러나옴",           "when_cut_kr": "보라빛 즙 맺힘"},
-    "powdered_sugar":    {"label_kr": "슈가파우더",    "under_pressure_kr": "흩날리거나 자국 남음",            "when_cut_kr": "단면에 살짝 묻어남"},
-    "cocoa_powder":      {"label_kr": "코코아 파우더",  "under_pressure_kr": "흩날리거나 자국 남음",            "when_cut_kr": "단면에 살짝 묻어남"},
-    "cocoa_dusting":     {"label_kr": "코코아 더스팅",  "under_pressure_kr": "흩날리거나 자국 남음",            "when_cut_kr": "단면에 살짝 묻어남"},
+    "strawberry": {
+        "label_kr": "딸기",
+        "under_pressure_kr": "즙 살짝 터짐",
+        "when_cut_kr": "단면에 즙 맺힘, 빨간 단면 노출",
+        "visual_identity_en": "fresh strawberry fruit (red whole or sliced berry)",
+    },
+    "fresh_strawberries": {
+        "label_kr": "신선한 딸기",
+        "under_pressure_kr": "즙 살짝 터짐",
+        "when_cut_kr": "단면에 즙 맺힘, 빨간 단면 노출",
+        "visual_identity_en": "fresh strawberry fruit (red whole or sliced berry)",
+    },
+    "blueberry": {
+        "label_kr": "블루베리",
+        "under_pressure_kr": "톡 터지며 즙 흘러나옴",
+        "when_cut_kr": "보라빛 즙 맺힘",
+        "visual_identity_en": "fresh blueberry fruit (small round dark blue berry)",
+    },
+    "blueberries": {
+        "label_kr": "블루베리",
+        "under_pressure_kr": "톡 터지며 즙 흘러나옴",
+        "when_cut_kr": "보라빛 즙 맺힘",
+        "visual_identity_en": "fresh blueberry fruit (small round dark blue berry)",
+    },
+    "mango": {
+        "label_kr": "망고",
+        "under_pressure_kr": "부드럽게 함몰, 즙 살짝 배어남",
+        "when_cut_kr": "노란 단면 노출, 즙 살짝 맺힘",
+        "visual_identity_en": "fresh mango fruit (yellow soft sliced or cubed pieces, sometimes glossy from natural fruit juice)",
+    },
+    "powdered_sugar": {
+        "label_kr": "슈가파우더",
+        "under_pressure_kr": "흩날리거나 자국 남음",
+        "when_cut_kr": "단면에 살짝 묻어남",
+        "visual_identity_en": "powdered sugar (fine white dusting)",
+    },
+    "cocoa_powder": {
+        "label_kr": "코코아 파우더",
+        "under_pressure_kr": "흩날리거나 자국 남음",
+        "when_cut_kr": "단면에 살짝 묻어남",
+        "visual_identity_en": "cocoa powder (fine dark brown dusting)",
+    },
+    "cocoa_dusting": {
+        "label_kr": "코코아 더스팅",
+        "under_pressure_kr": "흩날리거나 자국 남음",
+        "when_cut_kr": "단면에 살짝 묻어남",
+        "visual_identity_en": "cocoa dusting (fine dark brown sugar surface dusting)",
+    },
 
     # 코팅 / 외피
-    "whipped_cream_coating": {"label_kr": "생크림 코팅", "under_pressure_kr": "옆으로 밀려 퍼짐",            "when_cut_kr": "매끈한 단면, 가장자리 도구에 묻음"},
-    "mirror_glaze":      {"label_kr": "미러 글레이즈",  "under_pressure_kr": "균열 후 안쪽이 흘러나옴",         "when_cut_kr": "쩍 갈라지며 매끈한 단면 노출"},
+    "whipped_cream_coating": {
+        "label_kr": "생크림 코팅",
+        "under_pressure_kr": "옆으로 밀려 퍼짐",
+        "when_cut_kr": "매끈한 단면, 가장자리 도구에 묻음",
+        "visual_identity_en": "whipped cream coating (smooth white soft dairy outer surface)",
+    },
+    "mirror_glaze": {
+        "label_kr": "미러 글레이즈",
+        "under_pressure_kr": "균열 후 안쪽이 흘러나옴",
+        "when_cut_kr": "쩍 갈라지며 매끈한 단면 노출",
+        "visual_identity_en": "mirror glaze (glossy reflective glassy surface coating)",
+    },
 }
 
 
@@ -307,3 +418,37 @@ def collect_elements_from_analysis(analysis: dict) -> list[str]:
     if coating and coating != "none":
         elements.append(str(coating))
     return elements
+
+
+def get_visual_identities(elements: list[str]) -> str:
+    """
+    분석 결과에서 추출된 요소들 → I2I 모델용 영어 시각 식별 문장.
+
+    각 요소를 TEXTURE_PROFILES 의 visual_identity_en 에서 찾아서
+    "Materials visible in this cake: A; B; C." 형태로 조립.
+
+    nano-banana-pro/edit 가 입력 이미지의 흰 크림을 치즈로 오인하거나
+    노란 망고 큐브를 치즈 큐브로 오인하는 등의 시각적 모호성을 차단하기 위한
+    positive identification 가이드. instruction_template 앞에 prepend 되어 사용됨.
+
+    예: elements=["whipped_cream", "sponge", "mango"]
+        → "Materials visible in this cake: fluffy whipped cream (light, airy, soft
+            white dairy cream); sponge cake (soft baked layers with airy crumb texture);
+            fresh mango fruit (yellow soft sliced or cubed pieces, ...)."
+
+    매핑되지 않은 요소(visual_identity_en 없음 또는 TEXTURE_PROFILES 미등록)는 무시.
+    빈 결과면 빈 문자열 반환.
+    """
+    identities: list[str] = []
+    seen: set[str] = set()
+    for elem in elements:
+        profile = TEXTURE_PROFILES.get(elem)
+        if not profile:
+            continue
+        visual = profile.get("visual_identity_en", "")
+        if visual and visual not in seen:
+            seen.add(visual)
+            identities.append(visual)
+    if not identities:
+        return ""
+    return "Materials visible in this cake: " + "; ".join(identities) + "."

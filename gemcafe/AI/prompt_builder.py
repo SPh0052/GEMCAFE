@@ -281,6 +281,7 @@ def build_prompts(
     focus: str,
     background: Optional[str] = None,
     hint: Optional[str] = None,
+    analysis: Optional[dict] = None,
 ) -> dict:
     """
     Args:
@@ -288,6 +289,10 @@ def build_prompts(
         focus:      강조할 요소 키 (예: "strawberry", "whipped_cream", "sponge_layers")
         background: 배경 키워드 (예: "wooden table", "white marble") — 선택
         hint:       사용자 자유 추가 힌트 — 선택
+        analysis:   Moondream 분석 결과 dict — 있으면 instruction_prompt 앞에
+                    visual identity 가이드("Materials visible in this cake: ...")가
+                    자동 prepend 되어 nano-banana 가 입력 이미지의 재료를 정확히
+                    인식하도록 도움. 없으면 가이드 생략(backward compatible).
 
     Returns:
         {
@@ -311,6 +316,15 @@ def build_prompts(
 
     instruction = sim["instruction_template"].format(focus=focus_text)
     video = sim["video_template"].format(focus=focus_text)
+
+    # analysis 가 있으면 요소별 시각 식별 가이드를 instruction 앞에 prepend.
+    # (nano-banana 가 입력 이미지의 흰 크림을 치즈로 오인 등 시각적 모호성 차단)
+    if analysis is not None:
+        import prompt_locks
+        elements = prompt_locks.collect_elements_from_analysis(analysis)
+        visual_ids = prompt_locks.get_visual_identities(elements)
+        if visual_ids:
+            instruction = f"{visual_ids}\n\n{instruction}"
 
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
