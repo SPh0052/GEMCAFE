@@ -304,6 +304,15 @@ def keyframe_endpoint(
             "focus 명시하면 무시 가능. 멀티유저 안전성을 위해 명시 전달 권장."
         ),
     ),
+    aspect_ratio: str = Form(
+        "9:16",
+        description=(
+            "키프레임/영상 종횡비. 기본값 '9:16' (숏폼/YouTube Shorts/Reels/TikTok). "
+            "다른 값: '16:9'(가로) / '1:1'(정사각형) / 'auto'(원본 비율). "
+            "BE/FE 가 안 보내도 production 기본인 9:16 으로 동작. "
+            "키프레임이 이 비율로 생성되면 Veo first-last-frame 영상도 같은 비율로 출력됨."
+        ),
+    ),
 ) -> dict:
     """
     키프레임 생성 (STEP 7-1).
@@ -367,6 +376,7 @@ def keyframe_endpoint(
             hint=hint,
             seed=seed,
             analysis=analysis_dict,
+            aspect_ratio=aspect_ratio,
         )
         return result
     except (ValueError, FileNotFoundError) as e:

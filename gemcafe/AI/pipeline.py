@@ -42,24 +42,31 @@ INPUT_IMAGE_PATH = "./test_cake.jpg"
 #   "cream_scoop"        크림만 떠내기           (i2i = end frame)
 #   "strawberry_fall"    딸기가 케이크 위로 떨어짐 (i2i = start frame, 역방향)
 #   "strawberry_cascade" 딸기 우수수             (i2i = start frame, 역방향)
-SIMULATION = "cut_in_half"
+SIMULATION = "fork_bite"
 
 # 강조할 요소 (focus) — 정식 키: "sponge" / "whipped_cream" / "strawberry"
 #   None              → 자동 (analysis.json의 suggested_focus[0])
 #   "strawberry" 등   → 수동 지정 (별칭도 허용: fresh_strawberries / cream / sponge_layers ...)
-FOCUS: Optional[str] = None
+FOCUS: Optional[str] = "whipped_cream"
 
 # 배경
 #   None              → 배경 교체 skip
 #   "white_marble" / "cafe_interior" / "outdoor" / "wooden_table" /
 #   "minimalist_white" / "dark_moody"
-BACKGROUND: Optional[str] = None
+BACKGROUND: Optional[str] = "minimalist_white"
 
 # 사용자 자유 힌트
 USER_HINT: Optional[str] = None
 
 # 키프레임 시드 (None=랜덤, 정수=재현)
 SEED: Optional[int] = None
+
+# 종횡비 (키프레임 → 영상에 그대로 전파됨)
+#   "9:16" → 숏폼/세로 (YouTube Shorts / Reels / TikTok) — production 기본
+#   "16:9" → 가로
+#   "1:1"  → 정사각형
+#   "auto" → 원본 이미지 비율 따라감
+ASPECT_RATIO: str = "9:16"
 
 # =====================================================================
 # LLM 오토 프롬프팅 (production parity)
@@ -136,6 +143,7 @@ def main():
         hint=USER_HINT,
         seed=SEED,
         save_dir=run_dir,    # ← 같은 폴더에 저장하도록 지정
+        aspect_ratio=ASPECT_RATIO,
     )
 
     # ─── (옵션) Phase 1.5 — LLM 오토 프롬프팅 (production parity) ───
