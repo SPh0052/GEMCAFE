@@ -1,31 +1,40 @@
 """
-STEP 2 — 케이크 이미지 자동 분석 (Moondream3 Preview).
+STEP 2 — 케이크 이미지 자동 분석 (Gemini 2.5 Pro via SSAFY GMS).
 
 이미지 한 장 입력 → 케이크 구성요소(cream, topping, coating 등) JSON 추출.
 이 결과는 STEP 3(focus 선택)에서 UI에 띄울 옵션을 만드는 데 사용됨.
 
+이전엔 Moondream3-preview (fal.ai) 를 썼으나 fine-grained 음식 식별 정확도가
+부족 (예: 망고 큐브를 "yellow_cake_blocks" 같은 시각 묘사로 회피) 해서
+Gemini 2.5 Pro (GMS 게이트웨이 경유) 로 교체. output JSON 스키마와 파일 구성,
+함수 시그니처는 모두 그대로 유지되어 downstream (generate_keyframe / pipeline /
+prompt_builder) 은 변경 없이 그대로 작동.
+
 실행:
-    1) FAL_KEY 환경변수 설정 (.env에 FAL_KEY=...)
+    1) GMS_KEY 환경변수 설정 (.env에 GMS_KEY=...)
     2) 아래 INPUT_IMAGE_PATH를 본인 케이스에 맞게 수정
     3) python analyze.py
-
-⚠️ fal.ai의 fal-ai/moondream3-preview/query 입력 필드명은 추정치입니다.
-   실패 시 Schema 페이지에서 정확한 필드명 확인 후 수정.
 """
 import json
+import mimetypes
 import os
 import re
 from datetime import datetime
 from pathlib import Path
-import fal_client
 from dotenv import load_dotenv
+
+from google.genai import types as genai_types
+
+# llm_client 의 GMS 게이트웨이 클라이언트를 재사용 (base_url=GMS 가 박혀있음)
+from llm_client import _get_client
 
 load_dotenv()
 
 # =====================================================================
 # 설정
 # =====================================================================
-ENDPOINT_MOONDREAM = "fal-ai/moondream3-preview/query"
+# 분석용 비전 모델 — GMS 가 제공하는 멀티모달 Gemini 2.5 Pro
+GEMINI_VISION_MODEL = "gemini-2.5-pro"
 
 INPUT_IMAGE_PATH = "./test_cake.jpg"
 OUTPUT_DIR = "outputs"
@@ -79,70 +88,78 @@ Now analyze the provided image. Output ONLY valid JSON in the same schema, no ot
 
 
 # =====================================================================
-# 진행 로그 콜백
-# =====================================================================
-def on_queue_update(update):
-    if isinstance(update, fal_client.InProgress):
-        for log in (update.logs or []):
-            msg = log.get("message", "")
-            if msg:
-                print(f"      [fal] {msg}")
-
-
-# =====================================================================
 # 핵심 함수
 # =====================================================================
-def upload(path: str) -> str:
-    print(f"[1/2] 이미지 업로드: {path}")
-    url = fal_client.upload_file(path)
-    print(f"      → {url}")
-    return url
+def _guess_mime_type(image_path: str) -> str:
+    """파일 확장자에서 MIME 타입 추론. 알 수 없으면 image/jpeg 폴백."""
+    mime, _ = mimetypes.guess_type(image_path)
+    if mime and mime.startswith("image/"):
+        return mime
+    return "image/jpeg"
 
 
-def analyze_with_moondream(image_url: str, prompt: str) -> tuple[dict, str, dict]:
+def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
     """
-    Moondream3 Preview로 이미지 분석.
+    Gemini 2.5 Pro (SSAFY GMS 게이트웨이 경유) 로 이미지 분석.
+
+    Args:
+        image_path: 로컬 이미지 파일 경로 (Gemini 는 bytes 를 직접 받음).
+        prompt:     few-shot 예시가 포함된 분석 지시문.
 
     Returns:
         (parsed_dict, raw_text, full_response)
           - parsed_dict:    raw_text 에서 추출한 정형 JSON dict
-          - raw_text:       모델의 원본 텍스트 응답 (reasoning=True 일 때 CoT 사고 흐름 포함 가능)
-          - full_response:  fal.ai 가 돌려준 응답 dict 전체 (다른 메타데이터 디버깅용)
+          - raw_text:       모델의 원본 텍스트 응답 (사고 흐름 포함 가능)
+          - full_response:  디버깅용 메타 dict (모델명/사용 토큰 등)
+
+    동작 흐름:
+      1) 이미지 파일을 bytes 로 읽기
+      2) llm_client._get_client() 로 GMS base_url 박힌 클라이언트 획득
+      3) 멀티모달 generate_content 호출 (이미지 Part + 텍스트 프롬프트)
+      4) 응답 텍스트에서 JSON 추출
     """
-    print(f"[2/2] Moondream3 분석 중... (reasoning=True)")
-    result = fal_client.subscribe(
-        ENDPOINT_MOONDREAM,
-        arguments={
-            "image_url": image_url,
-            "prompt": prompt,            # 만약 422 나면 "question" 으로 변경
-            "reasoning": True,           # CoT 추론 모드 (raw_text 에 사고 흐름 포함됨)
-        },
-        with_logs=True,
-        on_queue_update=on_queue_update,
+    print(f"[1/1] Gemini 2.5 Pro 이미지 분석 중... ({GEMINI_VISION_MODEL})")
+    image_bytes = Path(image_path).read_bytes()
+    mime_type = _guess_mime_type(image_path)
+
+    client = _get_client()
+    response = client.models.generate_content(
+        model=GEMINI_VISION_MODEL,
+        contents=[
+            genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+            prompt,
+        ],
+        config=genai_types.GenerateContentConfig(
+            temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
+        ),
     )
 
-    # 디버그: 응답 구조 출력 (첫 호출에서 키 확인용)
-    print(f"      [debug] 응답 키: {list(result.keys())}")
-
-    # 모델의 텍스트 응답 추출 (여러 키 형식 대응)
-    text = None
-    for key in ("output", "answer", "response", "text", "result"):
-        v = result.get(key)
-        if isinstance(v, str) and v.strip():
-            text = v
-            break
-
-    if text is None:
+    text = (response.text or "").strip()
+    if not text:
         raise RuntimeError(
-            f"Moondream3 텍스트 응답을 찾지 못함. 응답 전체:\n"
-            f"{json.dumps(result, indent=2, ensure_ascii=False, default=str)[:1500]}"
+            f"Gemini 2.5 Pro 응답이 비어있음. response={response!r}"
         )
 
     print(f"      → 원시 응답 (앞 300자): {text[:300]}...")
 
     # 응답에서 JSON 부분만 추출 (모델이 ```json ... ``` 같은 펜스 붙일 수 있음)
     parsed = extract_json(text)
-    return parsed, text, result
+
+    # full_response: SDK 가 돌려주는 객체는 JSON 직렬화가 까다로워 디버그용 dict 로 정리
+    full_response = {
+        "model": GEMINI_VISION_MODEL,
+        "image_path": image_path,
+        "image_mime_type": mime_type,
+        "image_size_bytes": len(image_bytes),
+        "raw_text": text,
+        "usage_metadata": (
+            response.usage_metadata.model_dump()
+            if getattr(response, "usage_metadata", None) is not None
+            and hasattr(response.usage_metadata, "model_dump")
+            else None
+        ),
+    }
+    return parsed, text, full_response
 
 
 def extract_json(text: str) -> dict:
@@ -170,8 +187,8 @@ def extract_json(text: str) -> dict:
 # 메인
 # =====================================================================
 def main():
-    if not os.environ.get("FAL_KEY"):
-        raise SystemExit("FAL_KEY 미설정. .env 에 추가하세요.")
+    if not os.environ.get("GMS_KEY"):
+        raise SystemExit("GMS_KEY 미설정. .env 에 추가하세요.")
     if not os.path.exists(INPUT_IMAGE_PATH):
         raise SystemExit(f"입력 이미지가 없습니다: {INPUT_IMAGE_PATH}")
 
@@ -180,13 +197,12 @@ def main():
     run_dir.mkdir(parents=True, exist_ok=True)
     print(f"\n결과 저장 폴더: {run_dir}\n")
 
-    image_url = upload(INPUT_IMAGE_PATH)
-    analysis, raw_text, full_response = analyze_with_moondream(image_url, ANALYSIS_PROMPT)
+    analysis, raw_text, full_response = analyze_with_gemini(INPUT_IMAGE_PATH, ANALYSIS_PROMPT)
 
     # 파일로 저장 (3종 모두 보존)
     #   analysis.json       — 정형 JSON (다운스트림에서 사용)
-    #   raw_response.txt    — 모델 원본 텍스트 (reasoning=True 시 CoT 사고 흐름 포함)
-    #   full_response.json  — fal.ai 응답 dict 전체 (메타데이터 / 미사용 필드 디버깅용)
+    #   raw_response.txt    — Gemini 원본 텍스트 응답 (사고 흐름 포함 가능)
+    #   full_response.json  — 메타데이터 (모델/이미지 정보/usage 토큰 디버깅용)
     output_path = run_dir / "analysis.json"
     output_path.write_text(
         json.dumps(analysis, indent=2, ensure_ascii=False),
@@ -204,13 +220,13 @@ def main():
 
     # 콘솔 출력 (보기 좋게)
     print("\n" + "=" * 60)
-    print("Moondream3 분석 결과 (정형 JSON)")
+    print("Gemini 2.5 Pro 분석 결과 (정형 JSON)")
     print("=" * 60)
     print(json.dumps(analysis, indent=2, ensure_ascii=False))
     print("=" * 60)
     print(f"저장: {output_path}")
-    print(f"저장: {raw_path}        ← reasoning 사고 흐름 포함")
-    print(f"저장: {full_path}      ← fal.ai 응답 전체 (디버깅용)")
+    print(f"저장: {raw_path}        ← 모델 사고 흐름 포함 가능")
+    print(f"저장: {full_path}      ← 메타데이터 (모델/이미지/usage 토큰)")
 
     # STEP 3 미리보기 — suggested_focus 옵션
     if "suggested_focus" in analysis:
