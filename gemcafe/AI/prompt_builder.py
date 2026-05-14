@@ -283,6 +283,19 @@ SIMULATIONS = {
         # 부드러운 dollop 떠올리는 액션 — 점성 크림류만. molten_chocolate 은 액체라 부적합.
         "applicable_focus": ["whipped_cream", "ganache", "mascarpone_cream"],
         "frame_strategy": "i2i_is_end",
+        # 시작 프레임 액션 — background 교체 단계에 합쳐서 한 번에 호출됨
+        # (background 가 None 이면 적용되지 않음. 호출 수 추가하지 않기 위해서.)
+        # i2v 시작 → 끝 사이 모션이 자연스러우려면 시작 프레임에 이미 숟가락이
+        # 케이크 위에 떠 있는 "막 떠내려는 순간 직전" 상태여야 함.
+        "start_frame_action": (
+            "add a clean stainless steel dessert spoon entering from the upper part of "
+            "the frame, hovering just above the top of the cake with its bowl facing "
+            "down toward the cream surface, as if about to scoop but NOT YET touching "
+            "the cake. The spoon is empty with no cream on it, no scooped material, no "
+            "dollop. A clear air gap remains between the spoon's bowl and the cake "
+            "surface. The cake's top remains completely undisturbed — no indentation, "
+            "no displaced cream, no missing topping."
+        ),
         "instruction_template": (
             "Edit the input image for a 9:16 vertical short-form video end frame. "
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
@@ -419,15 +432,47 @@ BACKGROUND_INSTRUCTION_TEMPLATE = (
     "Photorealistic, sharp focus."
 )
 
+# 배경 교체 + 시뮬레이션별 시작 프레임 액션 합본 템플릿.
+# 시뮬레이션에 start_frame_action 이 정의돼 있고 background 도 같이 지정된 경우에만
+# 사용 — nano-banana 호출 1번에 두 변경을 동시에 적용 (추가 호출 없음).
+BACKGROUND_WITH_START_FRAME_TEMPLATE = (
+    "Edit the input image to create a 9:16 vertical short-form video start frame. "
+    "Apply TWO changes together: "
+    "(1) Replace the background and the surface the cake sits on with: {bg_text}. "
+    "Match the lighting direction of the new background so the cake looks naturally placed. "
+    "(2) {start_action} "
+    "Otherwise preserve the cake pixel-by-pixel: the exact same cake shape, the exact "
+    "toppings, the exact cream pattern, the exact plate/liner, and the exact lighting on "
+    "the cake itself. Do not redraw, recolor, or reinterpret any part of the cake. "
+    "Photorealistic, sharp focus."
+)
 
-def build_background_prompt(background_key: str) -> str:
-    """배경 교체용 I2I 지시문 생성. 배경 묘사는 prompt_locks.MOOD_LIGHTING 사용."""
+
+def build_background_prompt(background_key: str, simulation: Optional[str] = None) -> str:
+    """
+    배경 교체용 I2I 지시문 생성. 배경 묘사는 prompt_locks.MOOD_LIGHTING 사용.
+
+    simulation 이 주어지고 해당 시뮬레이션에 start_frame_action 이 정의돼 있으면,
+    배경 교체와 시작 프레임 액션을 합쳐서 한 번의 nano-banana 호출에 같이 적용한다
+    (예: cream_scoop 에선 배경 교체와 동시에 숟가락이 케이크 위에 떠있는 시작 자세
+    부여). simulation 미지정이거나 start_frame_action 이 없으면 기존 배경-only
+    프롬프트로 폴백 (backward compat).
+    """
     import prompt_locks
     bg_text = prompt_locks.get_mood_lighting(background_key)
     if not bg_text:
         raise ValueError(
             f"알 수 없는 background: {background_key}. "
             f"가능한 값: {list(prompt_locks.MOOD_LIGHTING.keys())}"
+        )
+    start_action = None
+    if simulation:
+        sim_def = SIMULATIONS.get(simulation)
+        if sim_def:
+            start_action = sim_def.get("start_frame_action")
+    if start_action:
+        return BACKGROUND_WITH_START_FRAME_TEMPLATE.format(
+            bg_text=bg_text, start_action=start_action
         )
     return BACKGROUND_INSTRUCTION_TEMPLATE.format(bg_text=bg_text)
 

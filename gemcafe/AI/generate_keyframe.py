@@ -260,7 +260,7 @@ def generate_keyframe(
     # 5) [2/3] 배경 교체 (선택)
     if background:
         print(f"[2/3] 배경 교체: '{background}' (seed={bg_seed}, aspect={aspect_ratio})")
-        bg_prompt = prompt_builder.build_background_prompt(background)
+        bg_prompt = prompt_builder.build_background_prompt(background, simulation=simulation)
         bg_url = call_nano_banana_edit(
             image_url, bg_prompt, prompts["system_prompt"], bg_seed, aspect_ratio
         )
