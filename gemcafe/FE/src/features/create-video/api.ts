@@ -53,6 +53,113 @@ export async function analyzeCakeImage(file: File): Promise<AnalyzeResult> {
   return res.data.data
 }
 
+// ─── 진행 중 세션 목록 조회 ─────────────────────────────────────
+export type InProgressStatus =
+  | 'ANALYZED'
+  | 'KEYFRAMING'
+  | 'READY_TO_GENERATE'
+  | string
+
+export interface InProgressSession {
+  sessionId: number
+  status: InProgressStatus
+  createdAt: string
+  inputImage: {
+    fileName: string
+    /** 인증 보호 경로일 수 있음 — 카드 썸네일로 사용. AuthedImage 권장 */
+    url: string
+  }
+}
+
+export interface InProgressList {
+  items: InProgressSession[]
+  total: number
+}
+
+/**
+ * 진행 중 세션 목록 조회 — 영상 생성 진입 전 (ANALYZED / KEYFRAMING / READY_TO_GENERATE) 세션만.
+ * GET /api/v1/cakes/sessions/in-progress
+ *
+ * 사용자가 영상 생성 도중 이탈한 세션을 카드로 보여주고 재진입 (이어서 만들기) 시키는 용도.
+ */
+export async function getInProgressSessions(): Promise<InProgressList> {
+  const res = await api.get<ApiResponse<InProgressList>>(
+    '/cakes/sessions/in-progress',
+  )
+  return res.data.data
+}
+
+// ─── 세션 상세 조회 (이어서 만들기 복원용) ─────────────────────
+export interface SessionKeyframe {
+  keyframeId: number
+  attemptNumber: number
+  keyframeUrl: string
+  baseUrl?: string | null
+  frameStrategy?: string | null
+  videoPrompt?: string | null
+  seed?: number | null
+  metadata?: Record<string, unknown> | null
+  isSelected: boolean
+  createdAt: string
+}
+
+export interface SessionSelections {
+  simulationCode?: string | null
+  backgroundCode?: string | null
+  focus?: string | null
+  hint?: string | null
+}
+
+export interface SessionDetail {
+  sessionId: number
+  status: string
+  createdAt: string
+  expiresAt: string
+  expiresInSec: number
+  keyframeAttempts: number
+  videoId?: number | null
+  inputImage: {
+    fileName: string
+    url: string
+  }
+  crossSectionFileName?: string | null
+  analysis?: Record<string, unknown> | null
+  selections?: SessionSelections | null
+  videoPromptKr?: string | null
+  selectedKeyframeId?: number | null
+  keyframes: SessionKeyframe[]
+}
+
+/**
+ * 세션 상세 조회 — 재진입 시 이전 작업 상태 복원용.
+ * GET /api/v1/cakes/sessions/{sessionId}
+ *
+ * 모든 필드 반환 (null 컬럼은 null 그대로). FE 는 selections / videoPromptKr /
+ * keyframes / selectedKeyframeId 만으로 화면 복원.
+ */
+export async function getSessionDetail(
+  sessionId: number,
+): Promise<SessionDetail> {
+  const res = await api.get<ApiResponse<SessionDetail>>(
+    `/cakes/sessions/${sessionId}`,
+  )
+  return res.data.data
+}
+
+/**
+ * 인증 보호된 이미지 URL 을 axios 로 받아 blob URL 로 변환.
+ *
+ * BE 가 sessions detail 등에서 내려주는 `/api/v1/files/...` 절대 경로는
+ * `<img src>` 에 직접 박으면 dev proxy 매핑 안 되고 인증 헤더도 안 가서 404.
+ * axios 통과시키면 인터셉터가 baseURL + Authorization 자동 처리.
+ *
+ * 호출자는 컴포넌트 unmount 시 `URL.revokeObjectURL()` 로 해제 필요 (메모리 누수 방지).
+ */
+export async function fetchAuthedImageAsBlobUrl(url: string): Promise<string> {
+  const res = await api.get<Blob>(url, { responseType: 'blob' })
+  return URL.createObjectURL(res.data)
+}
+
 // ─── Step 4. 자동 프롬프트 생성 ─────────────────────────────────
 export interface PreviewPromptRequest {
   simulationCode: string

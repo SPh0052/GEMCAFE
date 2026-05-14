@@ -11,6 +11,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['fabicon.png', 'logo.png', 'logo_text.png'],
       manifest: {
         name: 'gem.cafe',
@@ -45,15 +48,12 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         // 데모용 mock 자산 (크기가 큼) 은 precache 에서 제외 — 오프라인 지원 불필요 + 캐시 한도 초과 회피.
         globIgnores: ['**/mock/**'],
-        // SPA navigation fallback 을 gemcafe 의 index 로 한정.
-        // 같은 도메인의 /dev/gemmark, /dev/be, /dev/files 는 SW 가 손대지 않도록
-        // denylist 로 차단 — 그렇지 않으면 gemcafe 의 index.html 이 잘못 응답된다.
-        navigateFallback: '/dev/gemcafe/index.html',
-        navigateFallbackDenylist: [/^\/dev\/(?!gemcafe\/)/],
+        // precache 단일 파일 크기 한도 — 큰 mp3/mp4 가 있어도 빌드 실패 안 하게 여유 줌
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
       },
       // dev 모드에선 PWA 비활성 — service worker 와 HMR 캐시 충돌, 재시작 시
       // dev-dist/sw.js, workbox-*.js 의 race condition 으로 인한 ENOENT 회피.
