@@ -325,6 +325,27 @@ TEXTURE_PROFILES = {
         "when_cut_kr": "단면에 시럽 자국 노출",
         "visual_identity_en": "ladyfinger biscuit (coffee-soaked golden sponge fingers)",
     },
+    "baked_cheese": {
+        "label_kr": "베이크드 치즈",
+        # 치즈케이크 필링 — Basque(겉 그을림 + 부드러운 속) / 뉴욕(묵직한 균질) / 수플레(폭신).
+        # 차가운 상태 기준: 결 없고 늘어지지 않으며 부드럽게 갈라짐.
+        # whipped_cream 보다 묵직, mascarpone 보다 단단, ganache 보다 부드러움.
+        "under_pressure_kr": (
+            "두툼하고 무거운 점성 질감이 도구 압력에 천천히 함몰되며 부드럽게 갈라짐. "
+            "결이 없는 균질한 치즈 필링이라 늘어지거나 실처럼 끊어지지 않고 깔끔하게 "
+            "쪼개짐. 함몰 자국 가장자리가 매끈하게 떨어짐."
+        ),
+        "when_cut_kr": (
+            "매끈한 단면이 결 없이 균일하게 갈라지며 살짝 윤기를 띰. 도구를 따라 단면 "
+            "양쪽에 얇은 점성 자국이 남고, 부스러기가 거의 없음. Basque 의 경우 겉면의 "
+            "진한 그을린 자국과 속의 부드러운 크림색 단면이 대비됨."
+        ),
+        "visual_identity_en": (
+            "baked cheesecake filling (dense smooth single-layer baked cheese with creamy "
+            "interior — caramelized darker top in Basque-style, uniform cream color in "
+            "New York-style, light airy in souffle-style)"
+        ),
+    },
     "mousse": {
         "label_kr": "무스",
         "under_pressure_kr": "푹 꺼지고 공기층 붕괴",
@@ -467,6 +488,29 @@ ELEMENT_ALIASES = {
 
     # 코팅 변종
     "cream_coating":          "whipped_cream_coating",
+
+    # 초코/가나슈 변종 (분석 결과 정규화 — focus aliases 와 키 일관성 유지)
+    "chocolate_ganache":      "ganache",
+    "dark_ganache":           "ganache",
+    "glossy_ganache":         "ganache",
+
+    # 라바/흐르는 초콜릿 변종
+    "warm_chocolate":         "molten_chocolate",
+    "flowing_chocolate":      "molten_chocolate",
+    "lava_filling":           "molten_chocolate",
+    "molten_center":          "molten_chocolate",
+
+    # 치즈케이크 변종 — Basque / 뉴욕 / 수플레 / 일반 치즈케이크 모두 단일 키로 매핑.
+    # (스타일별 시각적 차이는 visual_identity_en 안에서 묘사됨)
+    "basque_cheesecake":      "baked_cheese",
+    "new_york_cheesecake":    "baked_cheese",
+    "souffle_cheesecake":     "baked_cheese",
+    "cheesecake_filling":     "baked_cheese",
+    "cheese_filling":         "baked_cheese",
+    "cream_cheese_filling":   "baked_cheese",
+    "baked_cheesecake":       "baked_cheese",
+    "caramelized_top":        "baked_cheese",   # Basque suggested_focus 변종
+    "creamy_interior":        "baked_cheese",   # Basque suggested_focus 변종
 }
 
 

@@ -34,6 +34,8 @@ FOCUS_TEXT = {
     "molten_chocolate": "molten chocolate",
     # 티라미수용
     "mascarpone_cream": "mascarpone cream",
+    # 치즈케이크용 (Basque / 뉴욕 / 수플레 공통)
+    "baked_cheese": "baked cheesecake filling",
 }
 
 # Moondream 등이 변형 키를 줄 때 정식 focus 키로 정규화하기 위한 별칭 표.
@@ -63,6 +65,18 @@ FOCUS_ALIASES = {
     # 티라미수 변종
     "mascarpone": "mascarpone_cream",
     "mascarpone_texture": "mascarpone_cream",
+
+    # 치즈케이크 변종 — 사용자/Gemini suggested_focus 변종을 단일 focus 키로 정규화
+    "cheesecake":             "baked_cheese",
+    "basque":                 "baked_cheese",
+    "basque_cheesecake":      "baked_cheese",
+    "new_york_cheesecake":    "baked_cheese",
+    "souffle_cheesecake":     "baked_cheese",
+    "cheesecake_filling":     "baked_cheese",
+    "cream_cheese":           "baked_cheese",
+    "cream_cheese_filling":   "baked_cheese",
+    "caramelized_top":        "baked_cheese",   # Basque suggested_focus 변종
+    "creamy_interior":        "baked_cheese",   # Basque suggested_focus 변종
 }
 
 
@@ -98,7 +112,10 @@ SIMULATIONS = {
     "smash": {
         "label_kr": "뭉개기",
         # 누르는 액션 — 부드럽고 변형 가능한 요소만. 흐르는 액체(molten_chocolate)는 부적합.
-        "applicable_focus": ["sponge", "whipped_cream", "ganache", "mascarpone_cream"],
+        # baked_cheese 는 묵직한 점성이지만 함몰/갈라짐 묘사 가능.
+        "applicable_focus": [
+            "sponge", "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+        ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
@@ -123,8 +140,10 @@ SIMULATIONS = {
         "label_kr": "포크로 한 입 뜨기",
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         # molten_chocolate 은 한 입 뜨면 단면에서 흘러나오는 게 라바 케이크 시그니처.
+        # baked_cheese 는 단일 층 단면이 시그니처 (Basque 의 겉/속 대비 등).
         "applicable_focus": [
-            "sponge", "whipped_cream", "ganache", "molten_chocolate", "mascarpone_cream",
+            "sponge", "whipped_cream", "ganache", "molten_chocolate",
+            "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (
@@ -172,7 +191,8 @@ SIMULATIONS = {
         "label_kr": "반으로 자르기",
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         "applicable_focus": [
-            "sponge", "whipped_cream", "ganache", "molten_chocolate", "mascarpone_cream",
+            "sponge", "whipped_cream", "ganache", "molten_chocolate",
+            "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
         "instruction_template": (

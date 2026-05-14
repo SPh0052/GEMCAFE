@@ -225,6 +225,7 @@ def catalog() -> dict:
         "ganache":          "가나슈",
         "molten_chocolate": "흐르는 초콜릿",
         "mascarpone_cream": "마스카포네 크림",
+        "baked_cheese":     "치즈 필링",
     }
     focuses = [
         {
