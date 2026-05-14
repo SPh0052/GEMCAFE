@@ -234,14 +234,18 @@ TEXTURE_PROFILES = {
     # 크림 / 필링 류
     "whipped_cream": {
         "label_kr": "생크림",
-        "under_pressure_kr": "질척이며 늘어붙고 포크에 묻어남",
-        "when_cut_kr": "부드럽게 갈라짐, 결 따라 매끄럽게 분리",
-        "visual_identity_en": "fluffy whipped cream (light, airy, soft white dairy cream)",
-    },
-    "fluffy_whipped_cream": {
-        "label_kr": "부드러운 생크림",
-        "under_pressure_kr": "질척이며 늘어붙고 포크에 묻어남",
-        "when_cut_kr": "부드럽게 갈라짐, 결 따라 매끄럽게 분리",
+        # 생크림은 거품 낸 균질 구조라 '결' 개념이 없고, 탄성이 없어 치즈처럼 늘어나지
+        # 않는다. 들거나 누를 때 뾰족한 뿔을 그리며 깔끔하게 끊어지는 것이 사실적.
+        "under_pressure_kr": (
+            "구름처럼 폭신한 질감이 도구에 가벼운 저항감을 보이며 부드럽게 압축되고 "
+            "옆으로 살짝 밀려 퍼짐. 도구를 따라 올라오는 부분은 뾰족한 뿔을 그리듯 "
+            "깔끔하게 끊어짐. 늘어지거나 길게 늘어붙지 않음."
+        ),
+        "when_cut_kr": (
+            "구름처럼 폭신한 질감이 도구를 따라 부드럽게 밀려나며 매끄러운 표면이 "
+            "가볍게 갈라짐. 단면이 매끈하고 끊김이 짧고 깨끗함. 결이 없는 균질한 "
+            "거품 구조라 늘어지거나 실처럼 늘어붙지 않음."
+        ),
         "visual_identity_en": "fluffy whipped cream (light, airy, soft white dairy cream)",
     },
     "cream": {
@@ -276,12 +280,6 @@ TEXTURE_PROFILES = {
         "when_cut_kr": "부스러기 발생, 결과 층 노출",
         "visual_identity_en": "sponge cake (soft baked layers with airy crumb texture)",
     },
-    "soft_sponge_layers": {
-        "label_kr": "부드러운 시트",
-        "under_pressure_kr": "푹 짓눌렸다 살짝 복원",
-        "when_cut_kr": "부스러기 발생, 결과 층 노출",
-        "visual_identity_en": "soft sponge cake layers (light baked dough with airy crumb)",
-    },
     "vanilla_sponge": {
         "label_kr": "바닐라 스펀지",
         "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",
@@ -314,19 +312,7 @@ TEXTURE_PROFILES = {
         "when_cut_kr": "단면에 즙 맺힘, 빨간 단면 노출",
         "visual_identity_en": "fresh strawberry fruit (red whole or sliced berry)",
     },
-    "fresh_strawberries": {
-        "label_kr": "신선한 딸기",
-        "under_pressure_kr": "즙 살짝 터짐",
-        "when_cut_kr": "단면에 즙 맺힘, 빨간 단면 노출",
-        "visual_identity_en": "fresh strawberry fruit (red whole or sliced berry)",
-    },
     "blueberry": {
-        "label_kr": "블루베리",
-        "under_pressure_kr": "톡 터지며 즙 흘러나옴",
-        "when_cut_kr": "보라빛 즙 맺힘",
-        "visual_identity_en": "fresh blueberry fruit (small round dark blue berry)",
-    },
-    "blueberries": {
         "label_kr": "블루베리",
         "under_pressure_kr": "톡 터지며 즙 흘러나옴",
         "when_cut_kr": "보라빛 즙 맺힘",
@@ -349,12 +335,6 @@ TEXTURE_PROFILES = {
         "under_pressure_kr": "흩날리거나 자국 남음",
         "when_cut_kr": "단면에 살짝 묻어남",
         "visual_identity_en": "cocoa powder (fine dark brown dusting)",
-    },
-    "cocoa_dusting": {
-        "label_kr": "코코아 더스팅",
-        "under_pressure_kr": "흩날리거나 자국 남음",
-        "when_cut_kr": "단면에 살짝 묻어남",
-        "visual_identity_en": "cocoa dusting (fine dark brown sugar surface dusting)",
     },
 
     # 코팅 / 외피
@@ -414,8 +394,66 @@ def get_texture_guidance(elements: list[str], simulation_id: str) -> str:
     return "\n".join(lines)
 
 
+# =====================================================================
+# 요소 키 정규화 (분석 모델이 변종 이름으로 줄 때 정식 키로 통일)
+# =====================================================================
+# 분석 모델(Moondream / Gemini Vision) 이 같은 재료를 다양한 변종으로 응답할 수
+# 있어서, TEXTURE_PROFILES 의 정식 키로 정규화한다.
+# (예: "fluffy_whipped_cream", "fresh_strawberries" → "whipped_cream", "strawberry")
+#
+# 주의: 별개 의미를 갖는 키는 alias 로 넣지 말 것.
+#   - whipped_cream_coating ≠ whipped_cream (위치/맥락 다름. 코팅은 외피)
+#   - vanilla_sponge / chocolate_sponge ≠ sponge (색이 다름. 보존됨)
+ELEMENT_ALIASES = {
+    # 크림 / 필링 변종
+    "fluffy_whipped_cream":   "whipped_cream",
+    "fluffy_cream":           "whipped_cream",
+    "white_whipped_cream":    "whipped_cream",
+    "soft_cream":             "cream",
+    "mascarpone_texture":     "mascarpone_cream",
+
+    # 시트 / 베이스 변종
+    "soft_sponge_layers":     "sponge",
+    "sponge_layers":          "sponge",
+    "vanilla_sponge_layers":  "vanilla_sponge",
+    "chocolate_sponge_layers": "chocolate_sponge",
+    "coffee_soaked_layers":   "ladyfinger_biscuit",
+
+    # 딸기 변종
+    "fresh_strawberries":     "strawberry",
+    "strawberries":           "strawberry",
+    "strawberry_slices":      "strawberry",
+
+    # 블루베리 변종
+    "blueberries":            "blueberry",
+
+    # 망고 변종 — Gemini Vision / Moondream 이 다양하게 응답 가능
+    "mango_cubes":            "mango",
+    "mango_jelly_cubes":      "mango",
+    "mango_jelly":            "mango",
+    "diced_mango":            "mango",
+    "fresh_mango":            "mango",
+    "yellow_cake_blocks":     "mango",   # Moondream 시절 잔재
+
+    # 파우더 / 더스팅 변종
+    "cocoa_dusting":          "cocoa_powder",
+
+    # 코팅 변종
+    "cream_coating":          "whipped_cream_coating",
+}
+
+
+def normalize_element(elem: str) -> str:
+    """변종 키를 TEXTURE_PROFILES 의 정식 키로 변환. 알 수 없으면 그대로 반환."""
+    return ELEMENT_ALIASES.get(elem, elem)
+
+
 def collect_elements_from_analysis(analysis: dict) -> list[str]:
-    """Moondream 분석 결과(JSON dict)에서 요소 키 목록 추출."""
+    """
+    Moondream / Gemini Vision 분석 결과(JSON dict)에서 요소 키 목록 추출.
+    변종 키는 ELEMENT_ALIASES 로 정규화된 정식 키로 반환되어 downstream
+    (TEXTURE_PROFILES 조회) 에서 그대로 사용 가능.
+    """
     elements: list[str] = []
     for field in ("creams", "toppings", "base"):
         v = analysis.get(field)
@@ -424,7 +462,15 @@ def collect_elements_from_analysis(analysis: dict) -> list[str]:
     coating = analysis.get("coating")
     if coating and coating != "none":
         elements.append(str(coating))
-    return elements
+    # 변종 키 → 정식 키로 정규화 (중복 제거하면서 순서는 유지)
+    seen = set()
+    normalized: list[str] = []
+    for e in elements:
+        canon = normalize_element(e)
+        if canon not in seen:
+            seen.add(canon)
+            normalized.append(canon)
+    return normalized
 
 
 def get_visual_identities(elements: list[str]) -> str:
