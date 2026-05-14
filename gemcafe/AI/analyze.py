@@ -99,17 +99,23 @@ def upload(path: str) -> str:
     return url
 
 
-def analyze_with_moondream(image_url: str, prompt: str) -> dict:
+def analyze_with_moondream(image_url: str, prompt: str) -> tuple[dict, str, dict]:
     """
-    Moondream3 Preview로 이미지 분석. JSON 응답 → dict 변환 후 반환.
+    Moondream3 Preview로 이미지 분석.
+
+    Returns:
+        (parsed_dict, raw_text, full_response)
+          - parsed_dict:    raw_text 에서 추출한 정형 JSON dict
+          - raw_text:       모델의 원본 텍스트 응답 (reasoning=True 일 때 CoT 사고 흐름 포함 가능)
+          - full_response:  fal.ai 가 돌려준 응답 dict 전체 (다른 메타데이터 디버깅용)
     """
-    print(f"[2/2] Moondream3 분석 중...")
+    print(f"[2/2] Moondream3 분석 중... (reasoning=True)")
     result = fal_client.subscribe(
         ENDPOINT_MOONDREAM,
         arguments={
             "image_url": image_url,
             "prompt": prompt,            # 만약 422 나면 "question" 으로 변경
-            "reasoning": True,           # CoT 추론 모드 (지원하면)
+            "reasoning": True,           # CoT 추론 모드 (raw_text 에 사고 흐름 포함됨)
         },
         with_logs=True,
         on_queue_update=on_queue_update,
@@ -136,7 +142,7 @@ def analyze_with_moondream(image_url: str, prompt: str) -> dict:
 
     # 응답에서 JSON 부분만 추출 (모델이 ```json ... ``` 같은 펜스 붙일 수 있음)
     parsed = extract_json(text)
-    return parsed
+    return parsed, text, result
 
 
 def extract_json(text: str) -> dict:
@@ -175,22 +181,36 @@ def main():
     print(f"\n결과 저장 폴더: {run_dir}\n")
 
     image_url = upload(INPUT_IMAGE_PATH)
-    analysis = analyze_with_moondream(image_url, ANALYSIS_PROMPT)
+    analysis, raw_text, full_response = analyze_with_moondream(image_url, ANALYSIS_PROMPT)
 
-    # 파일로 저장
+    # 파일로 저장 (3종 모두 보존)
+    #   analysis.json       — 정형 JSON (다운스트림에서 사용)
+    #   raw_response.txt    — 모델 원본 텍스트 (reasoning=True 시 CoT 사고 흐름 포함)
+    #   full_response.json  — fal.ai 응답 dict 전체 (메타데이터 / 미사용 필드 디버깅용)
     output_path = run_dir / "analysis.json"
     output_path.write_text(
         json.dumps(analysis, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
 
+    raw_path = run_dir / "raw_response.txt"
+    raw_path.write_text(raw_text, encoding="utf-8")
+
+    full_path = run_dir / "full_response.json"
+    full_path.write_text(
+        json.dumps(full_response, indent=2, ensure_ascii=False, default=str),
+        encoding="utf-8",
+    )
+
     # 콘솔 출력 (보기 좋게)
     print("\n" + "=" * 60)
-    print("Moondream3 분석 결과")
+    print("Moondream3 분석 결과 (정형 JSON)")
     print("=" * 60)
     print(json.dumps(analysis, indent=2, ensure_ascii=False))
     print("=" * 60)
     print(f"저장: {output_path}")
+    print(f"저장: {raw_path}        ← reasoning 사고 흐름 포함")
+    print(f"저장: {full_path}      ← fal.ai 응답 전체 (디버깅용)")
 
     # STEP 3 미리보기 — suggested_focus 옵션
     if "suggested_focus" in analysis:
