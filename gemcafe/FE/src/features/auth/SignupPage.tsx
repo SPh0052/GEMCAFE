@@ -150,12 +150,15 @@ export default function SignupPage() {
             inputMode="numeric"
             placeholder="01012345678"
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            // 숫자 외 입력 즉시 차단 — 붙여넣기 / 자동완성도 동일하게 필터링
+            onChange={(e) =>
+              setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })
+            }
           />
           <TextField
             label="비밀번호"
             type="password"
-            placeholder="영문·숫자 12자 이상"
+            placeholder="영문·숫자 포함 8자 이상"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             autoComplete="new-password"
