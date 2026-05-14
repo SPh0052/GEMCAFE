@@ -61,6 +61,13 @@ USER_HINT: Optional[str] = None
 # 키프레임 시드 (None=랜덤, 정수=재현)
 SEED: Optional[int] = None
 
+# 종횡비 (키프레임 → 영상에 그대로 전파됨)
+#   "9:16" → 숏폼/세로 (YouTube Shorts / Reels / TikTok) — production 기본
+#   "16:9" → 가로
+#   "1:1"  → 정사각형
+#   "auto" → 원본 이미지 비율 따라감
+ASPECT_RATIO: str = "9:16"
+
 # =====================================================================
 # LLM 오토 프롬프팅 (production parity)
 # =====================================================================
@@ -136,6 +143,7 @@ def main():
         hint=USER_HINT,
         seed=SEED,
         save_dir=run_dir,    # ← 같은 폴더에 저장하도록 지정
+        aspect_ratio=ASPECT_RATIO,
     )
 
     # ─── (옵션) Phase 1.5 — LLM 오토 프롬프팅 (production parity) ───

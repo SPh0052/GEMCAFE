@@ -48,6 +48,14 @@ USER_HINT = None
 # 재생성용 — 매번 다른 결과 원하면 None(랜덤). 재현 원하면 정수 박기.
 SEED = None
 
+# 키프레임 종횡비 (CLI 단독 실행용 디폴트)
+#   "9:16" → 숏폼/세로 (YouTube Shorts / Reels / TikTok) — production 기본
+#   "16:9" → 가로
+#   "1:1"  → 정사각형
+#   "auto" → fal.ai 자동 추론 (원본 이미지 비율 따라감)
+# 배경 교체와 키프레임 양쪽에 같은 값을 적용해야 Veo first-last-frame 이 정상 동작.
+KEYFRAME_ASPECT_RATIO = "9:16"
+
 OUTPUT_DIR = "outputs"
 
 
@@ -117,14 +125,18 @@ def resolve_focus(
 
 
 def call_nano_banana_edit(
-    image_url: str, prompt: str, system_prompt: str, seed: Optional[int] = None
+    image_url: str,
+    prompt: str,
+    system_prompt: str,
+    seed: Optional[int] = None,
+    aspect_ratio: str = "auto",
 ) -> str:
     """nano-banana-pro/edit 공통 호출."""
     args = {
         "prompt": prompt,
         "image_urls": [image_url],
         "system_prompt": system_prompt,
-        "aspect_ratio": "auto",
+        "aspect_ratio": aspect_ratio,
         "resolution": "2K",
         "output_format": "png",
     }
@@ -166,9 +178,13 @@ def generate_keyframe(
     seed: Optional[int] = None,
     save_dir: Optional[Path] = None,
     analysis: Optional[dict] = None,
+    aspect_ratio: str = "9:16",
 ) -> dict:
     """
     키프레임 1장 생성. 재호출 가능 (재생성 흐름용).
+
+    aspect_ratio: 키프레임 종횡비. 배경 교체와 키프레임 양쪽에 동일 적용.
+                  "9:16"(숏폼, 기본) / "16:9" / "1:1" / "auto".
 
     Returns:
         {
@@ -186,6 +202,7 @@ def generate_keyframe(
           "background":        Optional[str],
           "hint":              Optional[str],
           "seed":              Optional[int],
+          "aspect_ratio":      str,    # 영상 단계에서 참조 가능
         }
     """
     # 0) analysis 가 없으면 디스크에서 best-effort 로드 (visual identity 가이드용).
@@ -242,9 +259,11 @@ def generate_keyframe(
 
     # 5) [2/3] 배경 교체 (선택)
     if background:
-        print(f"[2/3] 배경 교체: '{background}' (seed={bg_seed})")
+        print(f"[2/3] 배경 교체: '{background}' (seed={bg_seed}, aspect={aspect_ratio})")
         bg_prompt = prompt_builder.build_background_prompt(background)
-        bg_url = call_nano_banana_edit(image_url, bg_prompt, prompts["system_prompt"], bg_seed)
+        bg_url = call_nano_banana_edit(
+            image_url, bg_prompt, prompts["system_prompt"], bg_seed, aspect_ratio
+        )
         bg_local = save_dir / bg_filename
         download_file(bg_url, str(bg_local))
         print(f"      → 배경 교체 이미지: {bg_url}")
@@ -255,12 +274,13 @@ def generate_keyframe(
         base_url = image_url
 
     # 6) [3/3] 시뮬레이션 키프레임
-    print(f"[3/3] 키프레임 생성 (seed={kf_seed})")
+    print(f"[3/3] 키프레임 생성 (seed={kf_seed}, aspect={aspect_ratio})")
     keyframe_url = call_nano_banana_edit(
         base_url,
         prompts["instruction_prompt"],
         prompts["system_prompt"],
         kf_seed,
+        aspect_ratio,
     )
     keyframe_local = save_dir / "3_keyframe.jpg"
     download_file(keyframe_url, str(keyframe_local))
@@ -283,6 +303,7 @@ def generate_keyframe(
         "background": background,
         "hint": hint,
         "seed": seed,
+        "aspect_ratio": aspect_ratio,
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
     }
     (save_dir / "metadata.json").write_text(
@@ -307,6 +328,7 @@ def main():
         background=BACKGROUND,
         hint=USER_HINT,
         seed=SEED,
+        aspect_ratio=KEYFRAME_ASPECT_RATIO,
     )
 
     print("\n" + "=" * 60)
