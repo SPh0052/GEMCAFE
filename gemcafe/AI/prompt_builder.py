@@ -280,39 +280,114 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "cream_scoop": {
         "label_kr": "크림만 떠내기",
-        # 부드러운 dollop 떠올리는 액션 — 점성 크림류만. molten_chocolate 은 액체라 부적합.
-        "applicable_focus": ["whipped_cream", "ganache", "mascarpone_cream"],
+        # 새 디자인 (S14P31S307-643): 슬라이스 단면을 정면으로 잡고 스푼이 위에서 아래로
+        # 끌어내려 채널을 긁어내는 액션. 두 손(검은 장갑) 가시. 두꺼운 점성 단면이 있는
+        # 모든 필링류에 적용 가능 — 크림류 + 베이크드 치즈케이크 (Basque/뉴욕 단면).
+        "applicable_focus": [
+            "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+        ],
         "frame_strategy": "i2i_is_end",
-        # 시작 프레임 액션 — background 교체 단계에 합쳐서 한 번에 호출됨
-        # (background 가 None 이면 적용되지 않음. 호출 수 추가하지 않기 위해서.)
-        # i2v 시작 → 끝 사이 모션이 자연스러우려면 시작 프레임에 이미 숟가락이
-        # 케이크 위에 떠 있는 "막 떠내려는 순간 직전" 상태여야 함.
-        "start_frame_action": (
-            "add a clean stainless steel dessert spoon entering from the upper part of "
-            "the frame, hovering just above the top of the cake with its bowl facing "
-            "down toward the cream surface, as if about to scoop but NOT YET touching "
-            "the cake. The spoon is empty with no cream on it, no scooped material, no "
-            "dollop. A clear air gap remains between the spoon's bowl and the cake "
-            "surface. The cake's top remains completely undisturbed — no indentation, "
-            "no displaced cream, no missing topping."
+        # 시작 프레임 — 별도 nano-banana 호출로 첫 프레임 생성 (호출 1번 추가).
+        # 결과가 base_url 이 되고, 그게 다시 last-frame I2I 의 입력이 됨 (체인).
+        "start_frame_template": (
+            "Edit the provided image of a sliced piece of dessert (cut into a triangular "
+            "or wedge shape, with the following four flat surfaces: ONE top surface, ONE "
+            "bottom surface, and TWO side cut faces created by slicing — these two side "
+            "cut faces expose the {focus} of the dessert).\n\n"
+
+            "A single human left hand wearing a black food-safe nitrile glove enters the "
+            "frame from the lower-left and supports the dessert. CRITICAL: The dessert is "
+            "rotated and held so that one of the two side cut faces (the ones exposing the "
+            "{focus}) rests against the open palm of the gloved hand. The cut face touching "
+            "the palm is HIDDEN from the camera, pressed against the glove.\n\n"
+
+            "The OTHER side cut face — also exposing the {focus} — now faces toward the "
+            "camera, presented roughly head-on. This camera-facing cut face shows the "
+            "dessert's full {focus}, fills the center of the composition, and is the main "
+            "visual focus.\n\n"
+
+            "IMPORTANT — dessert tilt: The dessert is NOT held perfectly vertical. Instead, "
+            "it is tilted slightly counter-clockwise (rotated about 8 to 12 degrees from "
+            "vertical) — the top portion of the dessert leans slightly to the upper-right, "
+            "and the bottom portion is slightly to the lower-left. This natural tilt "
+            "reflects how a human left hand and wrist naturally angle when supporting an "
+            "object from below. The tilt is subtle and natural, NOT dramatic or extreme — "
+            "the dessert should still look stable and securely held, not falling.\n\n"
+
+            "The top surface (with the dark burnt crust) is now oriented to one side "
+            "(either left or right edge of the frame, not facing up). The bottom surface "
+            "is oriented to the opposite side. NEITHER the top surface NOR the bottom "
+            "surface is touching the palm. The palm ONLY touches a side cut face.\n\n"
+
+            "Only ONE hand is visible in the frame — the left hand supporting the dessert. "
+            "Do NOT add a second hand. Do NOT let the palm touch the bottom of the "
+            "dessert. Do NOT let the palm touch the top burnt crust.\n\n"
+
+            "The dessert is held roughly at the same height and position within the frame "
+            "as it originally was, so the background and surface below remain visible "
+            "behind and beneath the hand.\n\n"
+
+            "Preserve the exact same background, the same surface beneath, the same "
+            "lighting direction and quality, the same camera height and distance, and the "
+            "same overall photographic style as the original image. Do not change the "
+            "dessert itself (its size, color, crust, or interior). Photorealistic, "
+            "high-detail food photography style, shallow depth of field focused on the "
+            "exposed cut face of the dessert facing the camera."
         ),
         "instruction_template": (
-            "Edit the input image for a 9:16 vertical short-form video end frame. "
-            "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
-            "Preserve the cake pixel-by-pixel: same shape, same toppings, same overall cream "
-            "pattern, same plate, same background, same lighting. "
-            "ADD ONLY this change: a metal spoon is scooping out a small soft dollop of "
-            "{focus} from the top of the cake, lifted slightly upward. The spoon holds a "
-            "clean rounded mound of {focus} that keeps its shape on the spoon. A small smooth "
-            "indentation is visible on the cake where the {focus} was scooped from. The "
-            "toppings on the cake remain undisturbed. "
-            "Do not alter the rest of the image. Photorealistic, sharp focus, natural lighting."
+            "Edit the provided image while preserving the exact same camera angle, "
+            "framing, aspect ratio, lighting, background, and the dessert's overall "
+            "position, size, orientation, and tilt. The LEFT gloved hand supporting the "
+            "dessert remains in the exact same position and grip as in the input image — "
+            "do not move it, do not change the finger positions, do not change the palm "
+            "angle.\n\n"
+
+            "Modification: A second human right hand wearing a black food-safe nitrile "
+            "glove enters the frame from the upper-right, holding a polished stainless "
+            "steel dessert spoon with a rounded oval-shaped bowl. The right hand has just "
+            "finished dragging the spoon downward along the dessert's exposed flat cut "
+            "face (the wide {focus} surface facing the camera), scooping out a long "
+            "vertical channel from near the top burnt edge all the way down toward the "
+            "bottom of the cut face.\n\n"
+
+            "The spoon is now positioned near the BOTTOM of the cut face, having ended "
+            "its downward stroke. The handle points toward the upper-right corner of the "
+            "frame, the bowl points down and slightly into the dessert.\n\n"
+
+            "The channel carved into the cut face follows the shape of the rounded spoon "
+            "bowl that made it — the top, bottom, and side edges of the channel are all "
+            "gently curved (NOT straight lines, NOT rectangular, NOT angular). The channel "
+            "is genuinely scooped deep into the dessert, to roughly the full depth of the "
+            "spoon's bowl, with concave curved walls.\n\n"
+
+            "The channel covers roughly the middle 50 to 60 percent of the cut face "
+            "width, with clear margins of the original untouched cut face remaining on "
+            "BOTH the left side near the burnt crust AND the right side.\n\n"
+
+            "A generous heap of {focus}, freshly scooped out from the entire length of "
+            "the channel, sits piled on top of the spoon's bowl, mounded above the rim "
+            "of the bowl.\n\n"
+
+            "The dessert remains whole and intact otherwise: no chunks have broken off "
+            "the dessert as a whole, no pieces have fallen, the dessert is NOT crumbling "
+            "apart structurally. The dark burnt crust on the left side remains intact.\n\n"
+
+            "Both hands are now visible in the frame — the left hand still supporting "
+            "the dessert exactly as before, the right hand operating the spoon. Do not "
+            "change the dessert's position or orientation, the left hand's grip, the "
+            "background, the lighting direction, the shadows, or the camera perspective. "
+            "Photorealistic, high-detail food photography style."
         ),
         "video_template": (
-            "A metal spoon scoops a small soft dollop of {focus} from the top of the cake and "
-            "lifts it gently upward. The {focus} separates cleanly from the cake, forming a "
-            "soft rounded mound on the spoon that holds its shape. Smooth gentle motion, "
-            "realistic physics, no morphing of the cake."
+            "A black-gloved left hand holds the dessert steady throughout. A black-gloved "
+            "right hand enters the frame from the upper-right edge holding a stainless "
+            "steel dessert spoon, and brings the spoon to the top portion of the dessert's "
+            "exposed cut face. In a single smooth, continuous, deliberate motion, the "
+            "spoon presses into the cut face near the top and drags downward along the "
+            "center of the cut face, scooping out a long vertical channel in one fluid "
+            "stroke from top to bottom. As the spoon drags down, it gradually accumulates "
+            "a heap of {focus} on its bowl. Camera remains locked and still, no panning, "
+            "no zooming, no shaking, no tilting."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
@@ -432,47 +507,15 @@ BACKGROUND_INSTRUCTION_TEMPLATE = (
     "Photorealistic, sharp focus."
 )
 
-# 배경 교체 + 시뮬레이션별 시작 프레임 액션 합본 템플릿.
-# 시뮬레이션에 start_frame_action 이 정의돼 있고 background 도 같이 지정된 경우에만
-# 사용 — nano-banana 호출 1번에 두 변경을 동시에 적용 (추가 호출 없음).
-BACKGROUND_WITH_START_FRAME_TEMPLATE = (
-    "Edit the input image to create a 9:16 vertical short-form video start frame. "
-    "Apply TWO changes together: "
-    "(1) Replace the background and the surface the cake sits on with: {bg_text}. "
-    "Match the lighting direction of the new background so the cake looks naturally placed. "
-    "(2) {start_action} "
-    "Otherwise preserve the cake pixel-by-pixel: the exact same cake shape, the exact "
-    "toppings, the exact cream pattern, the exact plate/liner, and the exact lighting on "
-    "the cake itself. Do not redraw, recolor, or reinterpret any part of the cake. "
-    "Photorealistic, sharp focus."
-)
 
-
-def build_background_prompt(background_key: str, simulation: Optional[str] = None) -> str:
-    """
-    배경 교체용 I2I 지시문 생성. 배경 묘사는 prompt_locks.MOOD_LIGHTING 사용.
-
-    simulation 이 주어지고 해당 시뮬레이션에 start_frame_action 이 정의돼 있으면,
-    배경 교체와 시작 프레임 액션을 합쳐서 한 번의 nano-banana 호출에 같이 적용한다
-    (예: cream_scoop 에선 배경 교체와 동시에 숟가락이 케이크 위에 떠있는 시작 자세
-    부여). simulation 미지정이거나 start_frame_action 이 없으면 기존 배경-only
-    프롬프트로 폴백 (backward compat).
-    """
+def build_background_prompt(background_key: str) -> str:
+    """배경 교체용 I2I 지시문 생성. 배경 묘사는 prompt_locks.MOOD_LIGHTING 사용."""
     import prompt_locks
     bg_text = prompt_locks.get_mood_lighting(background_key)
     if not bg_text:
         raise ValueError(
             f"알 수 없는 background: {background_key}. "
             f"가능한 값: {list(prompt_locks.MOOD_LIGHTING.keys())}"
-        )
-    start_action = None
-    if simulation:
-        sim_def = SIMULATIONS.get(simulation)
-        if sim_def:
-            start_action = sim_def.get("start_frame_action")
-    if start_action:
-        return BACKGROUND_WITH_START_FRAME_TEMPLATE.format(
-            bg_text=bg_text, start_action=start_action
         )
     return BACKGROUND_INSTRUCTION_TEMPLATE.format(bg_text=bg_text)
 
@@ -500,11 +543,17 @@ def build_prompts(
 
     Returns:
         {
-            "instruction_prompt": str,    # nano-banana-pro/edit용
-            "video_prompt": str,          # Veo 3.1용
-            "frame_strategy": str,        # "i2i_is_end" or "i2i_is_start"
-            "system_prompt": str,         # nano-banana-pro/edit의 system_prompt용
-            "label_kr": str,              # UI 표시용 한국어 라벨
+            "instruction_prompt":   str,    # nano-banana-pro/edit용 (last frame)
+            "video_prompt":         str,    # Veo 3.1용
+            "start_frame_prompt":   Optional[str],  # 시뮬에 start_frame_template 가
+                                                    # 정의된 경우만 (예: cream_scoop).
+                                                    # 별도 nano-banana 호출로 첫 프레임
+                                                    # 을 생성하는 데 사용. None 이면
+                                                    # 기존 동작 (배경 교체본 또는 원본이
+                                                    # 첫 프레임).
+            "frame_strategy":       str,    # "i2i_is_end" or "i2i_is_start"
+            "system_prompt":        str,    # nano-banana-pro/edit의 system_prompt용
+            "label_kr":             str,    # UI 표시용 한국어 라벨
         }
     """
     if simulation not in SIMULATIONS:
@@ -520,6 +569,9 @@ def build_prompts(
 
     instruction = sim["instruction_template"].format(focus=focus_text)
     video = sim["video_template"].format(focus=focus_text)
+    start_frame = None
+    if sim.get("start_frame_template"):
+        start_frame = sim["start_frame_template"].format(focus=focus_text)
 
     # analysis 가 있으면 케이크 구조 컨텍스트 (역할별 base/cream/topping/coating + 시각 식별)
     # 를 instruction 앞에 prepend. 모델이 "어떤 재료가 어느 자리에 있는지" 명확히 인식해서
@@ -532,9 +584,13 @@ def build_prompts(
         structure_ctx = prompt_locks.get_cake_structure_context_en(analysis)
         if structure_ctx:
             instruction = f"{structure_ctx}\n\n{instruction}"
+            if start_frame is not None:
+                start_frame = f"{structure_ctx}\n\n{start_frame}"
 
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
+    # 단 start_frame_prompt 는 이미 "Preserve the exact same background" 같이 자체
+    # 완결된 지시문이라 extras 덧붙이지 않음 — bg 는 별도 bg-swap I2I 단계에서 처리.
     extras = []
     if background:
         import prompt_locks
@@ -551,6 +607,7 @@ def build_prompts(
     return {
         "instruction_prompt": instruction,
         "video_prompt": video,
+        "start_frame_prompt": start_frame,
         "frame_strategy": sim["frame_strategy"],
         "system_prompt": SYSTEM_PROMPT,
         "label_kr": sim["label_kr"],

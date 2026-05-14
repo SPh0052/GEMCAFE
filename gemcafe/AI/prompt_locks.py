@@ -63,9 +63,10 @@ CAMERA_DIRECTIVES = {
         "with the handle extending away from the camera into the background."
     ),
     "cream_scoop": (
-        "Camera tracks upward following the lifted spoonful of cream. "
-        "Macro close-up emphasizing the soft mound on the spoon and the "
-        "clean indent left in the cake below."
+        "Camera remains locked and completely still throughout the shot — no panning, "
+        "no zooming, no shaking, no tilting. Tight framing centered on the dessert's "
+        "exposed cut face which fills the middle of the composition. Eye-level angle, "
+        "head-on view of the cut face."
     ),
     "strawberry_fall": (
         "Static camera, top-down 45-degree angle, vertical 9:16 composition with "
@@ -141,8 +142,16 @@ NEGATIVE_PER_SIMULATION = {
         "plastic-looking food, fake-looking cream"
     ),
     "cream_scoop": (
-        "no hands holding spoon, no cream dripping violently, "
-        "no toppings displaced, cream lifts smoothly"
+        "bare hands, hands without gloves, white gloves, latex gloves, gloves of any color "
+        "other than black, third hand, more than two hands, only one hand visible after the "
+        "right hand enters, missing left hand, dessert falling, dessert collapsing, dessert "
+        "crumbling apart, broken chunks falling off the dessert as a whole, dessert sliding "
+        "out of the gripping hand, hand changing grip position mid-shot, palm touching the "
+        "top burnt crust, palm touching the bottom surface, dessert held perfectly vertical, "
+        "rectangular channel, straight-edged channel, angular channel, shallow surface "
+        "scrape instead of a deep scooped channel, channel covering the full width of the "
+        "cut face, panning camera, zooming camera, shaking camera, tilting camera, "
+        "deformed spoon, bent spoon"
     ),
     "strawberry_fall": (
         "no strawberry bouncing off violently, no excessive splashing, "
@@ -298,24 +307,11 @@ CAMERA_OVERRIDES = {
         "and freshly exposed faces. Rim light catches the high gloss along contours "
         "of cake and tool. The cake body below stays in noticeably softer focus."
     ),
-    ("cream_scoop", "whipped_cream"): (
-        "Camera tracks upward following the spoon. Macro close-up holds on the "
-        "soft cream peak resting on the spoon — pillowy ridges, satin highlights, "
-        "the cream holding its rounded shape cleanly with no stringing or trailing "
-        "back to the cake. The clean smooth indent left in the cake stays in soft "
-        "focus below."
-    ),
-    ("cream_scoop", "ganache"): (
-        "Camera tracks upward following the spoon. Macro close-up on the thick "
-        "glossy ganache mounded on the spoon, with a slow viscous trail pulling "
-        "between spoon and cake before cleanly breaking. Rim light on the high "
-        "gloss of the freshly scooped ganache."
-    ),
-    ("cream_scoop", "mascarpone_cream"): (
-        "Camera tracks upward following the spoon. Macro close-up on the dense "
-        "satin mascarpone holding its shape on the spoon; tight focus on the clean "
-        "spoon-cut edges and the slight sheen of the surface."
-    ),
+    # 주의: cream_scoop x (whipped_cream/ganache/mascarpone_cream) override 는
+    # S14P31S307-643 에서 의도적으로 제거됨. 새 cream_scoop 디자인은 locked-camera
+    # 로 단면 정면을 잡는 통일된 카메라라 focus 별 카메라 차별화가 의미 없음 —
+    # focus 별 시각적 강조는 ELEMENT_CAMERA_BEHAVIORS 가 base 카메라 뒤에 자동
+    # 결합돼서 처리.
 }
 
 
