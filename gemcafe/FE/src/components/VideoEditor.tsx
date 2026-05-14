@@ -23,6 +23,10 @@ import {
   updateVideo,
 } from '@/features/my-videos/api'
 import {
+  requestNotificationPermissionOnce,
+  showAppNotification,
+} from '@/shared/lib/notify'
+import {
   BGM_CATEGORIES,
   CATEGORY_QUERIES,
   TRACKS_PER_CATEGORY,
@@ -554,6 +558,7 @@ export default function VideoEditor() {
    */
   const handleShare = async () => {
     if (savingChanges) return
+    void requestNotificationPermissionOnce()
 
     // 변경사항이 있을 때만 PATCH 호출. 마지막 저장 이후 추가 변경 없으면 BE 호출 스킵.
     if (incomingVideo?.videoId && isDirty) {
@@ -616,6 +621,13 @@ export default function VideoEditor() {
         if (canShareFiles) {
           blob = await fetchBlobFromUrl(meta.downloadUrl)
         }
+        // 처리 끝 — PWA 알림
+        showAppNotification({
+          title: '영상이 준비됐어요',
+          body: '워터마크 처리가 끝나 공유할 수 있어요.',
+          tag: `watermark-${incomingVideo.videoId}`,
+          url: `/videos/${incomingVideo.videoId}`,
+        })
       } catch (err) {
         console.error('[VideoEditor] 워터마크 요청 실패', err)
         setSaveStatus('error')
@@ -688,6 +700,7 @@ export default function VideoEditor() {
    */
   const handleDownload = async () => {
     if (downloading || savingChanges) return
+    void requestNotificationPermissionOnce()
 
     // videoId 없으면 BE 측 영상이 없으므로 워터마크 불가 — 로컬 녹화로 fallback
     if (!incomingVideo?.videoId) {
@@ -741,6 +754,13 @@ export default function VideoEditor() {
       let meta: { downloadUrl: string; fileName: string }
       try {
         meta = await requestWatermarkDownload(incomingVideo.videoId)
+        // 처리 끝 — PWA 알림
+        showAppNotification({
+          title: '영상이 준비됐어요',
+          body: '워터마크 처리가 끝나 다운로드를 시작합니다.',
+          tag: `watermark-${incomingVideo.videoId}`,
+          url: `/videos/${incomingVideo.videoId}`,
+        })
       } catch (err) {
         console.error('[VideoEditor] 워터마크 요청 실패', err)
         setSaveStatus('error')

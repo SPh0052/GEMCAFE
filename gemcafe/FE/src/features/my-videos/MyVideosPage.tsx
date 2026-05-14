@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Film, Loader2, Play, Plus, Sparkles } from 'lucide-react'
+import { Film, Loader2, Play, Sparkles } from 'lucide-react'
 import { AuthedImage } from '@/shared/components/AuthedMedia'
 import { extractErrorMessage } from '@/shared/lib/errors'
 import { getMyVideos, type VideoListItem } from './api'
@@ -131,7 +131,7 @@ export default function MyVideosPage() {
           </div>
           <button
             type="button"
-            onClick={() => navigate('/create')}
+            onClick={() => navigate('/create/new')}
             className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
           >
             <Sparkles className="h-4 w-4" />
@@ -203,14 +203,6 @@ export default function MyVideosPage() {
         </p>
       )}
 
-      {/* 모바일 FAB */}
-      <button
-        type="button"
-        onClick={() => navigate('/create')}
-        className="fixed bottom-22 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-linear-to-br from-brand-500 to-orange-600 px-5 py-3.5 text-sm font-semibold text-white shadow-xl shadow-brand-500/30 transition active:scale-95 md:hidden"
-      >
-        <Plus className="h-4 w-4" />새 영상 만들기
-      </button>
     </div>
   )
 }

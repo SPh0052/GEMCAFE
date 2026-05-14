@@ -5,6 +5,10 @@ import { Download, Loader2, Pencil, Send, Share2 } from 'lucide-react'
 import { AuthedVideo } from '@/shared/components/AuthedMedia'
 import { api } from '@/shared/lib/axios'
 import {
+  requestNotificationPermissionOnce,
+  showAppNotification,
+} from '@/shared/lib/notify'
+import {
   getVideoDetail,
   requestWatermarkDownload,
   type VideoDetail,
@@ -160,6 +164,13 @@ export default function VideoDetailPage() {
       type: blob.type || 'video/mp4',
     })
     setCachedWatermarkFile(file)
+    // 처리 끝 — PWA 알림 (권한 있을 때만 표시; 탭이 백그라운드여도 SW 통해 동작)
+    showAppNotification({
+      title: '영상이 준비됐어요',
+      body: `"${detail.originFileName || detail.title}" 워터마크 처리가 끝났어요.`,
+      tag: `watermark-${detail.videoId}`,
+      url: `/videos/${detail.videoId}`,
+    })
     return file
   }
 
@@ -168,6 +179,8 @@ export default function VideoDetailPage() {
    */
   const handleDownload = async () => {
     if (!detail || downloading) return
+    // 사용자 gesture 컨텍스트에서 권한 prompt — 처음 1회만 실제 모달 뜸
+    void requestNotificationPermissionOnce()
     setDownloading(true)
     setDownloadProgress(null)
     // 캐시 있을 땐 로딩 모달 안 띄움 — 즉시 다운로드 시작 느낌
@@ -204,6 +217,8 @@ export default function VideoDetailPage() {
       )
       return
     }
+    // 사용자 gesture 컨텍스트에서 권한 prompt — 처음 1회만
+    void requestNotificationPermissionOnce()
     setShareModalOpen(true)
     if (cachedWatermarkFile) {
       // 캐시 hit — preparing skip 하고 바로 'ready'

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Check, Loader2 } from 'lucide-react'
 import MobileShell from '@/shared/components/MobileShell'
+import IntroHeader, { IntroHeaderSpacer } from '@/layout/IntroHeader'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
 import { signup } from './api'
@@ -119,7 +120,10 @@ export default function SignupPage() {
   }
 
   return (
-    <MobileShell>
+    <>
+      <IntroHeader />
+      <MobileShell>
+        <IntroHeaderSpacer />
       <div className="flex flex-1 flex-col px-6 py-8">
         <header className="mb-6">
           <h1 className="text-2xl font-bold">회원가입</h1>
@@ -227,7 +231,8 @@ export default function SignupPage() {
           </Link>
         </p>
       </div>
-    </MobileShell>
+      </MobileShell>
+    </>
   )
 }
 

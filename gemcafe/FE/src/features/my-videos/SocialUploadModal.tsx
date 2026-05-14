@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import {
   AlertTriangle,
@@ -9,6 +9,8 @@ import {
   Video,
   X,
 } from 'lucide-react'
+import { subscribeJobStream } from '@/shared/lib/jobStream'
+import { requestNotificationPermissionOnce } from '@/shared/lib/notify'
 import {
   requestSocialUpload,
   requestWatermarkDownload,
@@ -111,8 +113,29 @@ export default function SocialUploadModal({
     title.trim().length <= 100 &&
     platforms.length > 0
 
+  // 진행 중인 SSE 구독 — 모달 닫힘/언마운트 시 정리
+  const jobStreamsRef = useRef<EventSource[]>([])
+
+  // 모달 닫힐 때 진행 중인 SSE 구독 모두 정리
+  useEffect(() => {
+    if (!isOpen) {
+      jobStreamsRef.current.forEach((es) => es.close())
+      jobStreamsRef.current = []
+    }
+  }, [isOpen])
+
+  // 언마운트 시 SSE 정리
+  useEffect(() => {
+    return () => {
+      jobStreamsRef.current.forEach((es) => es.close())
+      jobStreamsRef.current = []
+    }
+  }, [])
+
   const handleSubmit = async () => {
     if (!canSubmit) return
+    // 사용자 gesture 컨텍스트에서 알림 권한 prompt
+    void requestNotificationPermissionOnce()
     setError(null)
     setStep('uploading')
     try {
@@ -141,6 +164,21 @@ export default function SocialUploadModal({
       console.log('[POST /videos/{id}/social-upload] response:', data)
       setResults(data.results)
       setStep('result')
+
+      // 각 플랫폼의 jobId 별로 SSE 구독 — 작업 종료 시 PWA 알림 자동 발송.
+      // 모달이 닫히거나 unmount 되면 위 useEffect 에서 일괄 close.
+      data.results.forEach((r) => {
+        if (!r.jobId) return
+        const platformLabel =
+          PLATFORMS.find((p) => p.key === r.platform)?.label ?? r.platform
+        const es = subscribeJobStream({
+          jobId: r.jobId,
+          notificationTitle: `${platformLabel} 업로드 완료`,
+          notificationBody: `"${title.trim()}" 영상이 ${platformLabel}에 게시됐어요.`,
+          notificationUrl: `/videos/${videoId}`,
+        })
+        jobStreamsRef.current.push(es)
+      })
     } catch (err) {
       console.error('[POST /videos/{id}/social-upload] error:', err)
       setStep('form')
