@@ -16,6 +16,9 @@
   - 새 배경 추가 시 BACKGROUND_LABELS_KR + MOOD_LIGHTING 둘 다 추가.
 """
 
+from typing import Optional
+
+
 # =====================================================================
 # 시뮬레이션 / 배경 한국어 라벨 (사장님 화면 + LLM 슬롯)
 # =====================================================================
@@ -61,7 +64,8 @@ CAMERA_DIRECTIVES = {
     ),
     "cream_scoop": (
         "Camera tracks upward following the lifted spoonful of cream. "
-        "Macro close-up emphasizing cream texture and the stretched strand."
+        "Macro close-up emphasizing the soft mound on the spoon and the "
+        "clean indent left in the cake below."
     ),
     "strawberry_fall": (
         "Static camera, top-down 45-degree angle, vertical 9:16 composition with "
@@ -196,10 +200,151 @@ DURATION_SETTINGS = {
 
 
 # =====================================================================
+# 요소별 카메라 거동 (focus 강조용 — base 카메라에 덧붙여 시각 핵심 강조)
+# =====================================================================
+# 같은 시뮬레이션이라도 사용자가 선택한 요소(focus)에 따라 카메라가 무엇에
+# 머물러야 하는지가 달라짐. 이 dict는 simulation 카메라 디렉티브 뒤에 짧게
+# 덧붙여서 해당 요소의 시각적 핵심을 강조한다.
+#
+# 어휘 가이드:
+#   - whipped_cream / mascarpone_cream / baked_cheese 는 ductile 아님 →
+#     stretch / strand / pull / string 단어 사용 금지.
+#     대신 dollop / peaks / satin / pillowy / holds its shape 사용.
+#   - ganache / molten_chocolate 만 viscous strand / slow flow 등 늘어남
+#     관련 어휘 허용 (실제로 점성 ductile 재료이므로).
+ELEMENT_CAMERA_BEHAVIORS = {
+    "sponge": (
+        "Focus lingers on the crumb texture; rim light skims across the cake "
+        "surface to catch individual air pockets and the layered baked structure."
+    ),
+    "whipped_cream": (
+        "Focus favors the cream's soft peaks and satin highlights, holding on "
+        "pillowy ridges and the clean tool-cut edges; the cream holds its shape "
+        "as a clean dollop with no stringing or trailing."
+    ),
+    "ganache": (
+        "Focus favors the glossy reflective surface of the ganache; rim light "
+        "catches the high gloss along contours and any thick viscous trails on "
+        "tools or freshly cut edges."
+    ),
+    "molten_chocolate": (
+        "Focus holds on the inner flow; camera lingers on the slow viscous pour "
+        "of warm chocolate streaming out of the cake and any glossy threads "
+        "trailing from tools."
+    ),
+    "mascarpone_cream": (
+        "Focus favors the dense satin surface of the mascarpone and its slight "
+        "sheen; tight focus on the clean tool-cut edges where the mascarpone "
+        "keeps a crisp, undisturbed shape."
+    ),
+    "baked_cheese": (
+        "Focus favors the dense satin cross-section and any caramelized top "
+        "contrast; tight focus holds on the smooth pale interior, the crisp "
+        "tool-cut edges, and the filling clinging without any stretching."
+    ),
+    "strawberry": (
+        "Focus catches the glossy red surface of the berries and the natural "
+        "water droplets, holding briefly on each highlight as they settle."
+    ),
+}
+
+
+# =====================================================================
+# (시뮬레이션 × 요소) 카메라 오버라이드 — 강한 시너지 조합만
+# =====================================================================
+# get_camera() 는 이 dict 를 먼저 조회한 뒤, 없으면 base CAMERA_DIRECTIVES +
+# ELEMENT_CAMERA_BEHAVIORS 조합으로 폴백한다. 여기엔 base+behavior 단순 결합
+# 만으로 부족한 — 카메라 동선 자체가 요소에 따라 달라져야 하는 조합만 정의.
+# 신규 조합 추가 전에 base+behavior 로 충분한지 먼저 검증할 것.
+CAMERA_OVERRIDES = {
+    ("cut_in_half", "whipped_cream"): (
+        "Camera starts framed on the full cake slice in vertical 9:16 composition, "
+        "then slowly and continuously pushes in to a macro close-up on the splitting "
+        "cross-section. Focus settles on the layered cream bands revealed between "
+        "sponge layers — pillowy ridges, satin highlights, and the clean knife-cut "
+        "faces where the cream keeps its shape with no stringing."
+    ),
+    ("cut_in_half", "molten_chocolate"): (
+        "Camera starts framed on the full cake in vertical 9:16 composition, then "
+        "slowly pushes in toward the cake's center as the cut opens. Camera holds "
+        "on the moment warm chocolate first appears at the cut line and begins to "
+        "flow; macro close-up follows the slow viscous stream as it runs down the "
+        "exposed cross-section."
+    ),
+    ("cut_in_half", "ganache"): (
+        "Camera starts framed on the full cake slice in vertical 9:16 composition, "
+        "then slowly and continuously pushes in to a macro close-up on the splitting "
+        "cross-section. Focus settles on the freshly exposed ganache layer — glossy "
+        "reflective bands catching rim light, with thick viscous trails clinging to "
+        "the knife where the cake parts."
+    ),
+    ("fork_bite", "whipped_cream"): (
+        "Steady camera at a slight high angle. Focus tracks the LIFTED PIECE on "
+        "the fork tines, holding on the soft cream peak that comes up with the "
+        "bite — pillowy ridges and satin highlights on a clean dollop that keeps "
+        "its shape with no stringing back to the cake. The cake body below stays "
+        "in noticeably softer focus as supporting context."
+    ),
+    ("fork_bite", "molten_chocolate"): (
+        "Steady camera at a slight high angle. Focus tracks the LIFTED PIECE on "
+        "the fork tines as it rises, holding on the warm dark chocolate streaming "
+        "from the exposed cross-section. Macro close-up follows the slow viscous "
+        "flow and the glossy threads trailing back toward the cake. The cake body "
+        "below stays in noticeably softer focus."
+    ),
+    ("fork_bite", "ganache"): (
+        "Steady camera at a slight high angle. Focus tracks the LIFTED PIECE on "
+        "the fork tines, holding on the thick glossy ganache clinging to the tines "
+        "and freshly exposed faces. Rim light catches the high gloss along contours "
+        "of cake and tool. The cake body below stays in noticeably softer focus."
+    ),
+    ("cream_scoop", "whipped_cream"): (
+        "Camera tracks upward following the spoon. Macro close-up holds on the "
+        "soft cream peak resting on the spoon — pillowy ridges, satin highlights, "
+        "the cream holding its rounded shape cleanly with no stringing or trailing "
+        "back to the cake. The clean smooth indent left in the cake stays in soft "
+        "focus below."
+    ),
+    ("cream_scoop", "ganache"): (
+        "Camera tracks upward following the spoon. Macro close-up on the thick "
+        "glossy ganache mounded on the spoon, with a slow viscous trail pulling "
+        "between spoon and cake before cleanly breaking. Rim light on the high "
+        "gloss of the freshly scooped ganache."
+    ),
+    ("cream_scoop", "mascarpone_cream"): (
+        "Camera tracks upward following the spoon. Macro close-up on the dense "
+        "satin mascarpone holding its shape on the spoon; tight focus on the clean "
+        "spoon-cut edges and the slight sheen of the surface."
+    ),
+}
+
+
+# =====================================================================
 # 헬퍼 — 키 조회 시 default fallback
 # =====================================================================
-def get_camera(simulation_id: str) -> str:
-    return CAMERA_DIRECTIVES.get(simulation_id, CAMERA_DIRECTIVES["default"])
+def get_camera(simulation_id: str, focus: Optional[str] = None) -> str:
+    """
+    카메라 디렉티브 조회.
+
+    조회 우선순위:
+      1) (simulation_id, focus) in CAMERA_OVERRIDES → 오버라이드 그대로 사용
+      2) CAMERA_DIRECTIVES[simulation_id] + ELEMENT_CAMERA_BEHAVIORS[focus]
+      3) CAMERA_DIRECTIVES["default"]
+
+    focus 가 None 이면 base simulation 카메라만 반환 (backward compat).
+    focus 는 FOCUS_TEXT 정식 키 (sponge / whipped_cream / ... ) 가정 —
+    호출 측에서 normalize_focus 로 정규화 후 전달할 것.
+    """
+    if focus:
+        override = CAMERA_OVERRIDES.get((simulation_id, focus))
+        if override:
+            return override
+    base = CAMERA_DIRECTIVES.get(simulation_id, CAMERA_DIRECTIVES["default"])
+    if focus:
+        behavior = ELEMENT_CAMERA_BEHAVIORS.get(focus)
+        if behavior:
+            return base + " " + behavior
+    return base
 
 
 def get_model_extras(model_id: str) -> str:

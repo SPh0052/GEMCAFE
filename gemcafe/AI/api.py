@@ -104,6 +104,16 @@ class VideoRequest(BaseModel):
             "전체 목록은 GET /catalog."
         ),
     )
+    focus: Optional[str] = Field(
+        None,
+        description=(
+            "강조 요소 키 (sponge / whipped_cream / ganache / molten_chocolate / "
+            "mascarpone_cream / baked_cheese / strawberry). 주어지면 (simulation × "
+            "focus) 조합에 맞게 카메라 디렉티브가 선택됨 — 같은 시뮬레이션이라도 "
+            "강조 요소에 따라 카메라 동선/포커스가 달라진다. /keyframe 호출 시 쓴 "
+            "focus 를 그대로 전달하면 됨."
+        ),
+    )
     background: Optional[str] = Field(
         None,
         description="video_prompt_kr 사용 시 배경 키 (white_marble, cafe_interior, outdoor 등). 미지정 시 배경 묘사 생략.",
@@ -443,6 +453,7 @@ def video_endpoint(req: VideoRequest) -> dict:
                 simulation=req.simulation,
                 background=req.background,
                 model_id=req.model_id,
+                focus=req.focus,
             )
         except RuntimeError as e:
             raise HTTPException(status_code=500, detail=str(e))
