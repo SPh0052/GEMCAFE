@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Mail, Lock, Loader2 } from 'lucide-react'
 import MobileShell from '@/shared/components/MobileShell'
+import IntroHeader, { IntroHeaderSpacer } from '@/layout/IntroHeader'
 import SiteFooter from '@/layout/SiteFooter'
 import TextField from '@/shared/components/TextField'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
@@ -34,8 +35,22 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // 이메일·비밀번호 모두 입력했는지 (양쪽 trim 후 빈 값 차단)
+  const canSubmit = email.trim().length > 0 && password.length > 0
+
   const handleLogin = async () => {
     if (submitting) return
+    // 빈 입력 차단 — BE 호출 안 함.
+    if (!canSubmit) {
+      if (!email.trim() && !password) {
+        setError('이메일과 비밀번호를 입력해주세요.')
+      } else if (!email.trim()) {
+        setError('이메일을 입력해주세요.')
+      } else {
+        setError('비밀번호를 입력해주세요.')
+      }
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -217,7 +232,9 @@ export default function LoginPage() {
 
   return (
     <>
+      <IntroHeader />
       <MobileShell>
+        <IntroHeaderSpacer />
         <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-10">
           {/* 배경 그라데이션 + 블러 orb */}
           <div className="pointer-events-none absolute inset-0 -z-20 bg-linear-to-b from-orange-50/60 via-white to-amber-50/40" />
@@ -275,7 +292,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handleLogin}
-              disabled={submitting}
+              disabled={submitting || !canSubmit}
               className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-br from-brand-500 to-orange-500 px-5 py-3.5 text-base font-bold text-white shadow-lg shadow-brand-500/30 transition hover:from-brand-600 hover:to-orange-600 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}

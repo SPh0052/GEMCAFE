@@ -69,7 +69,7 @@ export default function HomePage() {
       {/* ───── 메인 CTA — 영상 생성 ───── */}
       <button
         type="button"
-        onClick={() => navigate('/create')}
+        onClick={() => navigate('/create/new')}
         className="group relative overflow-hidden rounded-3xl border border-brand-100 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-500/15 active:scale-[0.99]"
       >
         {/* corner glow */}

@@ -6,6 +6,7 @@ import SignupPage from '@/features/auth/SignupPage'
 import CompleteSignupPage from '@/features/auth/CompleteSignupPage'
 import IntroPage from '@/features/intro/IntroPage'
 import HomePage from '@/features/home/HomePage'
+import CreateLandingPage from '@/features/create-video/CreateLandingPage'
 import CreateVideoPage from '@/features/create-video/CreateVideoPage'
 import CreatingPage from '@/features/create-video/CreatingPage'
 import MyVideosPage from '@/features/my-videos/MyVideosPage'
@@ -71,11 +72,13 @@ export default function App() {
         }
       >
         <Route path="/" element={<HomePage />} />
-        <Route path="/create" element={<CreateVideoPage />} />
+        <Route path="/create" element={<CreateLandingPage />} />
+        <Route path="/create/new" element={<CreateVideoPage />} />
         <Route path="/videos" element={<MyVideosPage />} />
         <Route path="/videos/:id" element={<VideoDetailPage />} />
         <Route path="/me" element={<MyPage />} />
       </Route>
+
     </Routes>
   )
 }

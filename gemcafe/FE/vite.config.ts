@@ -47,6 +47,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // 데모용 mock 자산 (크기가 큼) 은 precache 에서 제외 — 오프라인 지원 불필요 + 캐시 한도 초과 회피.
+        globIgnores: ['**/mock/**'],
         // SPA navigation fallback 을 gemcafe 의 index 로 한정.
         // 같은 도메인의 /dev/gemmark, /dev/be, /dev/files 는 SW 가 손대지 않도록
         // denylist 로 차단 — 그렇지 않으면 gemcafe 의 index.html 이 잘못 응답된다.
@@ -80,6 +82,25 @@ export default defineConfig({
         headers: {
           origin: 'https://k14s307.p.ssafy.io',
           referer: 'https://k14s307.p.ssafy.io/',
+        },
+        // BE 가 응답에 박는 refreshToken 쿠키를 localhost 환경에서도 브라우저가 받아들이게
+        // Domain / Path / Secure / SameSite 를 dev 친화적으로 rewrite.
+        // 운영 빌드엔 proxy 자체가 없어 영향 없음 (FE/BE 같은 도메인이라 자연스럽게 작동).
+        cookieDomainRewrite: 'localhost',
+        cookiePathRewrite: '/',
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            const sc = proxyRes.headers['set-cookie']
+            if (!sc) return
+            const list = Array.isArray(sc) ? sc : [sc]
+            proxyRes.headers['set-cookie'] = list.map((c) =>
+              c
+                // http://localhost 는 secure context 아닐 수 있어 Secure 플래그 제거
+                .replace(/;\s*Secure/gi, '')
+                // SameSite=Strict 은 dev 환경 cross-origin 우회 시 차단되니 Lax 로 완화
+                .replace(/;\s*SameSite=Strict/gi, '; SameSite=Lax'),
+            )
+          })
         },
       },
       // 파일 서빙 — /dev/files/gemcafe/{filename} 형식 (영상/썸네일/이미지)
