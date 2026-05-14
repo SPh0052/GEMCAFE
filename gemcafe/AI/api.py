@@ -91,7 +91,7 @@ class VideoRequest(BaseModel):
         None,
         description=(
             "사장님이 한국어로 작성/편집한 영상 묘사. "
-            "지정 시 LLM(Gemini 3.1 Flash-Lite) 변환 후 잠금 라이브러리(카메라/기술/부정 프롬프트) 자동 결합."
+            "지정 시 LLM(Gemini 2.5 Flash-Lite via GMS) 변환 후 잠금 라이브러리(카메라/기술/부정 프롬프트) 자동 결합."
         ),
     )
     simulation: Optional[str] = Field(
@@ -374,7 +374,7 @@ def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
     """
     오토 프롬프팅 Phase 1 — 슬롯 → 자연스러운 한국어 미리보기.
 
-    Gemini 3.1 Flash-Lite가 사장님이 만들 영상의 모습을 한국어 2~3문장으로 묘사.
+    Gemini 2.5 Flash-Lite (SSAFY GMS 경유) 가 사장님이 만들 영상의 모습을 한국어 2~3문장으로 묘사.
     이 결과를 화면에 띄워서 사장님이 편집 가능. 편집된 한국어를 /video의 video_prompt_kr 로 전달.
 
     AI 호출이지만 영상 생성은 안 하므로 비용은 거의 무시할 수준.
@@ -391,7 +391,7 @@ def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
         )
         return {"korean_preview": korean_preview}
     except RuntimeError as e:
-        # GEMINI_API_KEY 미설정 등
+        # GMS_KEY 미설정 등
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"한국어 미리보기 생성 실패: {e}")

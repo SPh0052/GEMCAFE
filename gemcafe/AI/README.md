@@ -30,13 +30,13 @@
 ### 1. 사전 요구사항
 - Python 3.10 이상 (3.12 권장; 3.14는 일부 라이브러리 미호환 가능)
 - [fal.ai](https://fal.ai) 계정 + API Key (`FAL_KEY`)
-- [Google AI Studio](https://aistudio.google.com/apikey) 계정 + Gemini API Key (`GEMINI_API_KEY`)
+- SSAFY GMS 발급키 (`GMS_KEY`) — Gemini 2.5 Flash-Lite 호출용 게이트웨이
 - (Windows) Git Bash 또는 PowerShell
 
 `.env` 파일에 두 키 모두 등록:
 ```
 FAL_KEY=fal_xxxxxxxxxxxxx
-GEMINI_API_KEY=AIzaSy...
+GMS_KEY=...
 ```
 
 ### 2. 설치
@@ -66,9 +66,9 @@ pip install -r requirements.txt
 python analyze.py
 # → outputs/analyze_<ts>/analysis.json 생성되면 FAL_KEY 정상
 
-# ② Gemini 키 검증 — LLM 한국어 미리보기 + 한→영 번역 (~5초, 거의 무료)
+# ② GMS 키 검증 — LLM 한국어 미리보기 + 한→영 번역 (~5초, 크레딧 소량)
 python llm_client.py
-# → 한국어 묘사 + 영어 번역이 콘솔에 출력되면 GEMINI_API_KEY 정상
+# → 한국어 묘사 + 영어 번역이 콘솔에 출력되면 GMS_KEY 정상
 ```
 
 둘 다 성공하면 **API 키 setup 완료**. 이제 실제 영상 만들러 가시면 됩니다.
@@ -80,7 +80,7 @@ python llm_client.py
 ```
 gemcafe/AI/
 ├── analyze.py              # STEP 2: 케이크 이미지 분석 (Moondream3)
-├── llm_client.py           # ⭐ Gemini 3.1 Flash-Lite 래퍼 (한국어 ↔ 영어 변환)
+├── llm_client.py           # ⭐ Gemini 2.5 Flash-Lite 래퍼 (GMS 게이트웨이 경유)
 ├── prompt_locks.py         # ⭐ 잠금 라이브러리 (카메라/기술/질감/부정/배경)
 ├── prompt_builder.py       # 프롬프트 템플릿 + 빌더 (LLM Phase 1/2 통합)
 ├── generate_keyframe.py    # STEP 7: 키프레임 생성 (재호출 가능, 검수용)
@@ -89,7 +89,7 @@ gemcafe/AI/
 ├── api.py                  # FastAPI 래퍼 (BE 통합용 HTTP 서버)
 │
 ├── requirements.txt        # Python 의존성
-├── .env                    # API 키 (FAL_KEY + GEMINI_API_KEY, 깃 안 올라감)
+├── .env                    # API 키 (FAL_KEY + GMS_KEY, 깃 안 올라감)
 ├── .gitignore
 ├── README.md               # 이 파일 (외부 통합용)
 ├── ARCHITECTURE.md         # 시스템 구조 다이어그램 (내부 개발용)
@@ -301,7 +301,7 @@ i2i_is_start:  start = keyframe_url, end = base_url
                               ▼
    🤖 AI (FastAPI/Python)  ← 이 폴더
       • Moondream3 (분석)
-      • Gemini 3.1 Flash-Lite (한국어 미리보기 + 한→영 번역) ⭐
+      • Gemini 2.5 Flash-Lite via SSAFY GMS (한국어 미리보기 + 한→영 번역) ⭐
       • prompt_locks (잠금 라이브러리: 카메라/기술/부정/배경/질감) ⭐
       • nano-banana-pro/edit (배경 교체 + 시뮬레이션)
       • Veo 3.1 first-last-frame (영상)
@@ -365,8 +365,8 @@ i2i_is_start:  start = keyframe_url, end = base_url
 | 단계 | 모델 | 비용/회 |
 |---|---|---|
 | 분석 | `fal-ai/moondream3-preview/query` (fal.ai) | ~$0.005 |
-| LLM Phase 1 (한국어 미리보기) ⭐ | `gemini-3.1-flash-lite` (Google) | ~$0.0001 |
-| LLM Phase 2 (한→영 번역) ⭐ | `gemini-3.1-flash-lite` (Google) | ~$0.0001 |
+| LLM Phase 1 (한국어 미리보기) ⭐ | `gemini-2.5-flash-lite` (SSAFY GMS) | 크레딧 소량 (input 0.001 / output 0.004 per token) |
+| LLM Phase 2 (한→영 번역) ⭐ | `gemini-2.5-flash-lite` (SSAFY GMS) | 크레딧 소량 (input 0.001 / output 0.004 per token) |
 | I2I (배경 교체) | `fal-ai/nano-banana-pro/edit` (fal.ai) | ~$0.04 |
 | I2I (시뮬레이션) | `fal-ai/nano-banana-pro/edit` (fal.ai) | ~$0.04 |
 | I2V (영상) | `fal-ai/veo3.1/first-last-frame-to-video` (fal.ai) | ~$1.20 (6s/720p) |

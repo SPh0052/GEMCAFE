@@ -28,7 +28,7 @@ flowchart LR
     moondream(((Moondream3))):::ext
     nb(((nano-banana-pro/edit))):::ext
     veo(((Veo 3.1))):::ext
-    gemini(((Gemini 3.1 Flash-Lite))):::ext
+    gemini(((Gemini 2.5 Flash-Lite<br/>via SSAFY GMS))):::ext
 
     %% api.py가 부르는 것
     api --> analyze
@@ -213,7 +213,7 @@ flowchart TD
 | **generate_video.py** | Veo로 영상 생성 | api / pipeline / 단독 | fal.ai (Veo) |
 | **prompt_builder.py** | 모든 프롬프트 빌드/조립 | api / generate_keyframe | prompt_locks, llm_client |
 | **prompt_locks.py** | 카메라/기술/질감/부정 잠금 데이터 | prompt_builder | (없음, 데이터만) |
-| **llm_client.py** | Gemini 호출 (한↔영, 미리보기) | prompt_builder / 단독 | Google Gemini API |
+| **llm_client.py** | Gemini 호출 (한↔영, 미리보기) | prompt_builder / 단독 | SSAFY GMS (Gemini 2.5 Flash-Lite 프록시) |
 | **pipeline.py** | 전체를 한 번에 (디버깅용) | 단독 (CLI) | generate_keyframe, generate_video |
 
 ---

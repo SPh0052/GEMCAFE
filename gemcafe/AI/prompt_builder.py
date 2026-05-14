@@ -363,7 +363,7 @@ def build_korean_preview(
     analysis: Optional[dict] = None,
 ) -> str:
     """
-    사장님 선택값을 LLM(Gemini 3.1 Flash-Lite)에 넘겨 자연스러운 한국어 미리보기 생성.
+    사장님 선택값을 LLM(Gemini 2.5 Flash-Lite via SSAFY GMS)에 넘겨 자연스러운 한국어 미리보기 생성.
 
     cake_elements: 분석 결과에서 추출된 요소 키 리스트
                   (예: ["whipped_cream", "sponge", "strawberry"])
@@ -427,7 +427,7 @@ def assemble_final_video_prompt(
     """
     사장님이 (편집한) 한국어 영상 묘사 → 영상 모델용 최종 영어 프롬프트로 변환.
 
-    1. LLM(Gemini 3.1 Flash-Lite)이 한국어 → 영어 영상 프롬프트로 의역
+    1. LLM(Gemini 2.5 Flash-Lite via SSAFY GMS)이 한국어 → 영어 영상 프롬프트로 의역
     2. 시스템이 잠금 라이브러리(카메라/기술/모델별/배경/길이/부정)를 결합
     3. fal.ai에 그대로 넘길 수 있는 dict 반환
 
