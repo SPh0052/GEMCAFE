@@ -47,8 +47,11 @@ CAMERA_DIRECTIVES = {
         "Fork enters from top of frame. Subtle push-in as the indentation forms."
     ),
     "fork_bite": (
-        "Steady camera at a slight high angle. Framing widens gently as the bite "
-        "is lifted, keeping both the cake and the lifted fork comfortably in view."
+        "Steady camera at a slight high angle. Camera focus tracks the LIFTED PIECE "
+        "on the fork tines — sharp focus on the bite and the fork; the cake body "
+        "below stays in noticeably softer focus as supporting context. Framing keeps "
+        "both visible but the lifted piece is the unambiguous visual emphasis. "
+        "Shallow depth of field exaggerates the focus separation."
     ),
     "cut_in_half": (
         "Camera starts wide on the full cake slice, then slowly and continuously "
@@ -326,24 +329,32 @@ TEXTURE_PROFILES = {
         "visual_identity_en": "ladyfinger biscuit (coffee-soaked golden sponge fingers)",
     },
     "baked_cheese": {
-        "label_kr": "베이크드 치즈",
-        # 치즈케이크 필링 — Basque(겉 그을림 + 부드러운 속) / 뉴욕(묵직한 균질) / 수플레(폭신).
-        # 차가운 상태 기준: 결 없고 늘어지지 않으며 부드럽게 갈라짐.
-        # whipped_cream 보다 묵직, mascarpone 보다 단단, ganache 보다 부드러움.
+        # ⚠️ 모델이 "cheese" 단어 보면 모짜렐라/체다처럼 늘어지고 녹는 치즈로 오해석함
+        # (Basque 영상에서 꿀처럼 줄줄 흐르는 strand 아티팩트 발생).
+        # 모든 묘사에서 "치즈" → "크림치즈" 일관, 부정 표현(전단/늘어남 없음) 명시적.
+        "label_kr": "베이크드 크림치즈",
         "under_pressure_kr": (
-            "두툼하고 무거운 점성 질감이 도구 압력에 천천히 함몰되며 부드럽게 갈라짐. "
-            "결이 없는 균질한 치즈 필링이라 늘어지거나 실처럼 끊어지지 않고 깔끔하게 "
-            "쪼개짐. 함몰 자국 가장자리가 매끈하게 떨어짐."
+            "차가운 크림치즈 필링이 압력에 따라 꾸덕하게 압축되다가, 임계점에서 "
+            "부드럽게 밀려나며 갈라짐. 고밀도 점성 덕분에 으깨지기보다는 형태를 "
+            "유지하며 묵직하게 쪼개짐. 실 같은 점착성이나 늘어남 없이 단면이 매끈하게 "
+            "노출됨."
         ),
         "when_cut_kr": (
-            "매끈한 단면이 결 없이 균일하게 갈라지며 살짝 윤기를 띰. 도구를 따라 단면 "
-            "양쪽에 얇은 점성 자국이 남고, 부스러기가 거의 없음. Basque 의 경우 겉면의 "
-            "진한 그을린 자국과 속의 부드러운 크림색 단면이 대비됨."
+            "결 없이 균일하고 매끈한 단면. 도구가 지나간 자리에 미세한 질감의 자국이 "
+            "남으며, 도구 면에 크림 일부가 두텁게 달라붙을 정도로 점착성이 있음. "
+            "그러나 실처럼 가느다랗게 늘어지는 탄성은 전혀 없으며, 단면은 연두부보다 "
+            "밀도 높은 푸딩이나 커스터드처럼 정적인 상태를 유지함. 수분기를 머금은 "
+            "은은한 반무광 표면. Basque 의 경우 겉면의 탄화된 거친 갈색 질감과 속의 "
+            "실크 같은 매끈한 크림색 단면이 극명한 대비를 이룸."
         ),
         "visual_identity_en": (
-            "baked cheesecake filling (dense smooth single-layer baked cheese with creamy "
-            "interior — caramelized darker top in Basque-style, uniform cream color in "
-            "New York-style, light airy in souffle-style)"
+            "baked cream cheese filling (highly dense, non-elastic, smooth texture; "
+            "behaves like chilled thick custard or pudding; clean sheared edges when "
+            "cut, NOT stretchy or stringy; zero stringiness, melt, or fibers like "
+            "mozzarella or cheddar; satin / semi-matte cream-colored interior; "
+            "visible stickiness on the cutting tool but no stretching fibers; "
+            "Basque-style has dramatic contrast between caramelized darker rough top "
+            "and silk-smooth pale interior)"
         ),
     },
     "mousse": {
