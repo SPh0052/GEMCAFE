@@ -46,7 +46,12 @@ def _has_audio_stream(src_path: Path) -> bool:
 
 
 def _mux_audio(video_only_path: Path, audio_src_path: Path, output_path: Path) -> bool:
-    """ffmpeg로 video_only 파일에 audio_src의 오디오를 mux."""
+    """ffmpeg로 video_only 파일에 audio_src의 오디오를 mux.
+
+    video 코덱은 H.264 baseline + yuv420p 로 재인코딩 — SNS/브라우저 호환성을
+    위해 stream copy 대신 표준 프로필로 통일. faststart 로 메타데이터 앞쪽 배치.
+    재인코딩 비용: 영상 1편당 약 +10~15초 (워터마크 처리 시간의 +50% 수준).
+    """
     try:
         result = subprocess.run(
             [
@@ -55,7 +60,11 @@ def _mux_audio(video_only_path: Path, audio_src_path: Path, output_path: Path) -
                 "-i", str(audio_src_path),
                 "-map", "0:v:0",
                 "-map", "1:a:0?",
-                "-c:v", "copy",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-profile:v", "baseline",
+                "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
                 "-c:a", "aac",
                 "-shortest",
                 str(output_path),
