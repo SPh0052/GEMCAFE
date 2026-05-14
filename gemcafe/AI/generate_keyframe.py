@@ -248,32 +248,59 @@ def generate_keyframe(
     print(f"      → {image_url}")
     print(f"      → 저장: {input_local}")
 
-    # background 파일명: 모든 시뮬레이션에서 "start_frame.jpg" 사용.
-    # (keyframe.jpg는 항상 그대로 — I2I 결과라는 의미로 명확)
-    bg_filename = "2_start_frame.jpg"
+    # 저장 파일명 규칙:
+    #   2_start_frame.jpg  → Veo 가 받는 영상 첫 프레임 (bg-swap 결과 또는 시작 프레임 I2I 결과)
+    #   3_keyframe.jpg     → I2I (instruction_template) 결과. frame_strategy 에 따라
+    #                        start 또는 end 프레임으로 사용됨.
+    start_frame_filename = "2_start_frame.jpg"
 
-    # 같은 seed로 두 번 nano-banana 호출 시 결과가 서로 영향 받을 수 있어 분리.
-    # 배경 교체엔 seed, 키프레임엔 seed+1 (또는 둘 다 None이면 그대로 None).
+    # 같은 seed로 nano-banana 여러 번 호출 시 결과가 서로 영향 받을 수 있어 분리.
+    # bg 교체 = seed, 시작 프레임 I2I = seed+2, 키프레임 = seed+1.
+    # (둘/셋 다 None이면 그대로 None.)
     bg_seed = seed
     kf_seed = (seed + 1) if seed is not None else None
+    sf_seed = (seed + 2) if seed is not None else None
 
-    # 5) [2/3] 배경 교체 (선택)
+    start_frame_prompt = prompts.get("start_frame_prompt")
+
+    # 5) [2/3] 배경 교체 (선택). 시작 프레임 I2I 가 뒤따르면 이 결과는 중간물(URL만 사용).
     if background:
         print(f"[2/3] 배경 교체: '{background}' (seed={bg_seed}, aspect={aspect_ratio})")
         bg_prompt = prompt_builder.build_background_prompt(background)
         bg_url = call_nano_banana_edit(
             image_url, bg_prompt, prompts["system_prompt"], bg_seed, aspect_ratio
         )
-        bg_local = save_dir / bg_filename
-        download_file(bg_url, str(bg_local))
         print(f"      → 배경 교체 이미지: {bg_url}")
-        print(f"      → 저장: {bg_local}")
+        # 시작 프레임 I2I 단계가 없으면 이게 곧 첫 프레임 → 저장.
+        if not start_frame_prompt:
+            bg_local = save_dir / start_frame_filename
+            download_file(bg_url, str(bg_local))
+            print(f"      → 저장 (첫 프레임): {bg_local}")
         base_url = bg_url
     else:
         print(f"[2/3] 배경 교체: skip (background=None)")
         base_url = image_url
 
-    # 6) [3/3] 시뮬레이션 키프레임
+    # 5b) 시뮬에 start_frame_template 가 정의돼 있으면 시작 프레임 I2I 호출 추가.
+    #     (예: cream_scoop — 슬라이스를 장갑 낀 손이 잡은 자세를 첫 프레임으로 생성)
+    #     이 결과가 영상의 실제 첫 프레임이 되고, 동시에 마지막 프레임 I2I 의 입력이 됨.
+    if start_frame_prompt:
+        print(f"[추가] 시작 프레임 I2I (seed={sf_seed}, aspect={aspect_ratio})")
+        first_frame_url = call_nano_banana_edit(
+            base_url,
+            start_frame_prompt,
+            prompts["system_prompt"],
+            sf_seed,
+            aspect_ratio,
+        )
+        first_frame_local = save_dir / start_frame_filename
+        download_file(first_frame_url, str(first_frame_local))
+        print(f"      → 첫 프레임: {first_frame_url}")
+        print(f"      → 저장 (첫 프레임): {first_frame_local}")
+        base_url = first_frame_url
+
+    # 6) [3/3] 시뮬레이션 키프레임 (마지막 프레임).
+    #    start_frame_prompt 가 있었다면 입력은 그 결과, 없었다면 bg-swap 또는 원본.
     print(f"[3/3] 키프레임 생성 (seed={kf_seed}, aspect={aspect_ratio})")
     keyframe_url = call_nano_banana_edit(
         base_url,
