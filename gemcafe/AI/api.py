@@ -257,7 +257,9 @@ def analyze_endpoint(
     image_path = save_upload(image)
     try:
         image_url = analyze_module.upload(image_path)
-        analysis = analyze_module.analyze_with_moondream(
+        # analyze_with_moondream 은 (parsed_dict, raw_text, response_info) 3-tuple 반환.
+        # FastAPI 는 dict 만 받으므로 첫 번째 요소만 응답.
+        analysis, _raw_text, _response_info = analyze_module.analyze_with_moondream(
             image_url, analyze_module.ANALYSIS_PROMPT
         )
         return analysis
