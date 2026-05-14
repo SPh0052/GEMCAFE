@@ -26,6 +26,16 @@ export default function VideoDetailPage() {
   const [watermarkLoading, setWatermarkLoading] = useState(false)
   /** SNS 업로드 모달 open 여부 */
   const [socialOpen, setSocialOpen] = useState(false)
+  /**
+   * 공유용 사전 준비된 mp4 File.
+   *
+   * Chrome 은 navigator.share 호출이 user gesture 컨텍스트 안에 있어야 함 (await 한 번이라도
+   * 거치면 gesture 만료 → NotAllowedError). 그래서 detail 로드되자마자 워터마크 + blob 을
+   * 미리 받아두고, 사용자가 공유 클릭하면 await 없이 즉시 share 호출.
+   */
+  const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null)
+  /** preload 진행/실패 상태 (실패 시 클릭 시점에 재시도) */
+  const [sharePrepareError, setSharePrepareError] = useState(false)
 
   // 토스트 자동 해제
   useEffect(() => {
@@ -84,6 +94,41 @@ export default function VideoDetailPage() {
       cancelled = true
     }
   }, [videoId])
+
+  // 공유용 mp4 사전 prefetch — detail 로드 직후 시작.
+  // Chrome 의 user gesture 정책 (NotAllowedError) 회피용. 사용자가 공유 클릭 시점엔
+  // preparedShareFile 이 이미 채워져 있어서 await 없이 navigator.share 호출 가능.
+  useEffect(() => {
+    if (!detail) return
+    let cancelled = false
+    setPreparedShareFile(null)
+    setSharePrepareError(false)
+    ;(async () => {
+      try {
+        const meta = await requestWatermarkDownload(detail.videoId)
+        if (cancelled) return
+        console.log('[Share][prefetch] watermark meta:', meta)
+        const blob = await fetchVideoBlob(meta.downloadUrl)
+        if (cancelled) return
+        const file = new File([blob], meta.fileName, {
+          type: blob.type || 'video/mp4',
+        })
+        setPreparedShareFile(file)
+        console.log('[Share][prefetch] file ready:', {
+          size: file.size,
+          type: file.type,
+        })
+      } catch (err) {
+        if (cancelled) return
+        console.warn('[Share][prefetch] 실패 — 공유 클릭 시 재시도', err)
+        setSharePrepareError(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.videoId])
 
   const shareTitle = detail ? `${detail.title} — gem.cafe` : 'gem.cafe'
   const shareText = detail
@@ -162,14 +207,15 @@ export default function VideoDetailPage() {
   }
 
   /**
-   * 공유: 워터마크 영상 mp4 파일을 Web Share API 로만 공유.
-   * 링크 / 클립보드 fallback 없음 — Web Share API 지원 안 되거나 file share 불가하면
-   * 사용자에게 명확히 안내 (이 케이스에선 우상단 ↓ 다운로드 후 직접 공유).
+   * 공유: 사전 prefetch 된 mp4 File 을 Web Share API 로 즉시 공유.
+   *
+   * Chrome 정책상 navigator.share 는 user gesture 컨텍스트 안에서만 동작 → 클릭 핸들러
+   * 시작 시점에 await 없이 바로 호출해야 함. preload 가 끝났으면 즉시 share, 안 끝났으면
+   * 클릭이 'gesture' 로 카운트되는 동안 다시 시도하라고 안내.
    */
-  const handleShare = async () => {
-    if (!detail || watermarkLoading) return
+  const handleShare = () => {
+    if (!detail) return
 
-    // Web Share API 자체 미지원 (HTTP 환경, 구형 브라우저 등) → 즉시 안내 후 종료
     if (typeof navigator.share !== 'function') {
       setToast(
         '이 브라우저는 공유 기능을 지원하지 않아요. 다운로드 후 직접 공유해주세요.',
@@ -177,55 +223,62 @@ export default function VideoDetailPage() {
       return
     }
 
-    setWatermarkLoading(true)
-    let meta: { downloadUrl: string; fileName: string }
-    let blob: Blob
-    try {
-      meta = await requestWatermarkDownload(detail.videoId)
-      console.log('[POST /videos/.../watermark-download] response:', meta)
-      blob = await fetchVideoBlob(meta.downloadUrl)
-      console.log('[Share] blob ready:', { size: blob.size, type: blob.type })
-    } catch (err) {
-      console.error('[VideoDetail] 워터마크 fetch 실패', err)
-      setToast('영상 준비에 실패했습니다.')
-      setWatermarkLoading(false)
+    // Preload 가 아직 진행 중이거나 실패한 경우 — share 호출 X (gesture 의미 없음).
+    if (!preparedShareFile) {
+      if (sharePrepareError) {
+        // 실패한 케이스: 재시도 트리거. detail.videoId 변경 effect 로 재실행되진 않으니
+        // 강제로 한 번 더 prefetch 시도.
+        setSharePrepareError(false)
+        ;(async () => {
+          try {
+            const meta = await requestWatermarkDownload(detail.videoId)
+            const blob = await fetchVideoBlob(meta.downloadUrl)
+            const file = new File([blob], meta.fileName, {
+              type: blob.type || 'video/mp4',
+            })
+            setPreparedShareFile(file)
+            setToast('공유 준비가 끝났어요. 공유 버튼을 다시 눌러주세요.')
+          } catch (err) {
+            console.error('[Share] 재시도 prefetch 실패', err)
+            setSharePrepareError(true)
+            setToast('영상 준비에 실패했어요. 잠시 후 다시 시도해주세요.')
+          }
+        })()
+      } else {
+        setToast('영상 공유 준비 중이에요. 잠시 후 다시 눌러주세요.')
+      }
       return
     }
-    setWatermarkLoading(false)
 
-    const file = new File([blob], meta.fileName, {
-      type: blob.type || 'video/mp4',
-    })
     const payload: ShareData = {
-      files: [file],
+      files: [preparedShareFile],
       title: shareTitle,
       text: shareText,
     }
 
-    // canShare 가 정의돼있으면 호출 — false 면 이 단말기에서 파일 공유 불가능.
     if (
       typeof navigator.canShare === 'function' &&
       !navigator.canShare(payload)
     ) {
-      console.warn('[Share] canShare(file) false — 이 단말기 파일 공유 미지원')
+      console.warn('[Share] canShare(file) false')
       setToast(
         '이 기기에서는 영상 파일 공유를 지원하지 않아요. 우상단 ↓ 버튼으로 다운로드 후 직접 공유해주세요.',
       )
       return
     }
 
-    try {
-      await navigator.share(payload)
-      console.log('[Share] 공유 완료')
-    } catch (err) {
-      // 사용자가 share sheet 닫은 경우는 정상 — 토스트 X
-      if (err instanceof Error && err.name === 'AbortError') return
-      console.error('[Share] navigator.share 실패', err)
-      setToast(
-        '공유에 실패했어요: ' +
-          (err instanceof Error ? err.message : '알 수 없는 오류'),
-      )
-    }
+    // await 없이 바로 호출 — gesture 컨텍스트 유지.
+    navigator
+      .share(payload)
+      .then(() => console.log('[Share] 공유 완료'))
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === 'AbortError') return
+        console.error('[Share] navigator.share 실패', err)
+        setToast(
+          '공유에 실패했어요: ' +
+            (err instanceof Error ? err.message : '알 수 없는 오류'),
+        )
+      })
   }
 
   // ── 로딩 / 에러 ──
