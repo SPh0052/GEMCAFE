@@ -133,7 +133,7 @@ Now analyze the provided image. Output ONLY valid JSON in the same schema, no ot
 # GMS 게이트웨이가 일정 픽셀 수 / 비표준 JPEG 인코딩을 multimodal 요청에서 거부하는
 # 케이스가 관찰됨 (804x1042 실패 / 400x533 성공). 어떤 이미지가 와도 안전하게
 # 통과하도록 분석 전 표준 JPEG 으로 정규화한다.
-MAX_LONG_EDGE_PX = 1024   # 긴 변 1024px 로 제한 (≈1M pixels 이하 보장)
+MAX_LONG_EDGE_PX = 384   # 긴 변 1024px 로 제한 (≈1M pixels 이하 보장)
 
 
 def _normalize_image_for_gemini(image_path: str) -> tuple[bytes, str]:
