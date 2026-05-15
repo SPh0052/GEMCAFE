@@ -14,10 +14,15 @@ import VideoDetailPage from '@/features/my-videos/VideoDetailPage'
 import MyPage from '@/features/my-page/MyPage'
 import VideoEditor from '@/components/VideoEditor'
 import VideoCheckPage from '@/features/debug/VideoCheckPage'
+import PWAUpdatePrompt from '@/shared/components/PWAUpdatePrompt'
+import InstallAppBanner from '@/shared/components/InstallAppBanner'
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <PWAUpdatePrompt />
+      <InstallAppBanner />
+      <Routes>
       {/* 소개 페이지 — 비로그인 사용자 진입점, 인증 불필요 */}
       <Route path="/intro" element={<IntroPage />} />
 
@@ -79,6 +84,7 @@ export default function App() {
         <Route path="/me" element={<MyPage />} />
       </Route>
 
-    </Routes>
+      </Routes>
+    </>
   )
 }

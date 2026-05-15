@@ -1,13 +1,15 @@
-import { useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Camera, Loader2, RefreshCw, Sparkles, Wand2 } from 'lucide-react'
 import Button from '@/shared/components/Button'
 import { extractErrorMessage } from '@/shared/lib/errors'
 import {
   analyzeCakeImage,
   createVideo,
+  fetchAuthedImageAsBlobUrl,
   generateKeyframe,
   generatePreviewPrompt,
+  getSessionDetail,
   selectKeyframe,
   type KeyframeResult,
 } from './api'
@@ -20,9 +22,19 @@ import {
 const MAX_KEYFRAME_ATTEMPTS = 3
 const GEM_COST = 6
 
+interface CreateLocationState {
+  /** CreateLandingPage 의 "이어서 만들기" 카드 클릭 시 전달되는 세션 ID */
+  sessionId?: number
+}
+
 export default function CreateVideoPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const incomingSessionId =
+    (location.state as CreateLocationState | null)?.sessionId
   const fileInputRef = useRef<HTMLInputElement>(null)
+  /** 세션 복원 진행 중 — 그동안 입력 disable */
+  const [restoring, setRestoring] = useState(!!incomingSessionId)
 
   // ── Step 1: 이미지 + analyze ──
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -50,6 +62,64 @@ export default function CreateVideoPage() {
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
 
   const [error, setError] = useState<string | null>(null)
+
+  // ── 세션 복원 — location.state.sessionId 있으면 상세 fetch 해서 state 채움 ──
+  useEffect(() => {
+    if (!incomingSessionId) return
+    let cancelled = false
+    /** 복원 중 만든 blob URL — unmount 시 revoke (메모리 누수 방지) */
+    let createdBlobUrl: string | null = null
+    setRestoring(true)
+    ;(async () => {
+      try {
+        const s = await getSessionDetail(incomingSessionId)
+        if (cancelled) return
+        console.log('[GET /cakes/sessions/{id}] response:', s)
+        setSessionId(s.sessionId)
+        if (s.selections?.focus) setFocusKey(s.selections.focus)
+        if (s.selections?.simulationCode)
+          setSimulationCode(s.selections.simulationCode)
+        if (s.selections?.backgroundCode)
+          setBackgroundCode(s.selections.backgroundCode)
+        if (s.selections?.hint) setPrompt(s.selections.hint)
+        if (s.videoPromptKr) setAutoPrompt(s.videoPromptKr)
+        // 키프레임 — SessionKeyframe → KeyframeResult 로 매핑
+        const restoredKfs: KeyframeResult[] = s.keyframes.map((kf) => ({
+          keyframeId: kf.keyframeId,
+          attemptNumber: kf.attemptNumber,
+          keyframeUrl: kf.keyframeUrl,
+        }))
+        setKeyframes(restoredKfs)
+        if (s.selectedKeyframeId) setSelectedKeyframeId(s.selectedKeyframeId)
+
+        // 입력 이미지 — axios 통해 blob URL 변환 (인증 헤더 + dev proxy 매핑 보장)
+        if (s.inputImage?.url) {
+          try {
+            const blobUrl = await fetchAuthedImageAsBlobUrl(s.inputImage.url)
+            if (cancelled) {
+              URL.revokeObjectURL(blobUrl)
+              return
+            }
+            createdBlobUrl = blobUrl
+            setImagePreview(blobUrl)
+          } catch (imgErr) {
+            console.warn('[세션 복원] 입력 이미지 fetch 실패', imgErr)
+            // 이미지 없어도 다음 단계 진행 가능 — 그냥 skip
+          }
+        }
+      } catch (err) {
+        if (cancelled) return
+        console.error('[GET /cakes/sessions/{id}] 실패', err)
+        setError(extractErrorMessage(err, '세션을 불러오지 못했어요.'))
+      } finally {
+        if (!cancelled) setRestoring(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl)
+    }
+  }, [incomingSessionId])
 
   // focus 선택값에 맞는 시뮬레이션만 필터링
   const availableSimulations = useMemo(
@@ -176,6 +246,16 @@ export default function CreateVideoPage() {
       setError(extractErrorMessage(err, '영상 생성 시작에 실패했습니다.'))
       setCreatingVideo(false)
     }
+  }
+
+  // 세션 복원 로딩 — full-page spinner
+  if (restoring) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 py-12 text-gray-500">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
+        <p className="text-sm">진행 중인 세션을 불러오는 중...</p>
+      </div>
+    )
   }
 
   return (
