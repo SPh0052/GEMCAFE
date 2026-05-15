@@ -261,20 +261,19 @@ def analyze_endpoint(
     """
     케이크 이미지 분석 (STEP 2).
 
-    Moondream3가 케이크의 cake_type, creams, toppings, suggested_focus 등을
-    JSON으로 추출. 프론트는 suggested_focus를 라디오 버튼/카드로 표시.
+    Gemini 2.5 Pro (GMS 게이트웨이) 가 케이크의 cake_type, creams, toppings,
+    suggested_focus 등을 JSON 으로 추출. 프론트는 suggested_focus 를 라디오 버튼/카드로 표시.
 
-    ⚠️ BE는 응답 dict를 보관해뒀다가 `/keyframe` 호출 시 `analysis_json` 으로 다시 전달해야 함
-       (focus를 명시적으로 지정하지 않을 경우).
+    ⚠️ BE 는 응답 dict 를 보관해뒀다가 `/keyframe` 호출 시 `analysis_json` 으로 다시 전달해야 함
+       (focus 를 명시적으로 지정하지 않을 경우).
     """
-    require_fal_key()
     image_path = save_upload(image)
     try:
-        image_url = analyze_module.upload(image_path)
-        # analyze_with_moondream 은 (parsed_dict, raw_text, response_info) 3-tuple 반환.
+        # analyze_with_gemini 는 (parsed_dict, raw_text, response_info) 3-tuple 반환.
         # FastAPI 는 dict 만 받으므로 첫 번째 요소만 응답.
-        analysis, _raw_text, _response_info = analyze_module.analyze_with_moondream(
-            image_url, analyze_module.ANALYSIS_PROMPT
+        # 이미지는 로컬 파일 경로 그대로 전달 — Gemini 가 bytes 로 직접 읽음 (upload 불필요).
+        analysis, _raw_text, _response_info = analyze_module.analyze_with_gemini(
+            image_path, analyze_module.ANALYSIS_PROMPT
         )
         return analysis
     except Exception as e:
