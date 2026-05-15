@@ -7,6 +7,7 @@ import com.ssafy.BE.domain.cake.dto.KeyframeSelectRequest;
 import com.ssafy.BE.domain.cake.dto.KeyframeSelectResponse;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptRequest;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptResponse;
+import com.ssafy.BE.domain.cake.dto.VideoPromptUpdateRequest;
 import com.ssafy.BE.domain.cake.dto.SessionDetailResponse;
 import com.ssafy.BE.domain.cake.dto.SessionListResponse;
 import com.ssafy.BE.domain.cake.service.CakeAnalyzeService;
@@ -21,12 +22,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Cake", description = "케이크 영상 생성 파이프라인 (analyze / keyframe / video)")
@@ -89,6 +93,17 @@ public class CakeController {
     ) {
         SessionDetailResponse data = cakeSessionQueryService.getDetail(userId, sessionId);
         return ApiResponse.ok("세션 상세 조회 완료", data);
+    }
+
+    @Operation(summary = "프롬프트 직접 수정 저장. 사용자가 자동 생성 프롬프트를 편집 후 포커스 아웃 시 호출.")
+    @PatchMapping("/sessions/{sessionId}/video-prompt")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateVideoPrompt(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer sessionId,
+            @Valid @RequestBody VideoPromptUpdateRequest request
+    ) {
+        cakePreviewPromptService.updatePrompt(userId, sessionId, request);
     }
 
     @Operation(summary = "키프레임 선택 (Step 7-③). 영상 생성 단계로 진입할 키프레임 확정")
