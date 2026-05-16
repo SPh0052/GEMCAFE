@@ -200,7 +200,7 @@ SIMULATIONS = {
             "actual internal structure — layers, fillings, and inclusions that truly "
             "exist inside the cake in the input image. The {focus} is clearly visible "
             "and emphasized as the most prominent feature on the exposed cross-section"
-            "{cream}{topping}. "
+            "{cream}{topping}{interior_structure}. "
             "Faithfully reflect whatever is actually inside the cake; do NOT invent "
             "layers, fillings, or textures that are not visible in the original\n"
             "- On the cake body below, in an area that AVOIDS any prominent whole "
@@ -240,7 +240,7 @@ SIMULATIONS = {
             "lifts smoothly back up, scooping out a single full-height bite that stays "
             "impaled on the tines, revealing the cake's actual inner cross-section on the "
             "cut faces, with the {focus} clearly visible and emphasized as the most "
-            "prominent feature on the exposed cross-section{cream}. As the fork rises, it settles "
+            "prominent feature on the exposed cross-section{cream}{interior_structure}. As the fork rises, it settles "
             "in the upper right area of the frame, clearly separated from the cake with "
             "empty space between them. The cake stays in place on whatever surface or liner "
             "it sits on throughout the motion; any toppings or decorations on the cake's "
@@ -290,7 +290,7 @@ SIMULATIONS = {
             "The cake's internal layers are pushed apart on both sides of the blade, "
             "revealing the internal texture in sharp detail, with the {focus} clearly "
             "emphasized as the most prominent and detailed feature on the exposed "
-            "cross-section{cream}{topping}.\n\n"
+            "cross-section{cream}{topping}{interior_structure}.\n\n"
             "Photorealistic food photography, ultra-detailed texture, ASMR-style food "
             "cinematography aesthetic, soft natural lighting, emphasis on tactile texture "
             "and freshness."
@@ -301,7 +301,7 @@ SIMULATIONS = {
             "the blade descends, the cake's internal layers are gently pushed apart along "
             "the blade's path, gradually revealing the cake's internal texture — exposed "
             "with vivid color and natural texture, with the {focus} clearly emphasized as "
-            "the most prominent and detailed texture on the exposed cross-section{cream}.\n\n"
+            "the most prominent and detailed texture on the exposed cross-section{cream}{interior_structure}.\n\n"
             "The knife moves at a steady, deliberate pace — slow enough to savor each "
             "moment of the cut, like an ASMR food video. The cake's internal structure "
             "softly parts along the blade, and tiny details of the moist interior become "
@@ -490,7 +490,7 @@ SIMULATIONS = {
             "Both cut faces of the lifted slice — the two triangular sides where it "
             "was separated from the whole cake — are clearly visible in profile, "
             "exposing the {focus} as the dominant feature of the cross-section"
-            "{cream}{topping}. The internal structure reads as crisp and freshly cut.\n\n"
+            "{cream}{topping}{interior_structure}. The internal structure reads as crisp and freshly cut.\n\n"
             "The whole cake below shows a corresponding wedge-shaped gap where the "
             "slice used to sit. The exposed inner faces of the remaining whole cake "
             "match the lifted slice's cut faces exactly — same internal structure, "
@@ -508,7 +508,7 @@ SIMULATIONS = {
             "continuous, deliberate motion. The slice rises gently into the "
             "upper-center of the frame, staying level the whole way up, with both "
             "cut faces of the slice clearly visible — the {focus} is emphasized as "
-            "the dominant cross-section{cream}. The slice settles in mid-air with a "
+            "the dominant cross-section{cream}{interior_structure}. The slice settles in mid-air with a "
             "small air gap above the whole cake, which now shows a clean wedge-shaped "
             "gap where the slice used to be. Static camera throughout, no panning, "
             "no zooming, smooth ASMR-style food cinematography."
@@ -550,7 +550,7 @@ SIMULATIONS = {
             "revealing two flat inner cross-sections that face each other across "
             "the gap.\n\n"
             "The {focus} is clearly visible and emphasized as the most prominent "
-            "feature on both freshly exposed inner faces{base}{topping}. The break "
+            "feature on both freshly exposed inner faces{base}{topping}{interior_structure}. The break "
             "is sharp and clean — no stretching strands, no stringing, no dripping "
             "material connecting the two halves through the gap. The space between "
             "the halves is empty air.\n\n"
@@ -569,7 +569,7 @@ SIMULATIONS = {
             "separating into the air with a clear gap opening between them, "
             "revealing two flat inner cross-sections that face each other — the "
             "{focus} is emphasized as the dominant feature on both exposed faces"
-            "{base}. The break stays clean throughout the motion, with no "
+            "{base}{interior_structure}. The break stays clean throughout the motion, with no "
             "stretching strands or stringing across the gap. Static camera, "
             "smooth steady motion, ASMR-style food cinematography."
         ),
@@ -722,26 +722,57 @@ def _resolve_slot_phrases(
     Returns:
         {"base": "...", "cream": "...", "topping": "..."} — 각 값은 최종 phrase 또는 "".
     """
-    result = {"base": "", "cream": "", "topping": ""}
-    phrases_def = sim.get("slot_phrases", {}).get(template_kind, {})
-    if not phrases_def or analysis is None:
+    result = {"base": "", "cream": "", "topping": "", "interior_structure": ""}
+    if analysis is None:
         return result
 
     import prompt_locks
     by_role = prompt_locks.collect_elements_by_role(analysis)
-    for slot_key in result:
-        wrapper = phrases_def.get(slot_key)
-        if not wrapper:
-            continue
-        elements = by_role.get(slot_key, [])
-        if not elements:
-            continue
-        # 슬롯의 첫 요소가 focus 와 동일하면 중복 방지 — slot 비움
-        canon = normalize_focus(elements[0])
-        if focus_key and canon == focus_key:
-            continue
-        value = focus_phrase(elements[0])  # 짧은 영어 라벨
-        result[slot_key] = wrapper.format(value=value)
+
+    # role 기반 슬롯 (base/cream/topping) — 시뮬의 slot_phrases 정의 필요
+    phrases_def = sim.get("slot_phrases", {}).get(template_kind, {})
+    if phrases_def:
+        for slot_key in ("base", "cream", "topping"):
+            wrapper = phrases_def.get(slot_key)
+            if not wrapper:
+                continue
+            elements = by_role.get(slot_key, [])
+            if not elements:
+                continue
+            # 슬롯의 첫 요소가 focus 와 동일하면 중복 방지 — slot 비움
+            canon = normalize_focus(elements[0])
+            if focus_key and canon == focus_key:
+                continue
+            value = focus_phrase(elements[0])  # 짧은 영어 라벨
+            result[slot_key] = wrapper.format(value=value)
+
+    # 시스템 신호 슬롯 (interior_structure) — analysis.is_layered 직결, 시뮬별
+    # wrapper 정의 불필요. 단면 노출 시뮬 템플릿이 {interior_structure} placeholder
+    # 박은 곳에만 등장하며, 다른 시뮬엔 placeholder 없어서 자동으로 무시됨.
+    is_layered = analysis.get("is_layered")
+    if is_layered is True:
+        if template_kind == "instruction":
+            result["interior_structure"] = (
+                ". The exposed cross-section reads as a multi-layered baked "
+                "structure with distinct internal bands"
+            )
+        else:  # video
+            result["interior_structure"] = (
+                ". The exposed cross-section reveals a multi-layered baked "
+                "structure with distinct internal bands"
+            )
+    elif is_layered is False:
+        if template_kind == "instruction":
+            result["interior_structure"] = (
+                ". The exposed cross-section reads as a dense uniform interior "
+                "body without separate layers"
+            )
+        else:  # video
+            result["interior_structure"] = (
+                ". The exposed cross-section reveals a dense uniform interior "
+                "body without separate layers"
+            )
+    # None/누락 — 빈 문자열 유지 (placeholder 위치도 통째 omit)
     return result
 
 
