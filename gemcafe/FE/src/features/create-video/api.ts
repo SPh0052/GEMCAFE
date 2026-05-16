@@ -58,6 +58,8 @@ export type InProgressStatus =
   | 'ANALYZED'
   | 'KEYFRAMING'
   | 'READY_TO_GENERATE'
+  | 'GENERATING'
+  | 'VIDEO_GENERATING'
   | string
 
 export interface InProgressSession {
@@ -108,6 +110,13 @@ export interface SessionSelections {
   backgroundCode?: string | null
   focus?: string | null
   hint?: string | null
+}
+
+export interface UpdateSessionSelectionsRequest {
+  simulationCode: string | null
+  backgroundCode: string | null
+  focus: string | null
+  hint: string
 }
 
 export interface SessionDetail {
@@ -163,7 +172,8 @@ export async function fetchAuthedImageAsBlobUrl(url: string): Promise<string> {
 // ─── Step 4. 자동 프롬프트 생성 ─────────────────────────────────
 export interface PreviewPromptRequest {
   simulationCode: string
-  backgroundCode: string
+  /** 배경 미선택 시 null. */
+  backgroundCode: string | null
   focus: string
   hint: string
 }
@@ -192,13 +202,31 @@ export async function generatePreviewPrompt(
   return res.data.data
 }
 
+export async function updateSessionSelections(
+  sessionId: number,
+  body: UpdateSessionSelectionsRequest,
+): Promise<void> {
+  await api.patch(`/cakes/sessions/${sessionId}/selections`, body)
+}
+
+export async function updateVideoPrompt(
+  sessionId: number,
+  videoPromptKr: string,
+  hint: string,
+): Promise<void> {
+  await api.patch(`/cakes/sessions/${sessionId}/video-prompt`, {
+    videoPromptKr,
+    hint,
+  })
+}
+
 // ─── Step 7. 키프레임 생성 ─────────────────────────────────────
 export interface KeyframeRequest {
   /** 시뮬레이션 카탈로그 키 (예: 'smash', 'fork_bite') */
   simulationCode: string
-  /** 배경 카탈로그 키 (예: 'white_marble', 'cafe_interior') */
-  backgroundCode: string
-  /** focus 카탈로그 키 (sponge | strawberry | whipped_cream) */
+  /** 배경 카탈로그 키 (예: 'white_marble', 'cafe_interior'). 미선택 시 null. */
+  backgroundCode: string | null
+  /** 분석 결과에서 사용자가 고른 강조 키워드 (예: 'baked_cheese', 'strawberry') */
   focus: string
   /** 유저가 입력한 자유 프롬프트 */
   hint: string
