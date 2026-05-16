@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptRequest;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptResponse;
+import com.ssafy.BE.domain.cake.dto.SelectionsUpdateRequest;
 import com.ssafy.BE.domain.cake.dto.VideoPromptUpdateRequest;
 import com.ssafy.BE.domain.video.entity.VideoSession;
 import com.ssafy.BE.domain.video.entity.VideoSessionStatus;
@@ -68,7 +69,19 @@ public class CakePreviewPromptService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
         validateSession(session, userId);
         session.updateVideoPromptKr(request.videoPromptKr().trim());
+        if (request.hint() != null) {
+            session.updateSelections(null, null, null, request.hint());
+        }
         log.info("[CAKE-PROMPT-UPDATE] sessionId={}", sessionId);
+    }
+
+    @Transactional
+    public void updateSelections(Integer userId, Integer sessionId, SelectionsUpdateRequest request) {
+        VideoSession session = videoSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+        validateSession(session, userId);
+        session.updateSelections(request.simulationCode(), request.backgroundCode(), request.focus(), request.hint());
+        log.info("[CAKE-SELECTIONS-UPDATE] sessionId={}", sessionId);
     }
 
     private void validateSession(VideoSession session, Integer userId) {

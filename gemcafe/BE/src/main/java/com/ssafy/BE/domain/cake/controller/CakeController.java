@@ -7,6 +7,7 @@ import com.ssafy.BE.domain.cake.dto.KeyframeSelectRequest;
 import com.ssafy.BE.domain.cake.dto.KeyframeSelectResponse;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptRequest;
 import com.ssafy.BE.domain.cake.dto.PreviewPromptResponse;
+import com.ssafy.BE.domain.cake.dto.SelectionsUpdateRequest;
 import com.ssafy.BE.domain.cake.dto.VideoPromptUpdateRequest;
 import com.ssafy.BE.domain.cake.dto.SessionDetailResponse;
 import com.ssafy.BE.domain.cake.dto.SessionListResponse;
@@ -93,6 +94,17 @@ public class CakeController {
     ) {
         SessionDetailResponse data = cakeSessionQueryService.getDetail(userId, sessionId);
         return ApiResponse.ok("세션 상세 조회 완료", data);
+    }
+
+    @Operation(summary = "선택값 저장 (simulation/background/focus/hint). null 필드는 덮어쓰지 않음.")
+    @PatchMapping("/sessions/{sessionId}/selections")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateSelections(
+            @AuthenticationPrincipal Integer userId,
+            @PathVariable Integer sessionId,
+            @RequestBody SelectionsUpdateRequest request
+    ) {
+        cakePreviewPromptService.updateSelections(userId, sessionId, request);
     }
 
     @Operation(summary = "프롬프트 직접 수정 저장. 사용자가 자동 생성 프롬프트를 편집 후 포커스 아웃 시 호출.")
