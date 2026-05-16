@@ -942,6 +942,16 @@ def build_prompts(
             if start_frame is not None:
                 start_frame = f"{structure_ctx}\n\n{start_frame}"
 
+        # 시그니처 비주얼 라인 — analysis.key_feature 가 있을 때만 한 줄 박힘.
+        # I2I 키프레임 + I2V 영상 모두에 prepend (영상은 키프레임에 그려진 시그니처를
+        # 그대로 살려야 하므로 양쪽에 동일 신호 필요).
+        signature = prompt_locks.get_signature_feature_en(analysis)
+        if signature:
+            instruction = f"{signature}\n\n{instruction}"
+            if start_frame is not None:
+                start_frame = f"{signature}\n\n{start_frame}"
+            video = f"{signature}\n\n{video}"
+
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
     # 단 start_frame_prompt 는 이미 "Preserve the exact same background" 같이 자체

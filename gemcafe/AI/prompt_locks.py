@@ -881,6 +881,28 @@ def get_cake_structure_context_en(analysis: dict) -> str:
     )
 
 
+def get_signature_feature_en(analysis: Optional[dict]) -> str:
+    """
+    analysis['key_feature'] → I2I/I2V 프롬프트에 박을 영어 시그니처 라인.
+
+    Gemini Vision 분석에서 추출한 "이 케이크의 시그니처 비주얼" (자유 텍스트) 를
+    그대로 한 줄로 박아서, 영상 생성 모델이 그 케이크의 셀링 포인트를 화면 한가운데
+    잡도록 가이드. 분석에 없거나 빈 값이면 빈 문자열 반환 (당연히 prompt 에 안 박힘).
+
+    예: analysis = {"key_feature": "caramelized burnt top with creamy interior"}
+        → "Signature visual to emphasize: caramelized burnt top with creamy interior."
+    """
+    if not analysis:
+        return ""
+    feature = analysis.get("key_feature")
+    if not feature or not isinstance(feature, str):
+        return ""
+    feature = feature.strip().rstrip(".")
+    if not feature:
+        return ""
+    return f"Signature visual to emphasize: {feature}."
+
+
 def get_cake_structure_suffix_kr(analysis: dict) -> str:
     """
     분석 결과 → LLM Phase 1 (한국어 미리보기) 용 dessert_info 보강 한국어 접미사.
