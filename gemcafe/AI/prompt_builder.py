@@ -42,6 +42,8 @@ FOCUS_TEXT = {
     "mascarpone_cream": "mascarpone cream",
     # 치즈케이크용 (Basque / 뉴욕 / 수플레 공통)
     "baked_cheese": "baked cheesecake filling",
+    # 무스 케이크용 (chocolate mousse / fruit mousse 공통)
+    "mousse": "mousse",
 }
 
 # Moondream 등이 변형 키를 줄 때 정식 focus 키로 정규화하기 위한 별칭 표.
@@ -71,6 +73,13 @@ FOCUS_ALIASES = {
     # 티라미수 변종
     "mascarpone": "mascarpone_cream",
     "mascarpone_texture": "mascarpone_cream",
+
+    # 무스 변종
+    "chocolate_mousse":  "mousse",
+    "fruit_mousse":      "mousse",
+    "strawberry_mousse": "mousse",
+    "mousse_filling":    "mousse",
+    "mousse_layer":      "mousse",
 
     # 치즈케이크 변종 — 사용자/Gemini suggested_focus 변종을 단일 focus 키로 정규화
     "cheesecake":             "baked_cheese",
@@ -120,8 +129,10 @@ SIMULATIONS = {
         "category": "cream",   # 크림류를 짓눌러 변형 — 카테고리 자동 focus 는 cream 역할
         # 누르는 액션 — 부드럽고 변형 가능한 요소만. 흐르는 액체(molten_chocolate)는 부적합.
         # baked_cheese 는 묵직한 점성이지만 함몰/갈라짐 묘사 가능.
+        # mousse 는 가벼운 거품 구조라 누르면 푹 꺼지는 시그니처 묘사 가능.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+            "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         # 슬롯 phrase: 케이크 구성에 따라 자동 채워짐. base/topping 없으면 통째 omit.
@@ -159,9 +170,10 @@ SIMULATIONS = {
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         # molten_chocolate 은 한 입 뜨면 단면에서 흘러나오는 게 라바 케이크 시그니처.
         # baked_cheese 는 단일 층 단면이 시그니처 (Basque 의 겉/속 대비 등).
+        # mousse 는 비단 같은 매끈한 단면 노출이 시그니처.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "molten_chocolate",
-            "mascarpone_cream", "baked_cheese",
+            "mascarpone_cream", "baked_cheese", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         # 슬롯 phrase: 단면에 함께 노출되는 cream/topping 을 자연스럽게 묘사.
@@ -255,9 +267,10 @@ SIMULATIONS = {
         "category": "sheet",   # 시트 단면을 가르며 노출 — 카테고리 자동 focus 는 base 역할
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         # 도구: 케이크 나이프 (S14P31S307-624 에서 fork → knife 로 변경)
+        # mousse 는 매끈한 단면이 시그니처 — 칼로 가르기 적합.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "molten_chocolate",
-            "mascarpone_cream", "baked_cheese",
+            "mascarpone_cream", "baked_cheese", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         "slot_phrases": {
@@ -319,8 +332,9 @@ SIMULATIONS = {
         # 새 디자인 (S14P31S307-643): 슬라이스 단면을 정면으로 잡고 스푼이 위에서 아래로
         # 끌어내려 채널을 긁어내는 액션. 두 손(검은 장갑) 가시. 두꺼운 점성 단면이 있는
         # 모든 필링류에 적용 가능 — 크림류 + 베이크드 치즈케이크 (Basque/뉴욕 단면).
+        # mousse 도 부드러운 점성 단면이라 스푼으로 떠낼 수 있음.
         "applicable_focus": [
-            "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+            "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         # 시작 프레임 — 별도 nano-banana 호출로 첫 프레임 생성 (호출 1번 추가).
@@ -434,9 +448,10 @@ SIMULATIONS = {
         #   start_frame_template — 입력 슬라이스로 홀케이크를 재구성한 시작 프레임
         #   instruction_template — 그 홀케이크에서 슬라이스가 떠올려진 마지막 프레임
         # 영상 = 홀케이크 → 한 조각이 케이크 서버로 떠올라 빈 wedge 가 드러남.
+        # mousse 케이크도 단단히 set 된 슬라이스 형태라 통째로 들어올리는 묘사 가능.
         "applicable_focus": [
             "sponge", "vanilla_sponge", "chocolate_sponge",
-            "baked_cheese", "ladyfinger_biscuit",
+            "baked_cheese", "ladyfinger_biscuit", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         "slot_phrases": {

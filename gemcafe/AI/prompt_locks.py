@@ -633,8 +633,25 @@ TEXTURE_PROFILES = {
     },
     "mousse": {
         "label_kr": "무스",
+        # 무스는 거품 낸 가벼운 dairy 디저트 — whipped cream 보다 살짝 더 안정적
+        # (젤라틴 등으로 set 됨) 이라 형태 유지하지만, 압력에 푹 꺼지고 공기층이
+        # 붕괴됨. 자르면 매끈하게 갈라지고 단면이 비단처럼 매끄러움. 절대 늘어나거나
+        # 실 같은 점착성 없음.
         "under_pressure_kr": "푹 꺼지고 공기층 붕괴",
         "when_cut_kr": "매끈하게 베이며 단면 부드러움",
+        "under_pressure_en": (
+            "The mousse yields softly under the tool, the airy aerated structure "
+            "collapsing into a clean depression. The surface around the indentation "
+            "stays smooth and matte-glossy. The mousse keeps its shape at the edge "
+            "with a clean break — no stretching, no strands, no stringing."
+        ),
+        "when_cut_en": (
+            "The mousse parts cleanly along the break, exposing a silky smooth "
+            "uniform interior with fine aerated structure on both freshly exposed "
+            "faces. The cross-section reads as soft and velvety with crisp clean "
+            "edges — no stretching strands, no stringing across the gap, no "
+            "crumbling."
+        ),
         "visual_identity_en": "mousse (light airy whipped dessert with smooth surface)",
     },
 
@@ -745,6 +762,13 @@ ELEMENT_ALIASES = {
     "white_whipped_cream":    "whipped_cream",
     "soft_cream":             "cream",
     "mascarpone_texture":     "mascarpone_cream",
+
+    # 무스 변종 — Gemini Vision 이 케이크 종류별로 다양하게 응답 가능
+    "chocolate_mousse":       "mousse",
+    "fruit_mousse":           "mousse",
+    "strawberry_mousse":      "mousse",
+    "mousse_filling":         "mousse",
+    "mousse_layer":           "mousse",
 
     # 시트 / 베이스 변종
     "soft_sponge_layers":     "sponge",
