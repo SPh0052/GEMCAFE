@@ -509,6 +509,75 @@ CATEGORY_DEFAULT_FOCUS = {
 }
 
 
+# =====================================================================
+# Phrase-level Optional Slot — 템플릿 슬롯({base}/{cream}/{topping}) 인프라
+# =====================================================================
+# 시뮬레이션 액션 묘사가 케이크의 실제 구성요소를 자연스럽게 참조할 수 있도록,
+# 템플릿이 다음 placeholder 를 받음:
+#   {focus}    — 기존 동작 (시뮬레이션 강조 요소)
+#   {base}     — analysis.base 첫 요소 phrase 로 wrapping. 없으면 "" (구문 통째 omit)
+#   {cream}    — analysis.creams 첫 요소 phrase 로 wrapping. 없으면 "" (구문 통째 omit)
+#   {topping}  — analysis.toppings 첫 요소 phrase 로 wrapping. 없으면 "" (구문 통째 omit)
+#
+# 시뮬레이션이 슬롯을 쓰려면 `slot_phrases` 를 정의:
+#   "slot_phrases": {
+#       "instruction": {
+#           "base":    " through the {value}",            # 케이크에 base 있을 때만 박힘
+#           "cream":   ", squishing the {value} sideways",
+#           "topping": " while the {value} stays in place",
+#       },
+#       "video": { ... }  # 동영상 묘사용 별도 wrapper
+#   }
+# 그러면 템플릿에서 "...the fork presses{cream}{topping}..." 식으로 비워둘 위치에
+# placeholder 만 적으면 — 분석에 cream 없으면 그 phrase 통째 빠짐.
+#
+# 슬롯 미정의 시뮬은 기존 동작 유지: format_map 이 SafeDict 로 모든 빈 슬롯을 ""
+# 로 치환하므로 기존 {focus}-only 템플릿은 그대로 작동.
+
+
+class _SafeDict(dict):
+    """`.format_map()` 헬퍼 — 누락 키는 빈 문자열. 슬롯 미사용 템플릿도 안전."""
+
+    def __missing__(self, key: str) -> str:
+        return ""
+
+
+def _resolve_slot_phrases(
+    sim: dict,
+    analysis: Optional[dict],
+    template_kind: str,
+) -> dict[str, str]:
+    """
+    시뮬의 slot_phrases[template_kind] 정의 + analysis → {base, cream, topping} 의
+    최종 치환 문자열 dict. 슬롯에 매칭되는 요소가 없거나 wrapper 미정의면 "".
+
+    Args:
+        sim:           SIMULATIONS[key] 의 dict
+        analysis:      Moondream/Gemini Vision 분석 결과 (None 이면 모든 슬롯 "")
+        template_kind: "instruction" or "video" — instruction/video 별 wrapper 사용
+
+    Returns:
+        {"base": "...", "cream": "...", "topping": "..."} — 각 값은 최종 phrase 또는 "".
+    """
+    result = {"base": "", "cream": "", "topping": ""}
+    phrases_def = sim.get("slot_phrases", {}).get(template_kind, {})
+    if not phrases_def or analysis is None:
+        return result
+
+    import prompt_locks
+    by_role = prompt_locks.collect_elements_by_role(analysis)
+    for slot_key in result:
+        wrapper = phrases_def.get(slot_key)
+        if not wrapper:
+            continue
+        elements = by_role.get(slot_key, [])
+        if not elements:
+            continue
+        value = focus_phrase(elements[0])  # 짧은 영어 라벨
+        result[slot_key] = wrapper.format(value=value)
+    return result
+
+
 def derive_focus_from_category(
     simulation: str,
     analysis: Optional[dict] = None,
@@ -677,11 +746,19 @@ def build_prompts(
     sim = SIMULATIONS[simulation]
     focus_text = focus_phrase(focus)
 
-    instruction = sim["instruction_template"].format(focus=focus_text)
-    video = sim["video_template"].format(focus=focus_text)
+    # 슬롯 phrase 해결 — 시뮬에 slot_phrases 정의 + analysis 있을 때만 채워짐.
+    # 미정의/미해당 슬롯은 빈 문자열이라 템플릿의 {base}{cream}{topping} 자리는 사라짐.
+    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction")
+    slot_vid = _resolve_slot_phrases(sim, analysis, "video")
+    fmt_inst = _SafeDict(focus=focus_text, **slot_inst)
+    fmt_vid = _SafeDict(focus=focus_text, **slot_vid)
+
+    instruction = sim["instruction_template"].format_map(fmt_inst)
+    video = sim["video_template"].format_map(fmt_vid)
     start_frame = None
     if sim.get("start_frame_template"):
-        start_frame = sim["start_frame_template"].format(focus=focus_text)
+        # start_frame 도 instruction 과 동일 wrapper 사용 (별도 슬롯 필요 시 향후 분리)
+        start_frame = sim["start_frame_template"].format_map(fmt_inst)
 
     # analysis 가 있으면 케이크 구조 컨텍스트 (역할별 base/cream/topping/coating + 시각 식별)
     # 를 instruction 앞에 prepend. 모델이 "어떤 재료가 어느 자리에 있는지" 명확히 인식해서
