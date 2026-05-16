@@ -288,7 +288,7 @@ export default function CreateVideoPage() {
     setError(null)
     setGeneratingKeyframe(true)
     try {
-      const simToSend = normalizeSimulationCode(simulationCode)
+      const simToSend = normalizeSimulationCode(simulationCode)!
       const res = await generateKeyframe(sessionId, {
         simulationCode: simToSend,
         // '미선택' (UI 키 'none') → API 에는 null 전송
@@ -312,7 +312,7 @@ export default function CreateVideoPage() {
     setError(null)
     setGeneratingPrompt(true)
     try {
-      const simToSend = normalizeSimulationCode(simulationCode)
+      const simToSend = normalizeSimulationCode(simulationCode)!
       const res = await generatePreviewPrompt(sessionId, {
         simulationCode: simToSend,
         backgroundCode: backgroundCode === 'none' ? null : backgroundCode,
