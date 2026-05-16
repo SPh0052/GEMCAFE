@@ -5,14 +5,20 @@
 조합해서 nano-banana-pro/edit 와 Veo 3.1 에 넘길 프롬프트를 만든다.
 
 지원 디저트: 케이크 (특히 딸기 생크림 조각 케이크) 한정.
-지원 요소(focus): sponge / whipped_cream / strawberry
-지원 시뮬레이션:
-  - smash              (뭉개기)                 — sponge, whipped_cream
-  - fork_bite          (포크로 한 입 뜨기)       — sponge, whipped_cream
-  - cut_in_half        (반으로 자르기)          — sponge, whipped_cream
-  - cream_scoop        (크림만 떠내기)          — whipped_cream
-  - strawberry_fall    (딸기가 케이크 위로 떨어짐)— strawberry
-  - strawberry_cascade (딸기 우수수 쏟아짐)      — strawberry
+
+시뮬레이션은 [시트 / 크림 / 토핑] 3개 카테고리로 분류되며, 각 카테고리는
+analysis 의 해당 역할(base/cream/topping)에서 focus 를 자동 결정한다.
+사장님이 직접 focus 를 지정하지 않아도 카테고리만 보고 분석 결과의 첫 요소를
+자동 선택. (호환을 위해 명시적 focus 파라미터도 여전히 받음.)
+
+카테고리별 시뮬레이션:
+  [시트]  fork_bite     (포크로 한 입 뜨기)
+          cut_in_half   (칼로 단면 가르기)
+          lift_slice    (한 조각 쏙 들어올리기)
+  [크림]  smash         (뭉개기)
+          cream_scoop   (한 스푼 떠내기)
+          hand_split    (손으로 반 가르기)
+  [토핑]  topping_fall  (위에서 떨어뜨리기 — 단일·다량 자동)
 """
 from typing import Optional
 
@@ -111,6 +117,7 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "smash": {
         "label_kr": "뭉개기",
+        "category": "cream",   # 크림류를 짓눌러 변형 — 카테고리 자동 focus 는 cream 역할
         # 누르는 액션 — 부드럽고 변형 가능한 요소만. 흐르는 액체(molten_chocolate)는 부적합.
         # baked_cheese 는 묵직한 점성이지만 함몰/갈라짐 묘사 가능.
         "applicable_focus": [
@@ -139,6 +146,7 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "fork_bite": {
         "label_kr": "포크로 한 입 뜨기",
+        "category": "sheet",   # 시트 단면을 노출 — 카테고리 자동 focus 는 base 역할
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         # molten_chocolate 은 한 입 뜨면 단면에서 흘러나오는 게 라바 케이크 시그니처.
         # baked_cheese 는 단일 층 단면이 시그니처 (Basque 의 겉/속 대비 등).
@@ -223,6 +231,7 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "cut_in_half": {
         "label_kr": "반으로 자르기",
+        "category": "sheet",   # 시트 단면을 가르며 노출 — 카테고리 자동 focus 는 base 역할
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "molten_chocolate",
@@ -280,6 +289,7 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "cream_scoop": {
         "label_kr": "크림만 떠내기",
+        "category": "cream",   # 크림을 스푼으로 떠냄 — 카테고리 자동 focus 는 cream 역할
         # 새 디자인 (S14P31S307-643): 슬라이스 단면을 정면으로 잡고 스푼이 위에서 아래로
         # 끌어내려 채널을 긁어내는 액션. 두 손(검은 장갑) 가시. 두꺼운 점성 단면이 있는
         # 모든 필링류에 적용 가능 — 크림류 + 베이크드 치즈케이크 (Basque/뉴욕 단면).
@@ -393,6 +403,7 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "strawberry_fall": {
         "label_kr": "딸기가 케이크 위로 톡 떨어진다",
+        "category": "topping",   # 토핑이 위에서 떨어져 안착 — 카테고리 자동 focus 는 topping 역할
         "applicable_focus": ["strawberry"],
         "frame_strategy": "i2i_is_start",   # 역방향: I2I = 딸기 없는 시작 상태
         "instruction_template": (
@@ -414,6 +425,7 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "strawberry_cascade": {
         "label_kr": "딸기가 우수수 쏟아진다",
+        "category": "topping",   # 토핑이 위에서 쏟아져 안착 — 카테고리 자동 focus 는 topping 역할
         "applicable_focus": ["strawberry"],
         "frame_strategy": "i2i_is_start",   # 역방향: I2I = 토핑 없는 시작 상태
         "instruction_template": (
@@ -474,6 +486,90 @@ def is_valid_combination(focus: str, simulation: str) -> bool:
 
 
 # =====================================================================
+# 카테고리 ↔ 역할 ↔ 기본 focus 매핑 (자동 focus 결정용)
+# =====================================================================
+# 시뮬레이션의 category 필드가 [시트/크림/토핑] 중 하나면, 사장님이 focus 를
+# 명시 안 해도 analysis 의 해당 역할(base/cream/topping) 첫 요소를 자동으로
+# focus 로 사용. analysis 가 없거나 역할이 비어 있으면 카테고리 기본값 사용.
+#
+# 이렇게 하면 사장님은 "케이크 시트 강조 시뮬" 만 고르면 되고, 어떤 시트인지
+# (스펀지/바스크/시폰...) 는 시스템이 분석 결과에서 자동 결정함.
+CATEGORY_TO_ROLE = {
+    "sheet":   "base",     # 시트류 → analysis.base
+    "cream":   "cream",    # 크림류 → analysis.creams
+    "topping": "topping",  # 토핑류 → analysis.toppings
+}
+
+# 카테고리별 기본 focus — analysis 없거나 역할 비었을 때 폴백.
+# 카테고리 별 대표 재료(가장 흔한 케이크 유형 기준).
+CATEGORY_DEFAULT_FOCUS = {
+    "sheet":   "sponge",
+    "cream":   "whipped_cream",
+    "topping": "strawberry",
+}
+
+
+def derive_focus_from_category(
+    simulation: str,
+    analysis: Optional[dict] = None,
+) -> Optional[str]:
+    """
+    시뮬레이션의 category 기반으로 focus 를 자동 결정.
+
+    조회 우선순위:
+      1) analysis 의 해당 역할 첫 요소 (이미 ELEMENT_ALIASES 로 정규화되어 있음)
+         — 단, applicable_focus 에 포함된 경우만. 아니면 다음 단계로.
+      2) applicable_focus 의 첫 요소 (시뮬이 받을 수 있는 가장 일반적인 focus)
+      3) CATEGORY_DEFAULT_FOCUS 의 카테고리 기본값
+      4) None (시뮬이 카테고리 없거나 알 수 없음)
+
+    Args:
+        simulation: SIMULATIONS 의 키
+        analysis:   Moondream/Gemini Vision 분석 결과 dict (선택)
+
+    Returns:
+        정식 focus 키 (FOCUS_TEXT 의 키) 또는 None.
+    """
+    sim = SIMULATIONS.get(simulation)
+    if not sim:
+        return None
+    category = sim.get("category")
+    if not category:
+        return None
+
+    applicable = sim.get("applicable_focus", [])
+    primary_role = CATEGORY_TO_ROLE.get(category)
+
+    if analysis is not None:
+        import prompt_locks
+        by_role = prompt_locks.collect_elements_by_role(analysis)
+
+        # 1) 카테고리의 주 역할에서 첫 applicable 요소 시도
+        if primary_role:
+            for elem in by_role.get(primary_role, []):
+                canon = normalize_focus(elem)
+                if canon in applicable:
+                    return canon
+
+        # 2) 다른 역할 폴백 — 주 역할이 비어 있어도(예: 바스크는 cream 비어 있음)
+        #    실제 케이크에 있는 요소를 우선. applicable_focus 순서대로 시도.
+        for role_key in ("base", "cream", "topping", "coating"):
+            if role_key == primary_role:
+                continue
+            for elem in by_role.get(role_key, []):
+                canon = normalize_focus(elem)
+                if canon in applicable:
+                    return canon
+
+    # 3) applicable_focus 첫 요소 폴백 (analysis 자체 없음)
+    if applicable:
+        return applicable[0]
+
+    # 4) 카테고리 기본값
+    return CATEGORY_DEFAULT_FOCUS.get(category)
+
+
+# =====================================================================
 # 시스템 프롬프트 (모든 시뮬레이션 공통 — 보존 페르소나)
 # =====================================================================
 SYSTEM_PROMPT = (
@@ -525,15 +621,20 @@ def build_background_prompt(background_key: str) -> str:
 # =====================================================================
 def build_prompts(
     simulation: str,
-    focus: str,
+    focus: Optional[str] = None,
     background: Optional[str] = None,
     hint: Optional[str] = None,
     analysis: Optional[dict] = None,
 ) -> dict:
     """
     Args:
-        simulation: SIMULATIONS의 키 ("cross_section_cut", "lift_slice", "topping_fall")
-        focus:      강조할 요소 키 (예: "strawberry", "whipped_cream", "sponge_layers")
+        simulation: SIMULATIONS의 키 ("smash", "fork_bite", "cut_in_half", ...)
+        focus:      강조할 요소 키 (예: "strawberry", "whipped_cream", "sponge_layers").
+                    None 이면 시뮬의 category 와 analysis 에서 자동 도출:
+                      - [시트] 시뮬 → analysis.base 첫 요소
+                      - [크림] 시뮬 → analysis.creams 첫 요소
+                      - [토핑] 시뮬 → analysis.toppings 첫 요소
+                    analysis 도 없으면 카테고리 기본값(sponge/whipped_cream/strawberry).
         background: 배경 키워드 (예: "wooden table", "white marble") — 선택
         hint:       사용자 자유 추가 힌트 — 선택
         analysis:   Moondream 분석 결과 dict — 있으면 instruction_prompt 앞에
@@ -561,6 +662,15 @@ def build_prompts(
             f"알 수 없는 simulation: {simulation}. "
             f"가능한 값: {list(SIMULATIONS.keys())}"
         )
+
+    # focus 결정: 명시 우선 → category 자동 도출 → 에러
+    if focus is None:
+        focus = derive_focus_from_category(simulation, analysis)
+        if focus is None:
+            raise ValueError(
+                f"focus 가 None 이고 simulation '{simulation}' 에 category 가 없어 "
+                f"자동 도출 불가. focus 를 명시하거나 simulation 에 category 를 정의할 것."
+            )
 
     # focus 정규화 (별칭이면 정식 키로). 검증은 호출자(API 레이어)가 담당.
     focus = normalize_focus(focus)

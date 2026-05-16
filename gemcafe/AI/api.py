@@ -215,6 +215,9 @@ def catalog() -> dict:
         {
             "key": sim_key,
             "label_kr": sim_def["label_kr"],
+            # category: "sheet" / "cream" / "topping" — FE 가 카테고리 탭으로 그룹화 가능.
+            # 카테고리가 정의된 시뮬은 focus 자동 결정 지원 → FE 가 focus 선택 UI 생략 가능.
+            "category": sim_def.get("category"),
             "applicable_focus": list(sim_def["applicable_focus"]),
             "frame_strategy": sim_def["frame_strategy"],
             "recommended_duration": prompt_locks.get_duration(sim_key),
