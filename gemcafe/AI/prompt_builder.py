@@ -775,19 +775,36 @@ def _resolve_slot_phrases(
             )
     # None/누락 — 빈 문자열 유지 (placeholder 위치도 통째 omit)
 
-    # texture 슬롯 — focus 요소 × 시뮬 액션 타입 (under_pressure / when_cut) 에
-    # 매칭되는 영어 텍스처 묘사를 한 줄로 박음. 도구 중립적 phrasing 이라 어떤 액션
-    # 시뮬에든 자연스럽게 결합. action_type 이 None 인 시뮬(topping_fall) 또는 focus
-    # 의 영어 텍스처 필드 없으면 빈 문자열.
+    # texture 슬롯 — 두 레이어 결합:
+    #   (1) baseline:  TEXTURE_PROFILES[focus][{action_type}_en] — 재료 정체성에
+    #                  기반한 불변 물리 규칙 (예: "크림치즈는 모짜렐라처럼 안 늘어남").
+    #                  코드에 하드코딩, 어떤 사진이든 그대로.
+    #   (2) modifier:  analysis.element_textures[focus] — Gemini Vision 이 이 사진
+    #                  의 인스턴스별 특색을 1줄로 묘사 (예: "softly oozing creamy
+    #                  interior" vs "firm dense fudgy interior"). 케이크 종류 enum
+    #                  없이도 사장님별·사진별 차이를 살림.
+    # 둘 다 있으면 ". {baseline}. {modifier}." 로 박힘. 한쪽만 있어도 그것만 박힘.
+    # 둘 다 없으면(action_type None 인 topping_fall 등) texture 빈 문자열.
     if simulation_id and focus_key:
         action_type = prompt_locks.SIMULATION_ACTION_TYPE.get(simulation_id)
-        if action_type:  # None 이면 텍스처 가이드 자체 불필요
+        baseline = ""
+        if action_type:
             texture_field = f"{action_type}_en"
             focus_profile = prompt_locks.TEXTURE_PROFILES.get(focus_key, {})
-            texture_text = focus_profile.get(texture_field, "")
-            if texture_text:
-                cleaned = texture_text.strip().rstrip(".")
-                result["texture"] = f". {cleaned}"
+            baseline = focus_profile.get(texture_field, "").strip().rstrip(".")
+
+        # Vision modifier — 분석 결과에 element_textures.focus 가 있으면 사용
+        element_textures = analysis.get("element_textures") or {}
+        modifier = (element_textures.get(focus_key) or "").strip().rstrip(".")
+
+        # 두 레이어 결합 — 둘 다 / baseline 만 / modifier 만 / 없음
+        if baseline and modifier:
+            result["texture"] = f". {baseline}. {modifier}"
+        elif baseline:
+            result["texture"] = f". {baseline}"
+        elif modifier:
+            # baseline 없어도 (예: focus 가 TEXTURE_PROFILES 미정의) modifier 는 박음
+            result["texture"] = f". {modifier}"
     return result
 
 
