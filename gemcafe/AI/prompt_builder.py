@@ -42,6 +42,8 @@ FOCUS_TEXT = {
     "mascarpone_cream": "mascarpone cream",
     # 치즈케이크용 (Basque / 뉴욕 / 수플레 공통)
     "baked_cheese": "baked cheesecake filling",
+    # 무스 케이크용 (chocolate mousse / fruit mousse 공통)
+    "mousse": "mousse",
 }
 
 # Moondream 등이 변형 키를 줄 때 정식 focus 키로 정규화하기 위한 별칭 표.
@@ -71,6 +73,13 @@ FOCUS_ALIASES = {
     # 티라미수 변종
     "mascarpone": "mascarpone_cream",
     "mascarpone_texture": "mascarpone_cream",
+
+    # 무스 변종
+    "chocolate_mousse":  "mousse",
+    "fruit_mousse":      "mousse",
+    "strawberry_mousse": "mousse",
+    "mousse_filling":    "mousse",
+    "mousse_layer":      "mousse",
 
     # 치즈케이크 변종 — 사용자/Gemini suggested_focus 변종을 단일 focus 키로 정규화
     "cheesecake":             "baked_cheese",
@@ -120,8 +129,10 @@ SIMULATIONS = {
         "category": "cream",   # 크림류를 짓눌러 변형 — 카테고리 자동 focus 는 cream 역할
         # 누르는 액션 — 부드럽고 변형 가능한 요소만. 흐르는 액체(molten_chocolate)는 부적합.
         # baked_cheese 는 묵직한 점성이지만 함몰/갈라짐 묘사 가능.
+        # mousse 는 가벼운 거품 구조라 누르면 푹 꺼지는 시그니처 묘사 가능.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+            "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         # 슬롯 phrase: 케이크 구성에 따라 자동 채워짐. base/topping 없으면 통째 omit.
@@ -141,14 +152,14 @@ SIMULATIONS = {
             "pattern, same plate, same background, same lighting. "
             "ADD ONLY this change: a metal fork is pressed down into the top of the cake from "
             "above, gently compressing the {focus}. A visible indentation forms where the fork "
-            "pushes in, with the {focus} squished and slightly spread to the sides{topping}{base}. "
+            "pushes in, with the {focus} squished and slightly spread to the sides{topping}{base}{texture}. "
             "The fork is partially visible above the cake and partially embedded in it. "
             "Do not regenerate any existing element. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
             "A metal fork descends slowly from above and presses down into the top of the cake, "
             "gently compressing the {focus}. The {focus} visibly squishes and spreads to the "
-            "sides under the pressure, while the rest of the cake stays in place{topping}. "
+            "sides under the pressure, while the rest of the cake stays in place{topping}{texture}. "
             "Smooth steady downward motion. Realistic physics, no morphing of the cake."
         ),
     },
@@ -159,9 +170,10 @@ SIMULATIONS = {
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         # molten_chocolate 은 한 입 뜨면 단면에서 흘러나오는 게 라바 케이크 시그니처.
         # baked_cheese 는 단일 층 단면이 시그니처 (Basque 의 겉/속 대비 등).
+        # mousse 는 비단 같은 매끈한 단면 노출이 시그니처.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "molten_chocolate",
-            "mascarpone_cream", "baked_cheese",
+            "mascarpone_cream", "baked_cheese", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         # 슬롯 phrase: 단면에 함께 노출되는 cream/topping 을 자연스럽게 묘사.
@@ -200,7 +212,7 @@ SIMULATIONS = {
             "actual internal structure — layers, fillings, and inclusions that truly "
             "exist inside the cake in the input image. The {focus} is clearly visible "
             "and emphasized as the most prominent feature on the exposed cross-section"
-            "{cream}{topping}. "
+            "{cream}{topping}{interior_structure}{texture}. "
             "Faithfully reflect whatever is actually inside the cake; do NOT invent "
             "layers, fillings, or textures that are not visible in the original\n"
             "- On the cake body below, in an area that AVOIDS any prominent whole "
@@ -240,7 +252,7 @@ SIMULATIONS = {
             "lifts smoothly back up, scooping out a single full-height bite that stays "
             "impaled on the tines, revealing the cake's actual inner cross-section on the "
             "cut faces, with the {focus} clearly visible and emphasized as the most "
-            "prominent feature on the exposed cross-section{cream}. As the fork rises, it settles "
+            "prominent feature on the exposed cross-section{cream}{interior_structure}{texture}. As the fork rises, it settles "
             "in the upper right area of the frame, clearly separated from the cake with "
             "empty space between them. The cake stays in place on whatever surface or liner "
             "it sits on throughout the motion; any toppings or decorations on the cake's "
@@ -255,9 +267,10 @@ SIMULATIONS = {
         "category": "sheet",   # 시트 단면을 가르며 노출 — 카테고리 자동 focus 는 base 역할
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         # 도구: 케이크 나이프 (S14P31S307-624 에서 fork → knife 로 변경)
+        # mousse 는 매끈한 단면이 시그니처 — 칼로 가르기 적합.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "molten_chocolate",
-            "mascarpone_cream", "baked_cheese",
+            "mascarpone_cream", "baked_cheese", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         "slot_phrases": {
@@ -290,7 +303,7 @@ SIMULATIONS = {
             "The cake's internal layers are pushed apart on both sides of the blade, "
             "revealing the internal texture in sharp detail, with the {focus} clearly "
             "emphasized as the most prominent and detailed feature on the exposed "
-            "cross-section{cream}{topping}.\n\n"
+            "cross-section{cream}{topping}{interior_structure}{texture}.\n\n"
             "Photorealistic food photography, ultra-detailed texture, ASMR-style food "
             "cinematography aesthetic, soft natural lighting, emphasis on tactile texture "
             "and freshness."
@@ -301,7 +314,7 @@ SIMULATIONS = {
             "the blade descends, the cake's internal layers are gently pushed apart along "
             "the blade's path, gradually revealing the cake's internal texture — exposed "
             "with vivid color and natural texture, with the {focus} clearly emphasized as "
-            "the most prominent and detailed texture on the exposed cross-section{cream}.\n\n"
+            "the most prominent and detailed texture on the exposed cross-section{cream}{interior_structure}{texture}.\n\n"
             "The knife moves at a steady, deliberate pace — slow enough to savor each "
             "moment of the cut, like an ASMR food video. The cake's internal structure "
             "softly parts along the blade, and tiny details of the moist interior become "
@@ -319,8 +332,9 @@ SIMULATIONS = {
         # 새 디자인 (S14P31S307-643): 슬라이스 단면을 정면으로 잡고 스푼이 위에서 아래로
         # 끌어내려 채널을 긁어내는 액션. 두 손(검은 장갑) 가시. 두꺼운 점성 단면이 있는
         # 모든 필링류에 적용 가능 — 크림류 + 베이크드 치즈케이크 (Basque/뉴욕 단면).
+        # mousse 도 부드러운 점성 단면이라 스푼으로 떠낼 수 있음.
         "applicable_focus": [
-            "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+            "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         # 시작 프레임 — 별도 nano-banana 호출로 첫 프레임 생성 (호출 1번 추가).
@@ -402,7 +416,7 @@ SIMULATIONS = {
 
             "A generous heap of {focus}, freshly scooped out from the entire length of "
             "the channel, sits piled on top of the spoon's bowl, mounded above the rim "
-            "of the bowl.\n\n"
+            "of the bowl{texture}.\n\n"
 
             "The dessert remains whole and intact otherwise: no chunks have broken off "
             "the dessert as a whole, no pieces have fallen, the dessert is NOT crumbling "
@@ -422,7 +436,7 @@ SIMULATIONS = {
             "spoon presses into the cut face near the top and drags downward along the "
             "center of the cut face, scooping out a long vertical channel in one fluid "
             "stroke from top to bottom. As the spoon drags down, it gradually accumulates "
-            "a heap of {focus} on its bowl. Camera remains locked and still, no panning, "
+            "a heap of {focus} on its bowl{texture}. Camera remains locked and still, no panning, "
             "no zooming, no shaking, no tilting."
         ),
     },
@@ -434,9 +448,10 @@ SIMULATIONS = {
         #   start_frame_template — 입력 슬라이스로 홀케이크를 재구성한 시작 프레임
         #   instruction_template — 그 홀케이크에서 슬라이스가 떠올려진 마지막 프레임
         # 영상 = 홀케이크 → 한 조각이 케이크 서버로 떠올라 빈 wedge 가 드러남.
+        # mousse 케이크도 단단히 set 된 슬라이스 형태라 통째로 들어올리는 묘사 가능.
         "applicable_focus": [
             "sponge", "vanilla_sponge", "chocolate_sponge",
-            "baked_cheese", "ladyfinger_biscuit",
+            "baked_cheese", "ladyfinger_biscuit", "mousse",
         ],
         "frame_strategy": "i2i_is_end",
         "slot_phrases": {
@@ -490,7 +505,7 @@ SIMULATIONS = {
             "Both cut faces of the lifted slice — the two triangular sides where it "
             "was separated from the whole cake — are clearly visible in profile, "
             "exposing the {focus} as the dominant feature of the cross-section"
-            "{cream}{topping}. The internal structure reads as crisp and freshly cut.\n\n"
+            "{cream}{topping}{interior_structure}{texture}. The internal structure reads as crisp and freshly cut.\n\n"
             "The whole cake below shows a corresponding wedge-shaped gap where the "
             "slice used to sit. The exposed inner faces of the remaining whole cake "
             "match the lifted slice's cut faces exactly — same internal structure, "
@@ -508,7 +523,7 @@ SIMULATIONS = {
             "continuous, deliberate motion. The slice rises gently into the "
             "upper-center of the frame, staying level the whole way up, with both "
             "cut faces of the slice clearly visible — the {focus} is emphasized as "
-            "the dominant cross-section{cream}. The slice settles in mid-air with a "
+            "the dominant cross-section{cream}{interior_structure}{texture}. The slice settles in mid-air with a "
             "small air gap above the whole cake, which now shows a clean wedge-shaped "
             "gap where the slice used to be. Static camera throughout, no panning, "
             "no zooming, smooth ASMR-style food cinematography."
@@ -550,7 +565,7 @@ SIMULATIONS = {
             "revealing two flat inner cross-sections that face each other across "
             "the gap.\n\n"
             "The {focus} is clearly visible and emphasized as the most prominent "
-            "feature on both freshly exposed inner faces{base}{topping}. The break "
+            "feature on both freshly exposed inner faces{base}{topping}{interior_structure}{texture}. The break "
             "is sharp and clean — no stretching strands, no stringing, no dripping "
             "material connecting the two halves through the gap. The space between "
             "the halves is empty air.\n\n"
@@ -569,7 +584,7 @@ SIMULATIONS = {
             "separating into the air with a clear gap opening between them, "
             "revealing two flat inner cross-sections that face each other — the "
             "{focus} is emphasized as the dominant feature on both exposed faces"
-            "{base}. The break stays clean throughout the motion, with no "
+            "{base}{interior_structure}{texture}. The break stays clean throughout the motion, with no "
             "stretching strands or stringing across the gap. Static camera, "
             "smooth steady motion, ASMR-style food cinematography."
         ),
@@ -704,6 +719,7 @@ def _resolve_slot_phrases(
     analysis: Optional[dict],
     template_kind: str,
     focus_key: Optional[str] = None,
+    simulation_id: Optional[str] = None,
 ) -> dict[str, str]:
     """
     시뮬의 slot_phrases[template_kind] 정의 + analysis → {base, cream, topping} 의
@@ -722,26 +738,88 @@ def _resolve_slot_phrases(
     Returns:
         {"base": "...", "cream": "...", "topping": "..."} — 각 값은 최종 phrase 또는 "".
     """
-    result = {"base": "", "cream": "", "topping": ""}
-    phrases_def = sim.get("slot_phrases", {}).get(template_kind, {})
-    if not phrases_def or analysis is None:
+    result = {"base": "", "cream": "", "topping": "", "interior_structure": "", "texture": ""}
+    if analysis is None:
         return result
 
     import prompt_locks
     by_role = prompt_locks.collect_elements_by_role(analysis)
-    for slot_key in result:
-        wrapper = phrases_def.get(slot_key)
-        if not wrapper:
-            continue
-        elements = by_role.get(slot_key, [])
-        if not elements:
-            continue
-        # 슬롯의 첫 요소가 focus 와 동일하면 중복 방지 — slot 비움
-        canon = normalize_focus(elements[0])
-        if focus_key and canon == focus_key:
-            continue
-        value = focus_phrase(elements[0])  # 짧은 영어 라벨
-        result[slot_key] = wrapper.format(value=value)
+
+    # role 기반 슬롯 (base/cream/topping) — 시뮬의 slot_phrases 정의 필요
+    phrases_def = sim.get("slot_phrases", {}).get(template_kind, {})
+    if phrases_def:
+        for slot_key in ("base", "cream", "topping"):
+            wrapper = phrases_def.get(slot_key)
+            if not wrapper:
+                continue
+            elements = by_role.get(slot_key, [])
+            if not elements:
+                continue
+            # 슬롯의 첫 요소가 focus 와 동일하면 중복 방지 — slot 비움
+            canon = normalize_focus(elements[0])
+            if focus_key and canon == focus_key:
+                continue
+            value = focus_phrase(elements[0])  # 짧은 영어 라벨
+            result[slot_key] = wrapper.format(value=value)
+
+    # 시스템 신호 슬롯 (interior_structure) — analysis.is_layered 직결, 시뮬별
+    # wrapper 정의 불필요. 단면 노출 시뮬 템플릿이 {interior_structure} placeholder
+    # 박은 곳에만 등장하며, 다른 시뮬엔 placeholder 없어서 자동으로 무시됨.
+    is_layered = analysis.get("is_layered")
+    if is_layered is True:
+        if template_kind == "instruction":
+            result["interior_structure"] = (
+                ". The exposed cross-section reads as a multi-layered baked "
+                "structure with distinct internal bands"
+            )
+        else:  # video
+            result["interior_structure"] = (
+                ". The exposed cross-section reveals a multi-layered baked "
+                "structure with distinct internal bands"
+            )
+    elif is_layered is False:
+        if template_kind == "instruction":
+            result["interior_structure"] = (
+                ". The exposed cross-section reads as a dense uniform interior "
+                "body without separate layers"
+            )
+        else:  # video
+            result["interior_structure"] = (
+                ". The exposed cross-section reveals a dense uniform interior "
+                "body without separate layers"
+            )
+    # None/누락 — 빈 문자열 유지 (placeholder 위치도 통째 omit)
+
+    # texture 슬롯 — 두 레이어 결합:
+    #   (1) baseline:  TEXTURE_PROFILES[focus][{action_type}_en] — 재료 정체성에
+    #                  기반한 불변 물리 규칙 (예: "크림치즈는 모짜렐라처럼 안 늘어남").
+    #                  코드에 하드코딩, 어떤 사진이든 그대로.
+    #   (2) modifier:  analysis.element_textures[focus] — Gemini Vision 이 이 사진
+    #                  의 인스턴스별 특색을 1줄로 묘사 (예: "softly oozing creamy
+    #                  interior" vs "firm dense fudgy interior"). 케이크 종류 enum
+    #                  없이도 사장님별·사진별 차이를 살림.
+    # 둘 다 있으면 ". {baseline}. {modifier}." 로 박힘. 한쪽만 있어도 그것만 박힘.
+    # 둘 다 없으면(action_type None 인 topping_fall 등) texture 빈 문자열.
+    if simulation_id and focus_key:
+        action_type = prompt_locks.SIMULATION_ACTION_TYPE.get(simulation_id)
+        baseline = ""
+        if action_type:
+            texture_field = f"{action_type}_en"
+            focus_profile = prompt_locks.TEXTURE_PROFILES.get(focus_key, {})
+            baseline = focus_profile.get(texture_field, "").strip().rstrip(".")
+
+        # Vision modifier — 분석 결과에 element_textures.focus 가 있으면 사용
+        element_textures = analysis.get("element_textures") or {}
+        modifier = (element_textures.get(focus_key) or "").strip().rstrip(".")
+
+        # 두 레이어 결합 — 둘 다 / baseline 만 / modifier 만 / 없음
+        if baseline and modifier:
+            result["texture"] = f". {baseline}. {modifier}"
+        elif baseline:
+            result["texture"] = f". {baseline}"
+        elif modifier:
+            # baseline 없어도 (예: focus 가 TEXTURE_PROFILES 미정의) modifier 는 박음
+            result["texture"] = f". {modifier}"
     return result
 
 
@@ -916,8 +994,9 @@ def build_prompts(
     # 슬롯 phrase 해결 — 시뮬에 slot_phrases 정의 + analysis 있을 때만 채워짐.
     # 미정의/미해당 슬롯은 빈 문자열이라 템플릿의 {base}{cream}{topping} 자리는 사라짐.
     # focus 와 동일 요소를 가리키는 슬롯은 중복 묘사 방지를 위해 비움.
-    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction", focus_key=focus)
-    slot_vid = _resolve_slot_phrases(sim, analysis, "video", focus_key=focus)
+    # simulation_id 는 {texture} 슬롯 결정용 (SIMULATION_ACTION_TYPE 조회).
+    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction", focus_key=focus, simulation_id=simulation)
+    slot_vid = _resolve_slot_phrases(sim, analysis, "video", focus_key=focus, simulation_id=simulation)
     fmt_inst = _SafeDict(focus=focus_text, **slot_inst)
     fmt_vid = _SafeDict(focus=focus_text, **slot_vid)
 
@@ -941,6 +1020,25 @@ def build_prompts(
             instruction = f"{structure_ctx}\n\n{instruction}"
             if start_frame is not None:
                 start_frame = f"{structure_ctx}\n\n{start_frame}"
+
+        # 시그니처 비주얼 라인 — analysis.key_feature 가 있을 때만 한 줄 박힘.
+        # I2I 키프레임 + I2V 영상 모두에 prepend (영상은 키프레임에 그려진 시그니처를
+        # 그대로 살려야 하므로 양쪽에 동일 신호 필요).
+        signature = prompt_locks.get_signature_feature_en(analysis)
+        if signature:
+            instruction = f"{signature}\n\n{instruction}"
+            if start_frame is not None:
+                start_frame = f"{signature}\n\n{start_frame}"
+            video = f"{signature}\n\n{video}"
+
+        # 온도 hint — analysis.is_warm 이 True 일 때만 발화 (라바/몰튼 케이크 등).
+        # I2I 에는 키프레임에 그려질 steam/glossy melt 단서, I2V 에는 viscous flow 단서.
+        temperature_note = prompt_locks.get_temperature_note_en(analysis)
+        if temperature_note:
+            instruction = f"{temperature_note}\n\n{instruction}"
+            if start_frame is not None:
+                start_frame = f"{temperature_note}\n\n{start_frame}"
+            video = f"{temperature_note}\n\n{video}"
 
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).

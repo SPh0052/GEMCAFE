@@ -56,6 +56,11 @@ Example 1 (a strawberry shortcake with whipped cream):
 "key_feature": "fresh strawberries on white whipped cream",
 "is_warm": false,
 "is_layered": true,
+"element_textures": {
+  "whipped_cream": "soft billowy peaks, freshly piped",
+  "sponge": "very moist, almost syrup-soaked",
+  "strawberry": "juicy fresh slices with glistening cut faces"
+},
 "suggested_focus": ["fresh_strawberries", "fluffy_whipped_cream", "soft_sponge_layers"]
 }
 
@@ -69,6 +74,10 @@ Example 2 (a chocolate lava cake):
 "key_feature": "molten chocolate center",
 "is_warm": true,
 "is_layered": false,
+"element_textures": {
+  "molten_chocolate": "thin freely flowing molten center, immediately oozing on contact",
+  "chocolate_sponge": "tender thin shell barely containing the molten core"
+},
 "suggested_focus": ["molten_center", "warm_steam", "rich_chocolate"]
 }
 
@@ -82,20 +91,61 @@ Example 3 (a tiramisu):
 "key_feature": "dusted cocoa powder on mascarpone",
 "is_warm": false,
 "is_layered": true,
+"element_textures": {
+  "mascarpone_cream": "airy spoonable mascarpone, holds soft shape",
+  "ladyfinger_biscuit": "deeply coffee-soaked, very moist almost custard-like"
+},
 "suggested_focus": ["cocoa_dusting", "mascarpone_texture", "coffee_soaked_layers"]
 }
 
-Example 4 (a Basque-style baked cheesecake):
+Example 4 (a Basque-style baked cheesecake — runny custard interior):
 {
 "cake_type": "basque_cheesecake",
 "base": ["baked_cheese"],
 "creams": [],
 "toppings": [],
 "coating": "none",
-"key_feature": "caramelized burnt top with creamy interior",
+"key_feature": "caramelized burnt top with softly oozing creamy interior",
 "is_warm": false,
 "is_layered": false,
+"element_textures": {
+  "baked_cheese": "softly oozing creamy half-baked interior, gently flowing when cut"
+},
 "suggested_focus": ["baked_cheese", "caramelized_top", "creamy_interior"]
+}
+
+Example 5 (a Basque-style baked cheesecake — dense terrine style):
+{
+"cake_type": "basque_cheesecake",
+"base": ["baked_cheese"],
+"creams": [],
+"toppings": [],
+"coating": "none",
+"key_feature": "caramelized burnt top with firm dense fudgy interior",
+"is_warm": false,
+"is_layered": false,
+"element_textures": {
+  "baked_cheese": "firm dense fudgy interior, terrine-like, holds clean knife-cut edges"
+},
+"suggested_focus": ["baked_cheese", "caramelized_top", "dense_interior"]
+}
+
+Example 6 (a decorated layered cake with firm piped whipped cream — stabilized style, NOT freshly billowy):
+{
+"cake_type": "layered_cream",
+"base": ["vanilla_sponge"],
+"creams": ["whipped_cream"],
+"toppings": ["strawberry"],
+"coating": "whipped_cream_coating",
+"key_feature": "sharp piped rosettes of firm stabilized whipped cream",
+"is_warm": false,
+"is_layered": true,
+"element_textures": {
+  "whipped_cream": "firm stabilized piped rosettes holding sharp ridges and crisp edges, NOT freshly soft",
+  "vanilla_sponge": "tight even crumb, moderately moist, holds clean cut",
+  "strawberry": "whole halved berries with bright glossy cut faces"
+},
+"suggested_focus": ["stabilized_cream", "piped_rosettes", "vanilla_sponge"]
 }
 
 === ELEMENT NAMING RULES (STRICT) ===
@@ -123,6 +173,47 @@ Do NOT invent new descriptors like "yellow_cake_blocks", "fresh_mango_pieces",
 
 (The "suggested_focus" field is allowed to use descriptive labels — those are
 user-facing options shown in the UI.)
+
+=== ELEMENT_TEXTURES RULES (IMPORTANT) ===
+
+The "element_textures" field captures the SPECIFIC TEXTURE VARIATION you
+observe in THIS image for each visible element. Different cakes of the same
+type can have very different textures — e.g. a Basque cheesecake can be
+runny/oozing, dense/fudgy, or somewhere in between. A whipped cream can be
+billowy fresh peaks or stabilized firm rosettes. Sponge can be dry crumbly
+or syrup-soaked moist.
+
+EVERY cake type — not just cheesecake — has instance-level variation.
+Describe each visible element along these axes whenever applicable:
+  - consistency:   runny ↔ creamy/spoonable ↔ dense/firm ↔ stiff
+  - moisture:      dry crumbly ↔ moist ↔ deeply soaked
+  - surface look:  glossy/wet ↔ matte ↔ rough/grainy
+  - aeration:      airy/billowy ↔ medium ↔ compact/dense
+  - structure:     barely-holds-shape ↔ holds-soft-shape ↔ holds-clean-cut-edges
+
+Visual cues to read:
+  - cut face is rounded/bulging vs sharp vertical → softer vs firmer
+  - glossy reflective vs matte surface → wetter vs drier
+  - color saturation, crumb size, edge crispness, surface tension
+
+Rules:
+- Keys MUST match the canonical element keys used in base/creams/toppings
+  above (whipped_cream, sponge, baked_cheese, etc.). Use the SAME key.
+- Values are ONE short English phrase (max ~15 words) describing the
+  instance-specific texture variation visible in THIS image — focus on
+  consistency (runny/dense), moisture, viscosity, density, surface
+  characteristics.
+- Only include elements actually visible in the image. Skip elements you
+  cannot judge texture of (e.g. coating you cannot see inside of).
+- Do NOT restate the element's identity ("whipped cream" / "cheese"). The
+  baseline already handles identity — your job is the per-instance variation.
+- VOCABULARY RULE: For whipped_cream and similar dairy creams, NEVER use
+  "stretch", "strand", "string", or "pull" — cream does not stretch. Use
+  words like "billowy", "soft peaks", "glossy", "dollops" instead. Stretching
+  vocabulary is reserved for genuinely ductile substances (mozzarella,
+  molten chocolate strings, etc.).
+
+If you genuinely cannot judge texture variation, output element_textures: {}.
 
 Now analyze the provided image. Output ONLY valid JSON in the same schema, no other text."""
 
