@@ -51,22 +51,28 @@ export const SIMULATIONS: SimulationItem[] = [
     applicable_focus: ['sponge', 'whipped_cream'],
   },
   {
+    key: 'lift_slice',
+    label_kr: '한 조각 쏙 들어올리기',
+    image: ASSET('chop.png'),
+    applicable_focus: ['sponge', 'baked_cheese'],
+  },
+  {
     key: 'cream_scoop',
     label_kr: '크림 떠올리기',
     image: ASSET('flow.png'),
     applicable_focus: ['whipped_cream'],
   },
   {
-    key: 'strawberry_fall',
-    label_kr: '딸기 떨어지기',
-    image: ASSET('chop.png'),
-    applicable_focus: ['strawberry'],
+    key: 'hand_split',
+    label_kr: '손으로 반 가르기',
+    image: ASSET('divine.png'),
+    applicable_focus: ['whipped_cream'],
   },
   {
-    key: 'strawberry_cascade',
-    label_kr: '딸기 폭포',
-    image: ASSET('divine.png'),
-    applicable_focus: ['strawberry'],
+    key: 'topping_fall',
+    label_kr: '위에서 떨어뜨리기',
+    image: ASSET('chop.png'),
+    applicable_focus: ['strawberry', 'blueberry', 'mango'],
   },
 ]
 
@@ -93,12 +99,12 @@ export const FOCUSES: FocusItem[] = [
   {
     key: 'sponge',
     label_kr: '시트',
-    applicable_simulations: ['smash', 'fork_bite', 'cut_in_half'],
+    applicable_simulations: ['fork_bite', 'cut_in_half', 'lift_slice'],
   },
   {
     key: 'strawberry',
     label_kr: '딸기',
-    applicable_simulations: ['strawberry_fall', 'strawberry_cascade'],
+    applicable_simulations: ['topping_fall'],
   },
   {
     key: 'whipped_cream',
@@ -108,6 +114,7 @@ export const FOCUSES: FocusItem[] = [
       'fork_bite',
       'cut_in_half',
       'cream_scoop',
+      'hand_split',
     ],
   },
 ]

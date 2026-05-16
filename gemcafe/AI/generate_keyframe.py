@@ -40,7 +40,7 @@ INPUT_IMAGE_PATH = "./test_cake.jpg"
 
 # 시뮬레이션 / focus / 배경 / 힌트 (pipeline.py 와 동일 의미)
 SIMULATION = "cut_in_half"             # smash | fork_bite | cut_in_half | cream_scoop |
-                                       # strawberry_fall | strawberry_cascade
+                                       # topping_fall
 FOCUS = None                           # None=자동, "strawberry" 등=수동
 BACKGROUND = None                      # None=교체 안 함, "white_marble" 등
 USER_HINT = None
@@ -96,12 +96,15 @@ def load_latest_analysis() -> dict:
 def resolve_focus(
     focus_setting: Optional[str],
     analysis: Optional[dict] = None,
+    simulation: Optional[str] = None,
 ) -> tuple[str, Optional[dict]]:
     """
-    Focus 값 결정.
-      - focus_setting 직접 지정 → 그대로 사용 (analysis 무시)
-      - focus_setting=None + analysis 제공 → analysis['suggested_focus'][0]
-      - focus_setting=None + analysis=None → 디스크에서 최신 analysis 로드 (CLI fallback)
+    Focus 값 결정. 우선순위:
+      1) focus_setting 직접 지정 → 그대로 사용 (analysis 무시)
+      2) simulation 에 category 정의됨 → derive_focus_from_category()
+         (시트/크림/토핑 카테고리 → analysis 의 base/cream/topping 첫 요소)
+      3) analysis['suggested_focus'][0] (구 동작 — 카테고리 없는 시뮬용 폴백)
+      4) focus_setting=None + analysis=None → 디스크에서 최신 analysis 로드 (CLI fallback)
 
     멀티유저 환경(API 호출)에서는 analysis를 명시적으로 넘기는 게 안전.
     디스크 로드는 단독 실행(CLI) 편의를 위한 fallback.
@@ -113,6 +116,14 @@ def resolve_focus(
     if analysis is None:
         analysis = load_latest_analysis()  # CLI fallback
 
+    # 카테고리 기반 자동 결정 우선 시도 (simulation 이 주어진 경우만)
+    if simulation:
+        derived = prompt_builder.derive_focus_from_category(simulation, analysis)
+        if derived is not None:
+            print(f"[FOCUS] 카테고리 자동 결정: '{derived}' (simulation='{simulation}')")
+            return derived, analysis
+
+    # 폴백: suggested_focus (카테고리 없는 시뮬 / 구 시뮬)
     options = analysis.get("suggested_focus") or []
     if not options:
         raise ValueError(
@@ -120,7 +131,7 @@ def resolve_focus(
             "(또는 focus를 명시적으로 지정)"
         )
     chosen = options[0]
-    print(f"[FOCUS] 자동 선택: '{chosen}' (후보: {options})")
+    print(f"[FOCUS] suggested_focus 폴백: '{chosen}' (후보: {options})")
     return chosen, analysis
 
 
@@ -216,8 +227,8 @@ def generate_keyframe(
             print(f"[analysis] 디스크에 없음 — visual identity 가이드 생략")
             analysis = None
 
-    # 1) Focus 해석
-    resolved_focus, _ = resolve_focus(focus, analysis=analysis)
+    # 1) Focus 해석 — simulation 의 category 가 있으면 카테고리 기반 자동 결정
+    resolved_focus, _ = resolve_focus(focus, analysis=analysis, simulation=simulation)
 
     # 2) 프롬프트 빌드 (analysis 가 있으면 visual identity 가이드가 instruction 앞에 박힘)
     prompts = prompt_builder.build_prompts(

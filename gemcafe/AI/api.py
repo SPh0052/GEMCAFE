@@ -100,7 +100,7 @@ class VideoRequest(BaseModel):
             "video_prompt_kr 사용 시 필수. "
             "잠금 라이브러리에서 카메라/부정 프롬프트/길이 조회용. "
             "예: smash / fork_bite / cut_in_half / cream_scoop / "
-            "strawberry_fall / strawberry_cascade. "
+            "topping_fall. "
             "전체 목록은 GET /catalog."
         ),
     )
@@ -215,6 +215,9 @@ def catalog() -> dict:
         {
             "key": sim_key,
             "label_kr": sim_def["label_kr"],
+            # category: "sheet" / "cream" / "topping" — FE 가 카테고리 탭으로 그룹화 가능.
+            # 카테고리가 정의된 시뮬은 focus 자동 결정 지원 → FE 가 focus 선택 UI 생략 가능.
+            "category": sim_def.get("category"),
             "applicable_focus": list(sim_def["applicable_focus"]),
             "frame_strategy": sim_def["frame_strategy"],
             "recommended_duration": prompt_locks.get_duration(sim_key),
@@ -287,7 +290,7 @@ def keyframe_endpoint(
         ...,
         description=(
             "시뮬레이션 키. 'smash' / 'fork_bite' / 'cut_in_half' / 'cream_scoop' / "
-            "'strawberry_fall' / 'strawberry_cascade'. 전체 목록은 GET /catalog."
+            "'topping_fall'. 전체 목록은 GET /catalog."
         ),
     ),
     focus: Optional[str] = Form(

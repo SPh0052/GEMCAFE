@@ -25,10 +25,11 @@ from typing import Optional
 SIMULATION_LABELS_KR = {
     "smash":              "뭉개기 (포크가 케이크 위를 눌러 살짝 짓누름)",
     "fork_bite":          "포크로 한 입 뜨기 (포크가 케이크 한 입 분량을 떠 들어올림)",
-    "cut_in_half":        "반으로 자르기 (칼이 케이크 조각을 수직으로 갈라 단면 노출)",
+    "cut_in_half":        "칼로 단면 가르기 (케이크 나이프가 수직으로 갈라 단면 노출)",
+    "lift_slice":         "한 조각 쏙 들어올리기 (케이크 서버가 홀케이크에서 슬라이스를 통째 들어올림)",
     "cream_scoop":        "크림만 떠내기 (숟가락이 케이크 위 크림 한 덩이만 떠올림)",
-    "strawberry_fall":    "딸기가 케이크 위로 톡 떨어진다 (한 알이 위에서 떨어져 안착)",
-    "strawberry_cascade": "딸기가 우수수 쏟아진다 (여러 알이 차례로 케이크 위로 떨어져 안착)",
+    "hand_split":         "손으로 반 가르기 (두 손이 슬라이스를 양옆으로 깔끔하게 가름)",
+    "topping_fall":       "위에서 떨어뜨리기 (토핑이 위에서 떨어져 안착 — 단일·다량 자동)",
 }
 
 BACKGROUND_LABELS_KR = {
@@ -59,7 +60,7 @@ CAMERA_DIRECTIVES = {
     "cut_in_half": (
         "Camera starts framed on the full cake slice in vertical 9:16 composition, "
         "then slowly and continuously pushes in to an extreme macro close-up on the "
-        "split area where the fork meets the cake. Fork enters from behind the cake "
+        "split area where the knife meets the cake. Knife enters from behind the cake "
         "with the handle extending away from the camera into the background."
     ),
     "cream_scoop": (
@@ -68,17 +69,25 @@ CAMERA_DIRECTIVES = {
         "exposed cut face which fills the middle of the composition. Eye-level angle, "
         "head-on view of the cut face."
     ),
-    "strawberry_fall": (
+    "topping_fall": (
         "Static camera, top-down 45-degree angle, vertical 9:16 composition with "
         "the cake framed in the lower-center of the frame and ample vertical room "
-        "above for the falling strawberry. Captures full cake surface and the "
-        "falling strawberry's downward arc briefly."
+        "above where one or more topping pieces fall from. Captures the full cake "
+        "surface as the pieces fall and settle naturally."
     ),
-    "strawberry_cascade": (
-        "Static camera, top-down 45-degree angle, vertical 9:16 composition with "
-        "the cake framed in the lower-center of the frame and ample vertical room "
-        "above where multiple strawberries cascade down from. Captures the full "
-        "cake surface as the strawberries fall and settle."
+    "lift_slice": (
+        "Static camera at slightly low eye-level, vertical 9:16 composition. The "
+        "frame holds the whole cake in the lower portion with ample headroom above. "
+        "Camera tilts very subtly upward as the slice rises, keeping the gap between "
+        "the lifted slice and the whole cake below clearly visible. Shallow depth "
+        "of field focuses on the cut faces of the lifted slice; the cake body below "
+        "stays in noticeably softer focus."
+    ),
+    "hand_split": (
+        "Static camera at slight high angle, vertical 9:16 composition centered on "
+        "the slice. As the two halves separate, the camera holds steady and lets "
+        "the gap widen into frame symmetry. Macro close-up on the freshly exposed "
+        "inner faces of both halves once they are pulled apart."
     ),
     "default": "Static camera, macro close-up, eye level.",
 }
@@ -134,8 +143,9 @@ NEGATIVE_PER_SIMULATION = {
     ),
     "cut_in_half": (
         "hands, fingers, human body parts, faces, people, text, watermark, logo, "
-        "subtitles, captions, distorted fork, bent fork, deformed fork, multiple forks, "
-        "fork changing shape, cake moving on its own, cake rotating, cake bouncing, "
+        "subtitles, captions, distorted knife, bent knife, deformed knife, multiple knives, "
+        "knife changing shape, serrated bread knife, jagged blade, fork, fork tines, "
+        "cake moving on its own, cake rotating, cake bouncing, "
         "shaky camera, handheld camera shake, jittery motion, abrupt camera cuts, "
         "sudden zoom jumps, flickering, color shifting, blurry artifacts, low quality, "
         "oversaturated colors, cartoon style, illustration, 3D render look, "
@@ -153,13 +163,27 @@ NEGATIVE_PER_SIMULATION = {
         "cut face, panning camera, zooming camera, shaking camera, tilting camera, "
         "deformed spoon, bent spoon"
     ),
-    "strawberry_fall": (
-        "no strawberry bouncing off violently, no excessive splashing, "
-        "strawberry lands naturally and gently in its position"
+    "topping_fall": (
+        "no topping pieces bouncing off violently, no excessive splashing, "
+        "no pieces rolling off the cake, each piece lands naturally and gently "
+        "in a stable resting position"
     ),
-    "strawberry_cascade": (
-        "no strawberries bouncing off violently, no excessive splashing, "
-        "no strawberries rolling off the cake, each lands naturally and gently"
+    "lift_slice": (
+        "bare hands, fingers, person, second tool, fork, knife, deformed cake "
+        "server, bent cake server, multiple servers, slice tilting mid-lift, "
+        "slice wobbling, slice collapsing, crumbs falling from the slice, "
+        "dripping cream during the lift, whole cake sliding, whole cake "
+        "rotating, shaky camera, abrupt zoom, sudden cuts, missing wedge gap "
+        "where the slice was, stretched filling between the slice and the cake "
+        "(unless the cake's filling is explicitly a flowing molten substance)"
+    ),
+    "hand_split": (
+        "bare hands, hands without gloves, white gloves, gloves of any color "
+        "other than black, third hand, more than two hands, stretching cream "
+        "strands, stringing dairy, sticky filling pulling between the halves, "
+        "dripping material across the gap, morphing cake halves, deformed slice "
+        "halves, crumbs floating in the gap, plate sliding, shaking camera, "
+        "abrupt zoom"
     ),
 }
 
@@ -201,9 +225,10 @@ DURATION_SETTINGS = {
     "smash":              "4s",
     "fork_bite":          "6s",
     "cut_in_half":        "6s",
+    "lift_slice":         "4s",
     "cream_scoop":        "6s",
-    "strawberry_fall":    "4s",
-    "strawberry_cascade": "6s",
+    "hand_split":         "6s",
+    "topping_fall":       "6s",
     "default":            "6s",
 }
 
@@ -562,9 +587,10 @@ SIMULATION_ACTION_TYPE = {
     "smash":              "under_pressure",  # 누르기 → 압력 받았을 때 반응
     "fork_bite":          "when_cut",        # 한 입 뜨기 → 단면 노출 → 잘렸을 때 반응
     "cut_in_half":        "when_cut",        # 반으로 자르기 → 잘렸을 때 반응
+    "lift_slice":         "when_cut",        # 슬라이스 들기 → 단면 노출 → 잘렸을 때 반응
     "cream_scoop":        "under_pressure",  # 크림 떠내기 → 변형 반응 (질척 늘어짐)
-    "strawberry_fall":    None,              # 안착 액션 → 질감 가이드 불필요
-    "strawberry_cascade": None,              # 안착 액션 → 질감 가이드 불필요
+    "hand_split":         "when_cut",        # 손으로 반 가르기 → 단면 노출
+    "topping_fall":       None,              # 안착 액션 → 질감 가이드 불필요
 }
 
 

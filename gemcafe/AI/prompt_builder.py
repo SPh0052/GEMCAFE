@@ -5,14 +5,20 @@
 조합해서 nano-banana-pro/edit 와 Veo 3.1 에 넘길 프롬프트를 만든다.
 
 지원 디저트: 케이크 (특히 딸기 생크림 조각 케이크) 한정.
-지원 요소(focus): sponge / whipped_cream / strawberry
-지원 시뮬레이션:
-  - smash              (뭉개기)                 — sponge, whipped_cream
-  - fork_bite          (포크로 한 입 뜨기)       — sponge, whipped_cream
-  - cut_in_half        (반으로 자르기)          — sponge, whipped_cream
-  - cream_scoop        (크림만 떠내기)          — whipped_cream
-  - strawberry_fall    (딸기가 케이크 위로 떨어짐)— strawberry
-  - strawberry_cascade (딸기 우수수 쏟아짐)      — strawberry
+
+시뮬레이션은 [시트 / 크림 / 토핑] 3개 카테고리로 분류되며, 각 카테고리는
+analysis 의 해당 역할(base/cream/topping)에서 focus 를 자동 결정한다.
+사장님이 직접 focus 를 지정하지 않아도 카테고리만 보고 분석 결과의 첫 요소를
+자동 선택. (호환을 위해 명시적 focus 파라미터도 여전히 받음.)
+
+카테고리별 시뮬레이션:
+  [시트]  fork_bite     (포크로 한 입 뜨기)
+          cut_in_half   (칼로 단면 가르기)
+          lift_slice    (한 조각 쏙 들어올리기)
+  [크림]  smash         (뭉개기)
+          cream_scoop   (한 스푼 떠내기)
+          hand_split    (손으로 반 가르기)
+  [토핑]  topping_fall  (위에서 떨어뜨리기 — 단일·다량 자동)
 """
 from typing import Optional
 
@@ -111,12 +117,23 @@ SIMULATIONS = {
     # ─────────────────────────────────────────────────────────────────
     "smash": {
         "label_kr": "뭉개기",
+        "category": "cream",   # 크림류를 짓눌러 변형 — 카테고리 자동 focus 는 cream 역할
         # 누르는 액션 — 부드럽고 변형 가능한 요소만. 흐르는 액체(molten_chocolate)는 부적합.
         # baked_cheese 는 묵직한 점성이지만 함몰/갈라짐 묘사 가능.
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        # 슬롯 phrase: 케이크 구성에 따라 자동 채워짐. base/topping 없으면 통째 omit.
+        "slot_phrases": {
+            "instruction": {
+                "base":    ". The {value} body beneath the indentation stays largely intact, only slightly compressed where the fork pushes down",
+                "topping": ". Any {value} on top of the cake stays in place but may be slightly displaced",
+            },
+            "video": {
+                "topping": "; the {value} on top stays in place but may shift slightly",
+            },
+        },
         "instruction_template": (
             "Edit the input image for a 9:16 vertical short-form video end frame. "
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
@@ -124,21 +141,21 @@ SIMULATIONS = {
             "pattern, same plate, same background, same lighting. "
             "ADD ONLY this change: a metal fork is pressed down into the top of the cake from "
             "above, gently compressing the {focus}. A visible indentation forms where the fork "
-            "pushes in, with the {focus} squished and slightly spread to the sides. The toppings "
-            "stay on the cake but may be slightly displaced. The fork is partially visible above "
-            "the cake and partially embedded in it. "
+            "pushes in, with the {focus} squished and slightly spread to the sides{topping}{base}. "
+            "The fork is partially visible above the cake and partially embedded in it. "
             "Do not regenerate any existing element. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
             "A metal fork descends slowly from above and presses down into the top of the cake, "
             "gently compressing the {focus}. The {focus} visibly squishes and spreads to the "
-            "sides under the pressure, while the rest of the cake stays in place. Smooth steady "
-            "downward motion. Realistic physics, no morphing of the cake."
+            "sides under the pressure, while the rest of the cake stays in place{topping}. "
+            "Smooth steady downward motion. Realistic physics, no morphing of the cake."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
     "fork_bite": {
         "label_kr": "포크로 한 입 뜨기",
+        "category": "sheet",   # 시트 단면을 노출 — 카테고리 자동 focus 는 base 역할
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
         # molten_chocolate 은 한 입 뜨면 단면에서 흘러나오는 게 라바 케이크 시그니처.
         # baked_cheese 는 단일 층 단면이 시그니처 (Basque 의 겉/속 대비 등).
@@ -147,6 +164,17 @@ SIMULATIONS = {
             "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        # 슬롯 phrase: 단면에 함께 노출되는 cream/topping 을 자연스럽게 묘사.
+        # cream/topping 없는 단일층 케이크(Basque 등)면 통째 omit.
+        "slot_phrases": {
+            "instruction": {
+                "cream":   ", with the {value} also visible as a distinct band on the cut faces",
+                "topping": "; a small portion of the {value} from the cake surface may come up with the bite, partially visible on top of the lifted piece",
+            },
+            "video": {
+                "cream":   "; the {value} between sheet layers also becomes visible at the cut faces",
+            },
+        },
         "instruction_template": (
             "Edit the input image to add a 'fork lifting a piece of cake' moment "
             "for a 9:16 vertical short-form video end frame.\n\n"
@@ -171,7 +199,8 @@ SIMULATIONS = {
             "- The lifted piece shows a CLEAN CROSS-SECTION revealing the cake's "
             "actual internal structure — layers, fillings, and inclusions that truly "
             "exist inside the cake in the input image. The {focus} is clearly visible "
-            "and emphasized as the most prominent feature on the exposed cross-section. "
+            "and emphasized as the most prominent feature on the exposed cross-section"
+            "{cream}{topping}. "
             "Faithfully reflect whatever is actually inside the cake; do NOT invent "
             "layers, fillings, or textures that are not visible in the original\n"
             "- On the cake body below, in an area that AVOIDS any prominent whole "
@@ -211,7 +240,7 @@ SIMULATIONS = {
             "lifts smoothly back up, scooping out a single full-height bite that stays "
             "impaled on the tines, revealing the cake's actual inner cross-section on the "
             "cut faces, with the {focus} clearly visible and emphasized as the most "
-            "prominent feature on the exposed cross-section. As the fork rises, it settles "
+            "prominent feature on the exposed cross-section{cream}. As the fork rises, it settles "
             "in the upper right area of the frame, clearly separated from the cake with "
             "empty space between them. The cake stays in place on whatever surface or liner "
             "it sits on throughout the motion; any toppings or decorations on the cake's "
@@ -222,64 +251,71 @@ SIMULATIONS = {
     },
     # ─────────────────────────────────────────────────────────────────
     "cut_in_half": {
-        "label_kr": "반으로 자르기",
+        "label_kr": "칼로 단면 가르기",
+        "category": "sheet",   # 시트 단면을 가르며 노출 — 카테고리 자동 focus 는 base 역할
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
+        # 도구: 케이크 나이프 (S14P31S307-624 에서 fork → knife 로 변경)
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "molten_chocolate",
             "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        "slot_phrases": {
+            "instruction": {
+                "cream":   "; the {value} between sheet layers spreads softly to either side of the cut and remains clearly visible on both exposed faces",
+                "topping": "; any {value} on the cake surface stays in place except where the blade has passed",
+            },
+            "video": {
+                "cream":   "; the {value} between sheet layers slowly parts along the blade's path",
+            },
+        },
         "instruction_template": (
-            "Edit this image for a 9:16 vertical short-form video end frame, showing the "
-            "fork now embedded inside the cake, having just cut into it.\n\n"
-            "The fork enters the frame from behind the cake, with the handle extending away "
-            "from the camera into the background. The fork tines push forward through the "
-            "cake toward the camera, so the cut opens up facing the camera, exposing the "
-            "cross-section directly to the viewer.\n\n"
-            "The fork is sunk into the cake, with its tines buried deep below the surface "
+            "Edit this image for a 9:16 vertical short-form video end frame, showing a "
+            "cake knife now embedded inside the cake, having just cut into it.\n\n"
+            "The knife enters the frame from behind the cake, with the handle extending "
+            "away from the camera into the background. The knife blade pushes forward "
+            "through the cake toward the camera, so the cut opens up facing the camera, "
+            "exposing the cross-section directly to the viewer.\n\n"
+            "The knife is sunk into the cake, with its blade buried deep below the surface "
             "where it entered. A clear, continuous gap has formed in the cake exactly along "
-            "the fork's body — the crack starts where the fork meets the cake's surface, "
-            "runs in the same direction the fork is pointing, and ends at the buried tips of "
-            "the tines. The fork is physically inside this gap, not floating beside it.\n\n"
-            "The cake is in a partially cut state. The upper portion, where the fork has "
+            "the blade — the crack starts where the blade meets the cake's surface, runs in "
+            "the same direction the blade is pointing, and ends at the buried tip of the "
+            "blade. The knife is physically inside this gap, not floating beside it.\n\n"
+            "The cake is in a partially cut state. The upper portion, where the blade has "
             "already passed, is split open into two halves. The lower portion remains as a "
-            "single solid piece of cake — continuous, unbroken, with sponge and cream fully "
-            "connected across the middle.\n\n"
-            "The gap runs in the exact same direction the fork traveled, and extends only as "
-            "far down as the fork has cut.\n\n"
-            "The sponge and cream are pushed apart on both sides of the fork, revealing the "
-            "internal texture in sharp detail, with the {focus} clearly emphasized as the "
-            "most prominent and detailed feature on the exposed cross-section:\n\n"
-            "- the airy, fluffy crumb structure of the sponge cake, with individual air "
-            "pockets visible\n"
-            "- the soft, billowy texture of the whipped cream, with delicate ridges and folds\n"
-            "- any fillings, fruits, or layers inside, exposed at the split with vivid color "
-            "and natural texture\n\n"
+            "single solid piece of cake — continuous, unbroken, with internal structure "
+            "fully connected across the middle.\n\n"
+            "The gap runs in the exact same direction the blade traveled, and extends only "
+            "as far down as the blade has cut.\n\n"
+            "The cake's internal layers are pushed apart on both sides of the blade, "
+            "revealing the internal texture in sharp detail, with the {focus} clearly "
+            "emphasized as the most prominent and detailed feature on the exposed "
+            "cross-section{cream}{topping}.\n\n"
             "Photorealistic food photography, ultra-detailed texture, ASMR-style food "
             "cinematography aesthetic, soft natural lighting, emphasis on tactile texture "
             "and freshness."
         ),
         "video_template": (
-            "A silver fork enters the frame from behind the cake and slowly cuts downward "
-            "through the top of the cake, slicing it open from top to bottom. As the fork "
-            "descends, the sponge and cream are gently pushed apart along the fork's path, "
-            "gradually revealing the cake's internal texture — the soft, airy crumb of the "
-            "sponge, the billowy folds of whipped cream, and any fruits or fillings inside, "
-            "exposed with vivid color and natural texture, with the {focus} clearly "
-            "emphasized as the most prominent and detailed texture on the exposed "
-            "cross-section.\n\n"
-            "The fork moves at a steady, deliberate pace — slow enough to savor each moment "
-            "of the cut, like an ASMR food video. The cream slightly spreads, the sponge "
-            "softly parts, and tiny details of the moist crumb become visible as the camera "
-            "moves closer.\n\n"
-            "Soft, natural daylight. Shallow depth of field that deepens as the camera moves "
-            "in. Photorealistic food cinematography, ultra-detailed texture, ASMR-style food "
-            "video aesthetic, emphasis on tactile texture, moisture, and freshness."
+            "A polished cake knife enters the frame from behind the cake and slowly cuts "
+            "downward through the top of the cake, slicing it open from top to bottom. As "
+            "the blade descends, the cake's internal layers are gently pushed apart along "
+            "the blade's path, gradually revealing the cake's internal texture — exposed "
+            "with vivid color and natural texture, with the {focus} clearly emphasized as "
+            "the most prominent and detailed texture on the exposed cross-section{cream}.\n\n"
+            "The knife moves at a steady, deliberate pace — slow enough to savor each "
+            "moment of the cut, like an ASMR food video. The cake's internal structure "
+            "softly parts along the blade, and tiny details of the moist interior become "
+            "visible as the camera moves closer.\n\n"
+            "Soft, natural daylight. Shallow depth of field that deepens as the camera "
+            "moves in. Photorealistic food cinematography, ultra-detailed texture, "
+            "ASMR-style food video aesthetic, emphasis on tactile texture, moisture, and "
+            "freshness."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
     "cream_scoop": {
         "label_kr": "크림만 떠내기",
+        "category": "cream",   # 크림을 스푼으로 떠냄 — 카테고리 자동 focus 는 cream 역할
         # 새 디자인 (S14P31S307-643): 슬라이스 단면을 정면으로 잡고 스푼이 위에서 아래로
         # 끌어내려 채널을 긁어내는 액션. 두 손(검은 장갑) 가시. 두꺼운 점성 단면이 있는
         # 모든 필링류에 적용 가능 — 크림류 + 베이크드 치즈케이크 (Basque/뉴욕 단면).
@@ -391,30 +427,162 @@ SIMULATIONS = {
         ),
     },
     # ─────────────────────────────────────────────────────────────────
-    "strawberry_fall": {
-        "label_kr": "딸기가 케이크 위로 톡 떨어진다",
-        "applicable_focus": ["strawberry"],
-        "frame_strategy": "i2i_is_start",   # 역방향: I2I = 딸기 없는 시작 상태
+    "lift_slice": {
+        "label_kr": "한 조각 쏙 들어올리기",
+        "category": "sheet",   # 시트 슬라이스 통째 들어올림 — base 역할
+        # 2단계 I2I 체인 (cream_scoop 와 동일 패턴):
+        #   start_frame_template — 입력 슬라이스로 홀케이크를 재구성한 시작 프레임
+        #   instruction_template — 그 홀케이크에서 슬라이스가 떠올려진 마지막 프레임
+        # 영상 = 홀케이크 → 한 조각이 케이크 서버로 떠올라 빈 wedge 가 드러남.
+        "applicable_focus": [
+            "sponge", "vanilla_sponge", "chocolate_sponge",
+            "baked_cheese", "ladyfinger_biscuit",
+        ],
+        "frame_strategy": "i2i_is_end",
+        "slot_phrases": {
+            "instruction": {
+                "cream":   "; the {value} between sheet layers remains crisply defined on both cut faces of the lifted slice",
+                "topping": ". Any {value} on top of the slice stays securely in place on the slice's surface during the lift",
+            },
+            "video": {
+                "cream":   "; the {value} layers stay neatly stacked through the lift, no smearing or shifting",
+            },
+        },
+        # 1단계 — 입력 슬라이스 이미지로부터 홀케이크를 상상·재구성한 시작 프레임
+        "start_frame_template": (
+            "Edit the provided image of a single triangular cake slice. The slice has "
+            "two flat cut faces created when it was originally cut from a whole round "
+            "cake. Reconstruct the COMPLETE original round whole cake from which this "
+            "slice was cut, placing the slice back into its original position within "
+            "the whole cake so that the two cut faces of the slice are perfectly flush "
+            "against the matching cut faces of the rest of the cake.\n\n"
+            "The resulting whole cake must be:\n"
+            "- A round 360-degree whole cake when viewed from above\n"
+            "- Built by extending the slice's exact top decoration, side coating, "
+            "cream pattern, base, colors, and textures consistently around the entire "
+            "perimeter — the rest of the cake looks identical in style and materials "
+            "to the input slice, just continued around the full circumference\n"
+            "- The original slice is fully integrated into the whole cake with NO "
+            "visible gap, NO visible cut line, NO visible seam between the slice and "
+            "the rest — it reads as one continuous unbroken cake\n"
+            "- Sitting on the same plate or surface style as the original input "
+            "image, with the plate scaled up appropriately to fit the whole cake\n\n"
+            "Preserve the input image's background, lighting direction and quality, "
+            "color temperature, camera height and distance, and overall photographic "
+            "style. Photorealistic, high-detail food photography, shallow depth of "
+            "field focused on the whole cake."
+        ),
+        # 2단계 — 그 홀케이크에서 슬라이스가 케이크 서버로 떠올려진 마지막 프레임
         "instruction_template": (
-            "Edit the input image for a 9:16 vertical short-form video start frame. "
-            "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
-            "Preserve the cake pixel-by-pixel: same shape, same cream, same plate, same "
-            "background, same lighting. "
-            "ONLY remove the {focus} from the top of the cake. The cake should look complete "
-            "but without the {focus} — as if the {focus} hasn't been placed on it yet. Keep the "
-            "cream surface where the {focus} was, smooth and natural, as if untouched. "
-            "Do not change anything else. Photorealistic, sharp focus, natural lighting."
+            "Edit the provided image of a whole round cake for a 9:16 vertical "
+            "short-form video end frame, showing a single triangular slice now lifted "
+            "cleanly off the whole cake by a polished stainless steel cake server.\n\n"
+            "The slice being lifted is one wedge of the whole cake — about 1/8 to "
+            "1/6 of the full 360-degree cake. The cake server enters from the "
+            "lower-right of the frame at a shallow angle, with the flat triangular "
+            "blade fully inserted beneath the slice, supporting it from below. The "
+            "handle extends out of the frame toward the lower-right corner.\n\n"
+            "The slice is lifted gently into the upper-center of the frame, with a "
+            "clear air gap of roughly 3 to 5 centimeters between the bottom of the "
+            "slice and the surface of the whole cake below. The slice stays level "
+            "and intact, holding its full triangular shape with no tilt, no "
+            "collapse, no crumbs falling.\n\n"
+            "Both cut faces of the lifted slice — the two triangular sides where it "
+            "was separated from the whole cake — are clearly visible in profile, "
+            "exposing the {focus} as the dominant feature of the cross-section"
+            "{cream}{topping}. The internal structure reads as crisp and freshly cut.\n\n"
+            "The whole cake below shows a corresponding wedge-shaped gap where the "
+            "slice used to sit. The exposed inner faces of the remaining whole cake "
+            "match the lifted slice's cut faces exactly — same internal structure, "
+            "same materials, same colors.\n\n"
+            "Preserve the cake's pixel-level appearance otherwise: same top "
+            "decoration, same side coating, same cream pattern around the remaining "
+            "rim, same plate, same background and lighting. Photorealistic dessert "
+            "advertising aesthetic, shallow depth of field focused on the lifted "
+            "slice, the cake body softly out of focus below."
         ),
         "video_template": (
-            "A single {focus} falls gently from above and lands softly on top of the cake, "
-            "settling into its natural position on the cream with a slight bounce on impact. "
-            "The cake itself stays still. No morphing, no extra elements appear."
+            "A polished stainless steel cake server slides in smoothly from the "
+            "lower-right of the frame, slips its flat triangular blade beneath one "
+            "wedge of the whole cake, and lifts the slice cleanly off in one "
+            "continuous, deliberate motion. The slice rises gently into the "
+            "upper-center of the frame, staying level the whole way up, with both "
+            "cut faces of the slice clearly visible — the {focus} is emphasized as "
+            "the dominant cross-section{cream}. The slice settles in mid-air with a "
+            "small air gap above the whole cake, which now shows a clean wedge-shaped "
+            "gap where the slice used to be. Static camera throughout, no panning, "
+            "no zooming, smooth ASMR-style food cinematography."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
-    "strawberry_cascade": {
-        "label_kr": "딸기가 우수수 쏟아진다",
-        "applicable_focus": ["strawberry"],
+    "hand_split": {
+        "label_kr": "손으로 반 가르기",
+        "category": "cream",   # 가르며 단면의 크림을 노출 — cream 역할 강조
+        # 양손(검은 장갑)이 슬라이스 양 끝을 잡고 깔끔하게 두 조각으로 가름.
+        # whipped/ganache/mascarpone/baked_cheese 는 모두 ductile 아니므로 stretching
+        # 없이 깨끗한 단절. molten_chocolate 은 stretching 시그니처라 디자인 충돌 → 제외.
+        "applicable_focus": [
+            "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+        ],
+        "frame_strategy": "i2i_is_end",
+        "slot_phrases": {
+            "instruction": {
+                "base":    "; the {value} body of the slice breaks cleanly along the split, exposing the layered baked structure on both halves",
+                "topping": ". Any {value} on top of the slice stays attached to one of the two halves and may shift slightly with the pulling motion",
+            },
+            "video": {
+                "base":    "; the {value} layers part cleanly along the break",
+            },
+        },
+        "instruction_template": (
+            "Edit the input image for a 9:16 vertical short-form video end frame, "
+            "showing the cake slice now split into two halves by two human hands "
+            "wearing black food-safe nitrile gloves.\n\n"
+            "Both gloved hands grip the slice from its two pointed ends — the left "
+            "hand from the left tip, the right hand from the right tip — with "
+            "fingers wrapped around the bottom and sides of each half for a secure "
+            "grip. The hands have just pulled the two halves apart, leaving a clear "
+            "gap of roughly 4 to 6 centimeters of empty air between the freshly "
+            "exposed inner faces.\n\n"
+            "Each half retains its original triangular shape on the outside, with "
+            "all external surfaces (top, sides, bottom) intact. The break runs "
+            "cleanly down the middle of the slice, perpendicular to its long edge, "
+            "revealing two flat inner cross-sections that face each other across "
+            "the gap.\n\n"
+            "The {focus} is clearly visible and emphasized as the most prominent "
+            "feature on both freshly exposed inner faces{base}{topping}. The break "
+            "is sharp and clean — no stretching strands, no stringing, no dripping "
+            "material connecting the two halves through the gap. The space between "
+            "the halves is empty air.\n\n"
+            "Preserve the cake's pixel-level appearance otherwise: same toppings on "
+            "the surface, same cream pattern on external surfaces, same colors. "
+            "The plate stays in place below. Background, lighting, and camera "
+            "framing remain identical to the input.\n\n"
+            "Photorealistic dessert close-up aesthetic, shallow depth of field "
+            "focused on the exposed inner cross-sections."
+        ),
+        "video_template": (
+            "Two black-gloved hands enter from the left and right edges of the "
+            "frame, grip the slice firmly from both pointed ends, and in a single "
+            "smooth, continuous motion pull the slice apart toward the edges of "
+            "the frame. The slice splits cleanly down the middle, the two halves "
+            "separating into the air with a clear gap opening between them, "
+            "revealing two flat inner cross-sections that face each other — the "
+            "{focus} is emphasized as the dominant feature on both exposed faces"
+            "{base}. The break stays clean throughout the motion, with no "
+            "stretching strands or stringing across the gap. Static camera, "
+            "smooth steady motion, ASMR-style food cinematography."
+        ),
+    },
+    # ─────────────────────────────────────────────────────────────────
+    "topping_fall": {
+        "label_kr": "위에서 떨어뜨리기",
+        "category": "topping",   # 토핑이 위에서 떨어져 안착 — 카테고리 자동 focus 는 topping 역할
+        # 기존 strawberry_fall + strawberry_cascade 의 통합본 (S14P31S307-624).
+        # 분석에서 추출된 어떤 topping 이든 자동 적용. 한 알이 톡 떨어지는 단일
+        # 안착부터 우수수 쏟아지는 다량 안착까지 영상 모델이 컨텍스트에 맞게
+        # 자연스럽게 해석하도록 양쪽을 모두 허용하는 phrasing.
+        "applicable_focus": ["strawberry", "blueberry", "mango"],
         "frame_strategy": "i2i_is_start",   # 역방향: I2I = 토핑 없는 시작 상태
         "instruction_template": (
             "Edit the input image for a 9:16 vertical short-form video start frame. "
@@ -436,14 +604,15 @@ SIMULATIONS = {
             "position, size, and framing in the image."
         ),
         "video_template": (
-            "Fresh {focus} pieces cascade from above the frame onto the cake's top "
-            "surface. Slow-motion fall: the {focus} pieces tumble through the air, "
-            "bounce on the surface with subtle deformation, and settle into a dense "
-            "even arrangement that progressively covers the entire top of the cake. "
-            "Small water droplets glisten on their natural surface, with the {focus} "
-            "emphasized as the most prominent visual element in the scene. Static "
-            "camera, soft diffused studio lighting, shallow depth of field, premium "
-            "food commercial aesthetic, hyper-realistic textures."
+            "Fresh {focus} pieces fall gently from above the frame onto the cake's top "
+            "surface. The fall may be a single piece settling alone or several pieces "
+            "cascading down in sequence — in either case, each piece tumbles through "
+            "the air, lands on the surface with subtle deformation on impact, bounces "
+            "softly, and settles into a final resting position. Small water droplets "
+            "glisten on the natural surface of the {focus}, emphasized as the most "
+            "prominent visual element in the scene. Static camera, soft diffused studio "
+            "lighting, shallow depth of field, premium food commercial aesthetic, "
+            "hyper-realistic textures."
         ),
     },
 }
@@ -471,6 +640,169 @@ def is_valid_combination(focus: str, simulation: str) -> bool:
     if not sim:
         return False
     return normalized in sim["applicable_focus"]
+
+
+# =====================================================================
+# 카테고리 ↔ 역할 ↔ 기본 focus 매핑 (자동 focus 결정용)
+# =====================================================================
+# 시뮬레이션의 category 필드가 [시트/크림/토핑] 중 하나면, 사장님이 focus 를
+# 명시 안 해도 analysis 의 해당 역할(base/cream/topping) 첫 요소를 자동으로
+# focus 로 사용. analysis 가 없거나 역할이 비어 있으면 카테고리 기본값 사용.
+#
+# 이렇게 하면 사장님은 "케이크 시트 강조 시뮬" 만 고르면 되고, 어떤 시트인지
+# (스펀지/바스크/시폰...) 는 시스템이 분석 결과에서 자동 결정함.
+CATEGORY_TO_ROLE = {
+    "sheet":   "base",     # 시트류 → analysis.base
+    "cream":   "cream",    # 크림류 → analysis.creams
+    "topping": "topping",  # 토핑류 → analysis.toppings
+}
+
+# 카테고리별 기본 focus — analysis 없거나 역할 비었을 때 폴백.
+# 카테고리 별 대표 재료(가장 흔한 케이크 유형 기준).
+CATEGORY_DEFAULT_FOCUS = {
+    "sheet":   "sponge",
+    "cream":   "whipped_cream",
+    "topping": "strawberry",
+}
+
+
+# =====================================================================
+# Phrase-level Optional Slot — 템플릿 슬롯({base}/{cream}/{topping}) 인프라
+# =====================================================================
+# 시뮬레이션 액션 묘사가 케이크의 실제 구성요소를 자연스럽게 참조할 수 있도록,
+# 템플릿이 다음 placeholder 를 받음:
+#   {focus}    — 기존 동작 (시뮬레이션 강조 요소)
+#   {base}     — analysis.base 첫 요소 phrase 로 wrapping. 없으면 "" (구문 통째 omit)
+#   {cream}    — analysis.creams 첫 요소 phrase 로 wrapping. 없으면 "" (구문 통째 omit)
+#   {topping}  — analysis.toppings 첫 요소 phrase 로 wrapping. 없으면 "" (구문 통째 omit)
+#
+# 시뮬레이션이 슬롯을 쓰려면 `slot_phrases` 를 정의:
+#   "slot_phrases": {
+#       "instruction": {
+#           "base":    " through the {value}",            # 케이크에 base 있을 때만 박힘
+#           "cream":   ", squishing the {value} sideways",
+#           "topping": " while the {value} stays in place",
+#       },
+#       "video": { ... }  # 동영상 묘사용 별도 wrapper
+#   }
+# 그러면 템플릿에서 "...the fork presses{cream}{topping}..." 식으로 비워둘 위치에
+# placeholder 만 적으면 — 분석에 cream 없으면 그 phrase 통째 빠짐.
+#
+# 슬롯 미정의 시뮬은 기존 동작 유지: format_map 이 SafeDict 로 모든 빈 슬롯을 ""
+# 로 치환하므로 기존 {focus}-only 템플릿은 그대로 작동.
+
+
+class _SafeDict(dict):
+    """`.format_map()` 헬퍼 — 누락 키는 빈 문자열. 슬롯 미사용 템플릿도 안전."""
+
+    def __missing__(self, key: str) -> str:
+        return ""
+
+
+def _resolve_slot_phrases(
+    sim: dict,
+    analysis: Optional[dict],
+    template_kind: str,
+    focus_key: Optional[str] = None,
+) -> dict[str, str]:
+    """
+    시뮬의 slot_phrases[template_kind] 정의 + analysis → {base, cream, topping} 의
+    최종 치환 문자열 dict. 슬롯에 매칭되는 요소가 없거나 wrapper 미정의면 "".
+
+    Args:
+        sim:           SIMULATIONS[key] 의 dict
+        analysis:      Moondream/Gemini Vision 분석 결과 (None 이면 모든 슬롯 "")
+        template_kind: "instruction" or "video" — instruction/video 별 wrapper 사용
+        focus_key:     이미 정해진 focus 키 (선택). 슬롯이 focus 와 동일한 요소를
+                       가리키면 중복 묘사 방지 위해 해당 슬롯은 빈 문자열로.
+                       (예: Basque 처럼 base 만 있는 단일층 케이크에서 cream 카테고리
+                       시뮬을 돌리면 focus 가 base 역할의 요소를 fallback 으로 잡는데,
+                       그러면 base 슬롯과 focus 가 같은 재료를 가리켜 중복됨.)
+
+    Returns:
+        {"base": "...", "cream": "...", "topping": "..."} — 각 값은 최종 phrase 또는 "".
+    """
+    result = {"base": "", "cream": "", "topping": ""}
+    phrases_def = sim.get("slot_phrases", {}).get(template_kind, {})
+    if not phrases_def or analysis is None:
+        return result
+
+    import prompt_locks
+    by_role = prompt_locks.collect_elements_by_role(analysis)
+    for slot_key in result:
+        wrapper = phrases_def.get(slot_key)
+        if not wrapper:
+            continue
+        elements = by_role.get(slot_key, [])
+        if not elements:
+            continue
+        # 슬롯의 첫 요소가 focus 와 동일하면 중복 방지 — slot 비움
+        canon = normalize_focus(elements[0])
+        if focus_key and canon == focus_key:
+            continue
+        value = focus_phrase(elements[0])  # 짧은 영어 라벨
+        result[slot_key] = wrapper.format(value=value)
+    return result
+
+
+def derive_focus_from_category(
+    simulation: str,
+    analysis: Optional[dict] = None,
+) -> Optional[str]:
+    """
+    시뮬레이션의 category 기반으로 focus 를 자동 결정.
+
+    조회 우선순위:
+      1) analysis 의 해당 역할 첫 요소 (이미 ELEMENT_ALIASES 로 정규화되어 있음)
+         — 단, applicable_focus 에 포함된 경우만. 아니면 다음 단계로.
+      2) applicable_focus 의 첫 요소 (시뮬이 받을 수 있는 가장 일반적인 focus)
+      3) CATEGORY_DEFAULT_FOCUS 의 카테고리 기본값
+      4) None (시뮬이 카테고리 없거나 알 수 없음)
+
+    Args:
+        simulation: SIMULATIONS 의 키
+        analysis:   Moondream/Gemini Vision 분석 결과 dict (선택)
+
+    Returns:
+        정식 focus 키 (FOCUS_TEXT 의 키) 또는 None.
+    """
+    sim = SIMULATIONS.get(simulation)
+    if not sim:
+        return None
+    category = sim.get("category")
+    if not category:
+        return None
+
+    applicable = sim.get("applicable_focus", [])
+    primary_role = CATEGORY_TO_ROLE.get(category)
+
+    if analysis is not None:
+        import prompt_locks
+        by_role = prompt_locks.collect_elements_by_role(analysis)
+
+        # 1) 카테고리의 주 역할에서 첫 applicable 요소 시도
+        if primary_role:
+            for elem in by_role.get(primary_role, []):
+                canon = normalize_focus(elem)
+                if canon in applicable:
+                    return canon
+
+        # 2) 다른 역할 폴백 — 주 역할이 비어 있어도(예: 바스크는 cream 비어 있음)
+        #    실제 케이크에 있는 요소를 우선. applicable_focus 순서대로 시도.
+        for role_key in ("base", "cream", "topping", "coating"):
+            if role_key == primary_role:
+                continue
+            for elem in by_role.get(role_key, []):
+                canon = normalize_focus(elem)
+                if canon in applicable:
+                    return canon
+
+    # 3) applicable_focus 첫 요소 폴백 (analysis 자체 없음)
+    if applicable:
+        return applicable[0]
+
+    # 4) 카테고리 기본값
+    return CATEGORY_DEFAULT_FOCUS.get(category)
 
 
 # =====================================================================
@@ -525,15 +857,20 @@ def build_background_prompt(background_key: str) -> str:
 # =====================================================================
 def build_prompts(
     simulation: str,
-    focus: str,
+    focus: Optional[str] = None,
     background: Optional[str] = None,
     hint: Optional[str] = None,
     analysis: Optional[dict] = None,
 ) -> dict:
     """
     Args:
-        simulation: SIMULATIONS의 키 ("cross_section_cut", "lift_slice", "topping_fall")
-        focus:      강조할 요소 키 (예: "strawberry", "whipped_cream", "sponge_layers")
+        simulation: SIMULATIONS의 키 ("smash", "fork_bite", "cut_in_half", ...)
+        focus:      강조할 요소 키 (예: "strawberry", "whipped_cream", "sponge_layers").
+                    None 이면 시뮬의 category 와 analysis 에서 자동 도출:
+                      - [시트] 시뮬 → analysis.base 첫 요소
+                      - [크림] 시뮬 → analysis.creams 첫 요소
+                      - [토핑] 시뮬 → analysis.toppings 첫 요소
+                    analysis 도 없으면 카테고리 기본값(sponge/whipped_cream/strawberry).
         background: 배경 키워드 (예: "wooden table", "white marble") — 선택
         hint:       사용자 자유 추가 힌트 — 선택
         analysis:   Moondream 분석 결과 dict — 있으면 instruction_prompt 앞에
@@ -562,16 +899,34 @@ def build_prompts(
             f"가능한 값: {list(SIMULATIONS.keys())}"
         )
 
+    # focus 결정: 명시 우선 → category 자동 도출 → 에러
+    if focus is None:
+        focus = derive_focus_from_category(simulation, analysis)
+        if focus is None:
+            raise ValueError(
+                f"focus 가 None 이고 simulation '{simulation}' 에 category 가 없어 "
+                f"자동 도출 불가. focus 를 명시하거나 simulation 에 category 를 정의할 것."
+            )
+
     # focus 정규화 (별칭이면 정식 키로). 검증은 호출자(API 레이어)가 담당.
     focus = normalize_focus(focus)
     sim = SIMULATIONS[simulation]
     focus_text = focus_phrase(focus)
 
-    instruction = sim["instruction_template"].format(focus=focus_text)
-    video = sim["video_template"].format(focus=focus_text)
+    # 슬롯 phrase 해결 — 시뮬에 slot_phrases 정의 + analysis 있을 때만 채워짐.
+    # 미정의/미해당 슬롯은 빈 문자열이라 템플릿의 {base}{cream}{topping} 자리는 사라짐.
+    # focus 와 동일 요소를 가리키는 슬롯은 중복 묘사 방지를 위해 비움.
+    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction", focus_key=focus)
+    slot_vid = _resolve_slot_phrases(sim, analysis, "video", focus_key=focus)
+    fmt_inst = _SafeDict(focus=focus_text, **slot_inst)
+    fmt_vid = _SafeDict(focus=focus_text, **slot_vid)
+
+    instruction = sim["instruction_template"].format_map(fmt_inst)
+    video = sim["video_template"].format_map(fmt_vid)
     start_frame = None
     if sim.get("start_frame_template"):
-        start_frame = sim["start_frame_template"].format(focus=focus_text)
+        # start_frame 도 instruction 과 동일 wrapper 사용 (별도 슬롯 필요 시 향후 분리)
+        start_frame = sim["start_frame_template"].format_map(fmt_inst)
 
     # analysis 가 있으면 케이크 구조 컨텍스트 (역할별 base/cream/topping/coating + 시각 식별)
     # 를 instruction 앞에 prepend. 모델이 "어떤 재료가 어느 자리에 있는지" 명확히 인식해서
