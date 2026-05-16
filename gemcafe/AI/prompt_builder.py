@@ -124,6 +124,16 @@ SIMULATIONS = {
             "sponge", "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        # 슬롯 phrase: 케이크 구성에 따라 자동 채워짐. base/topping 없으면 통째 omit.
+        "slot_phrases": {
+            "instruction": {
+                "base":    ". The {value} body beneath the indentation stays largely intact, only slightly compressed where the fork pushes down",
+                "topping": ". Any {value} on top of the cake stays in place but may be slightly displaced",
+            },
+            "video": {
+                "topping": "; the {value} on top stays in place but may shift slightly",
+            },
+        },
         "instruction_template": (
             "Edit the input image for a 9:16 vertical short-form video end frame. "
             "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
@@ -131,16 +141,15 @@ SIMULATIONS = {
             "pattern, same plate, same background, same lighting. "
             "ADD ONLY this change: a metal fork is pressed down into the top of the cake from "
             "above, gently compressing the {focus}. A visible indentation forms where the fork "
-            "pushes in, with the {focus} squished and slightly spread to the sides. The toppings "
-            "stay on the cake but may be slightly displaced. The fork is partially visible above "
-            "the cake and partially embedded in it. "
+            "pushes in, with the {focus} squished and slightly spread to the sides{topping}{base}. "
+            "The fork is partially visible above the cake and partially embedded in it. "
             "Do not regenerate any existing element. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
             "A metal fork descends slowly from above and presses down into the top of the cake, "
             "gently compressing the {focus}. The {focus} visibly squishes and spreads to the "
-            "sides under the pressure, while the rest of the cake stays in place. Smooth steady "
-            "downward motion. Realistic physics, no morphing of the cake."
+            "sides under the pressure, while the rest of the cake stays in place{topping}. "
+            "Smooth steady downward motion. Realistic physics, no morphing of the cake."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
@@ -155,6 +164,17 @@ SIMULATIONS = {
             "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        # 슬롯 phrase: 단면에 함께 노출되는 cream/topping 을 자연스럽게 묘사.
+        # cream/topping 없는 단일층 케이크(Basque 등)면 통째 omit.
+        "slot_phrases": {
+            "instruction": {
+                "cream":   ", with the {value} also visible as a distinct band on the cut faces",
+                "topping": "; a small portion of the {value} from the cake surface may come up with the bite, partially visible on top of the lifted piece",
+            },
+            "video": {
+                "cream":   "; the {value} between sheet layers also becomes visible at the cut faces",
+            },
+        },
         "instruction_template": (
             "Edit the input image to add a 'fork lifting a piece of cake' moment "
             "for a 9:16 vertical short-form video end frame.\n\n"
@@ -179,7 +199,8 @@ SIMULATIONS = {
             "- The lifted piece shows a CLEAN CROSS-SECTION revealing the cake's "
             "actual internal structure — layers, fillings, and inclusions that truly "
             "exist inside the cake in the input image. The {focus} is clearly visible "
-            "and emphasized as the most prominent feature on the exposed cross-section. "
+            "and emphasized as the most prominent feature on the exposed cross-section"
+            "{cream}{topping}. "
             "Faithfully reflect whatever is actually inside the cake; do NOT invent "
             "layers, fillings, or textures that are not visible in the original\n"
             "- On the cake body below, in an area that AVOIDS any prominent whole "
@@ -219,7 +240,7 @@ SIMULATIONS = {
             "lifts smoothly back up, scooping out a single full-height bite that stays "
             "impaled on the tines, revealing the cake's actual inner cross-section on the "
             "cut faces, with the {focus} clearly visible and emphasized as the most "
-            "prominent feature on the exposed cross-section. As the fork rises, it settles "
+            "prominent feature on the exposed cross-section{cream}. As the fork rises, it settles "
             "in the upper right area of the frame, clearly separated from the cake with "
             "empty space between them. The cake stays in place on whatever surface or liner "
             "it sits on throughout the motion; any toppings or decorations on the cake's "
@@ -230,60 +251,65 @@ SIMULATIONS = {
     },
     # ─────────────────────────────────────────────────────────────────
     "cut_in_half": {
-        "label_kr": "반으로 자르기",
+        "label_kr": "칼로 단면 가르기",
         "category": "sheet",   # 시트 단면을 가르며 노출 — 카테고리 자동 focus 는 base 역할
         # 단면 노출 액션 — 모든 cross-section 가시 요소 적용 가능.
+        # 도구: 케이크 나이프 (S14P31S307-624 에서 fork → knife 로 변경)
         "applicable_focus": [
             "sponge", "whipped_cream", "ganache", "molten_chocolate",
             "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        "slot_phrases": {
+            "instruction": {
+                "cream":   "; the {value} between sheet layers spreads softly to either side of the cut and remains clearly visible on both exposed faces",
+                "topping": "; any {value} on the cake surface stays in place except where the blade has passed",
+            },
+            "video": {
+                "cream":   "; the {value} between sheet layers slowly parts along the blade's path",
+            },
+        },
         "instruction_template": (
-            "Edit this image for a 9:16 vertical short-form video end frame, showing the "
-            "fork now embedded inside the cake, having just cut into it.\n\n"
-            "The fork enters the frame from behind the cake, with the handle extending away "
-            "from the camera into the background. The fork tines push forward through the "
-            "cake toward the camera, so the cut opens up facing the camera, exposing the "
-            "cross-section directly to the viewer.\n\n"
-            "The fork is sunk into the cake, with its tines buried deep below the surface "
+            "Edit this image for a 9:16 vertical short-form video end frame, showing a "
+            "cake knife now embedded inside the cake, having just cut into it.\n\n"
+            "The knife enters the frame from behind the cake, with the handle extending "
+            "away from the camera into the background. The knife blade pushes forward "
+            "through the cake toward the camera, so the cut opens up facing the camera, "
+            "exposing the cross-section directly to the viewer.\n\n"
+            "The knife is sunk into the cake, with its blade buried deep below the surface "
             "where it entered. A clear, continuous gap has formed in the cake exactly along "
-            "the fork's body — the crack starts where the fork meets the cake's surface, "
-            "runs in the same direction the fork is pointing, and ends at the buried tips of "
-            "the tines. The fork is physically inside this gap, not floating beside it.\n\n"
-            "The cake is in a partially cut state. The upper portion, where the fork has "
+            "the blade — the crack starts where the blade meets the cake's surface, runs in "
+            "the same direction the blade is pointing, and ends at the buried tip of the "
+            "blade. The knife is physically inside this gap, not floating beside it.\n\n"
+            "The cake is in a partially cut state. The upper portion, where the blade has "
             "already passed, is split open into two halves. The lower portion remains as a "
-            "single solid piece of cake — continuous, unbroken, with sponge and cream fully "
-            "connected across the middle.\n\n"
-            "The gap runs in the exact same direction the fork traveled, and extends only as "
-            "far down as the fork has cut.\n\n"
-            "The sponge and cream are pushed apart on both sides of the fork, revealing the "
-            "internal texture in sharp detail, with the {focus} clearly emphasized as the "
-            "most prominent and detailed feature on the exposed cross-section:\n\n"
-            "- the airy, fluffy crumb structure of the sponge cake, with individual air "
-            "pockets visible\n"
-            "- the soft, billowy texture of the whipped cream, with delicate ridges and folds\n"
-            "- any fillings, fruits, or layers inside, exposed at the split with vivid color "
-            "and natural texture\n\n"
+            "single solid piece of cake — continuous, unbroken, with internal structure "
+            "fully connected across the middle.\n\n"
+            "The gap runs in the exact same direction the blade traveled, and extends only "
+            "as far down as the blade has cut.\n\n"
+            "The cake's internal layers are pushed apart on both sides of the blade, "
+            "revealing the internal texture in sharp detail, with the {focus} clearly "
+            "emphasized as the most prominent and detailed feature on the exposed "
+            "cross-section{cream}{topping}.\n\n"
             "Photorealistic food photography, ultra-detailed texture, ASMR-style food "
             "cinematography aesthetic, soft natural lighting, emphasis on tactile texture "
             "and freshness."
         ),
         "video_template": (
-            "A silver fork enters the frame from behind the cake and slowly cuts downward "
-            "through the top of the cake, slicing it open from top to bottom. As the fork "
-            "descends, the sponge and cream are gently pushed apart along the fork's path, "
-            "gradually revealing the cake's internal texture — the soft, airy crumb of the "
-            "sponge, the billowy folds of whipped cream, and any fruits or fillings inside, "
-            "exposed with vivid color and natural texture, with the {focus} clearly "
-            "emphasized as the most prominent and detailed texture on the exposed "
-            "cross-section.\n\n"
-            "The fork moves at a steady, deliberate pace — slow enough to savor each moment "
-            "of the cut, like an ASMR food video. The cream slightly spreads, the sponge "
-            "softly parts, and tiny details of the moist crumb become visible as the camera "
-            "moves closer.\n\n"
-            "Soft, natural daylight. Shallow depth of field that deepens as the camera moves "
-            "in. Photorealistic food cinematography, ultra-detailed texture, ASMR-style food "
-            "video aesthetic, emphasis on tactile texture, moisture, and freshness."
+            "A polished cake knife enters the frame from behind the cake and slowly cuts "
+            "downward through the top of the cake, slicing it open from top to bottom. As "
+            "the blade descends, the cake's internal layers are gently pushed apart along "
+            "the blade's path, gradually revealing the cake's internal texture — exposed "
+            "with vivid color and natural texture, with the {focus} clearly emphasized as "
+            "the most prominent and detailed texture on the exposed cross-section{cream}.\n\n"
+            "The knife moves at a steady, deliberate pace — slow enough to savor each "
+            "moment of the cut, like an ASMR food video. The cake's internal structure "
+            "softly parts along the blade, and tiny details of the moist interior become "
+            "visible as the camera moves closer.\n\n"
+            "Soft, natural daylight. Shallow depth of field that deepens as the camera "
+            "moves in. Photorealistic food cinematography, ultra-detailed texture, "
+            "ASMR-style food video aesthetic, emphasis on tactile texture, moisture, and "
+            "freshness."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
@@ -546,6 +572,7 @@ def _resolve_slot_phrases(
     sim: dict,
     analysis: Optional[dict],
     template_kind: str,
+    focus_key: Optional[str] = None,
 ) -> dict[str, str]:
     """
     시뮬의 slot_phrases[template_kind] 정의 + analysis → {base, cream, topping} 의
@@ -555,6 +582,11 @@ def _resolve_slot_phrases(
         sim:           SIMULATIONS[key] 의 dict
         analysis:      Moondream/Gemini Vision 분석 결과 (None 이면 모든 슬롯 "")
         template_kind: "instruction" or "video" — instruction/video 별 wrapper 사용
+        focus_key:     이미 정해진 focus 키 (선택). 슬롯이 focus 와 동일한 요소를
+                       가리키면 중복 묘사 방지 위해 해당 슬롯은 빈 문자열로.
+                       (예: Basque 처럼 base 만 있는 단일층 케이크에서 cream 카테고리
+                       시뮬을 돌리면 focus 가 base 역할의 요소를 fallback 으로 잡는데,
+                       그러면 base 슬롯과 focus 가 같은 재료를 가리켜 중복됨.)
 
     Returns:
         {"base": "...", "cream": "...", "topping": "..."} — 각 값은 최종 phrase 또는 "".
@@ -572,6 +604,10 @@ def _resolve_slot_phrases(
             continue
         elements = by_role.get(slot_key, [])
         if not elements:
+            continue
+        # 슬롯의 첫 요소가 focus 와 동일하면 중복 방지 — slot 비움
+        canon = normalize_focus(elements[0])
+        if focus_key and canon == focus_key:
             continue
         value = focus_phrase(elements[0])  # 짧은 영어 라벨
         result[slot_key] = wrapper.format(value=value)
@@ -748,8 +784,9 @@ def build_prompts(
 
     # 슬롯 phrase 해결 — 시뮬에 slot_phrases 정의 + analysis 있을 때만 채워짐.
     # 미정의/미해당 슬롯은 빈 문자열이라 템플릿의 {base}{cream}{topping} 자리는 사라짐.
-    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction")
-    slot_vid = _resolve_slot_phrases(sim, analysis, "video")
+    # focus 와 동일 요소를 가리키는 슬롯은 중복 묘사 방지를 위해 비움.
+    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction", focus_key=focus)
+    slot_vid = _resolve_slot_phrases(sim, analysis, "video", focus_key=focus)
     fmt_inst = _SafeDict(focus=focus_text, **slot_inst)
     fmt_vid = _SafeDict(focus=focus_text, **slot_vid)
 

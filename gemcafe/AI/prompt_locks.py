@@ -25,7 +25,7 @@ from typing import Optional
 SIMULATION_LABELS_KR = {
     "smash":              "뭉개기 (포크가 케이크 위를 눌러 살짝 짓누름)",
     "fork_bite":          "포크로 한 입 뜨기 (포크가 케이크 한 입 분량을 떠 들어올림)",
-    "cut_in_half":        "반으로 자르기 (칼이 케이크 조각을 수직으로 갈라 단면 노출)",
+    "cut_in_half":        "칼로 단면 가르기 (케이크 나이프가 수직으로 갈라 단면 노출)",
     "cream_scoop":        "크림만 떠내기 (숟가락이 케이크 위 크림 한 덩이만 떠올림)",
     "strawberry_fall":    "딸기가 케이크 위로 톡 떨어진다 (한 알이 위에서 떨어져 안착)",
     "strawberry_cascade": "딸기가 우수수 쏟아진다 (여러 알이 차례로 케이크 위로 떨어져 안착)",
@@ -59,7 +59,7 @@ CAMERA_DIRECTIVES = {
     "cut_in_half": (
         "Camera starts framed on the full cake slice in vertical 9:16 composition, "
         "then slowly and continuously pushes in to an extreme macro close-up on the "
-        "split area where the fork meets the cake. Fork enters from behind the cake "
+        "split area where the knife meets the cake. Knife enters from behind the cake "
         "with the handle extending away from the camera into the background."
     ),
     "cream_scoop": (
@@ -134,8 +134,9 @@ NEGATIVE_PER_SIMULATION = {
     ),
     "cut_in_half": (
         "hands, fingers, human body parts, faces, people, text, watermark, logo, "
-        "subtitles, captions, distorted fork, bent fork, deformed fork, multiple forks, "
-        "fork changing shape, cake moving on its own, cake rotating, cake bouncing, "
+        "subtitles, captions, distorted knife, bent knife, deformed knife, multiple knives, "
+        "knife changing shape, serrated bread knife, jagged blade, fork, fork tines, "
+        "cake moving on its own, cake rotating, cake bouncing, "
         "shaky camera, handheld camera shake, jittery motion, abrupt camera cuts, "
         "sudden zoom jumps, flickering, color shifting, blurry artifacts, low quality, "
         "oversaturated colors, cartoon style, illustration, 3D render look, "
