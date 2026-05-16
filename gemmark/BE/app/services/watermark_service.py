@@ -26,7 +26,7 @@ from app.core.exceptions import (
     WatermarkEmbedError,
     WatermarkVerifyError,
 )
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.models.verification import VerificationHistory, VerificationStatus
 from app.models.video import VideoWatermarked
@@ -186,6 +186,20 @@ async def embed_watermark_external(
     thumb_path = settings.WATERMARKED_DIR / f"{video_uuid}.jpg"
     thumb_ok = await asyncio.to_thread(save_first_frame, dest_path, thumb_path)
     thumbnail_name = thumb_path.name if thumb_ok else None
+
+    # 동일 content_uuid 의 기존 활성 행이 있으면 soft-delete 처리한 뒤 새 행 INSERT.
+    # → 사용자가 같은 영상 재공유 / alpha 재설정 등으로 여러 번 호출해도
+    #   "가장 최신 활성 행은 항상 1개" 가 보장돼, 영상 상세/검증 조회가 안 깨짐.
+    # → verification_history 의 FK 는 옛 행을 그대로 가리키므로 깨질 일 없음.
+    now = datetime.now(KST)
+    await db.execute(
+        update(VideoWatermarked)
+        .where(
+            VideoWatermarked.content_uuid == video_uuid,
+            VideoWatermarked.deleted_at.is_(None),
+        )
+        .values(deleted_at=now)
+    )
 
     # video_watermarked 행 INSERT — verify 시 watermark_hex 매칭에 사용.
     # admin_id 는 gemcafe origin 영상용 system 계정 (사전에 admin 테이블에 존재해야 함).
@@ -388,29 +402,34 @@ async def _log_verification(
 # ──────────────────────────────────────────────────────────
 
 
-def download_watermarked_video(video_id: str) -> FileResponse:
+async def download_watermarked_video(
+    db: AsyncSession,
+    video_id_or_uuid: str,
+) -> FileResponse:
     """워터마크 삽입된 영상 파일 다운로드.
 
-    - 등록부 조회 → 워터마크 여부 확인 → 파일 존재 확인 → FileResponse 반환
-    - Content-Disposition: attachment 헤더로 강제 다운로드
-    - 파일명은 `watermarked_{원본파일명}.mp4` 형태
+    - DB의 video_watermarked 테이블에서 content_uuid로 조회 (서버 재시작 안전)
+    - `v_xxx` prefix가 붙어 있어도 자동으로 제거하고 조회
+    - 파일명은 `watermarked_{원본파일명stem}.mp4` 형태
     """
-    info = video_service.get_video_info(video_id)
-    if info is None:
+    content_uuid = _strip_video_prefix(video_id_or_uuid)
+
+    result = await db.execute(
+        select(VideoWatermarked).where(
+            VideoWatermarked.content_uuid == content_uuid,
+            VideoWatermarked.deleted_at.is_(None),
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
         raise DownloadVideoNotFoundError()
 
-    if not info.get("watermark_id"):
-        raise DownloadNotWatermarkedError()
-
-    video_uuid = _strip_video_prefix(video_id)
-    file_path = settings.WATERMARKED_DIR / f"{video_uuid}.mp4"
-
+    file_path = settings.WATERMARKED_DIR / row.stored_file_name
     if not file_path.exists():
         raise DownloadVideoNotFoundError()
 
     try:
-        original_name = info.get("original_filename") or f"{video_uuid}.mp4"
-        base_name = Path(original_name).stem
+        base_name = Path(row.original_file_name).stem
         download_name = f"watermarked_{base_name}.mp4"
 
         return FileResponse(

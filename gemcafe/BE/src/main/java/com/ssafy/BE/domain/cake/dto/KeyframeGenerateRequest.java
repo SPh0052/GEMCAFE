@@ -9,10 +9,11 @@ import jakarta.validation.constraints.NotBlank;
  * (예: simulationCode="smash", backgroundCode="white_marble")
  *
  * FE 는 AI /catalog 응답의 키를 그대로 사용.
+ * backgroundCode 는 선택값 — null/blank 시 배경 교체 없이 원본 이미지 그대로 사용.
  */
 public record KeyframeGenerateRequest(
         @NotBlank String simulationCode,
-        @NotBlank String backgroundCode,
+        String backgroundCode,
         String focus,
         String hint
 ) {}

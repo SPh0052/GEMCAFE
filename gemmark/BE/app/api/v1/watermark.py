@@ -66,8 +66,11 @@ async def verify_watermark_endpoint(
     response_class=FileResponse,
     summary="워터마크 영상 다운로드",
 )
-def download_watermarked_endpoint(video_id: str) -> FileResponse:
-    return download_watermarked_video(video_id)
+async def download_watermarked_endpoint(
+    video_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    return await download_watermarked_video(db, video_id)
 
 
 @router.post(

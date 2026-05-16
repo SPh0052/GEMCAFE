@@ -39,6 +39,7 @@ export default function RobustnessTestCreatePage() {
   const [error, setError] = useState<string | null>(null)
 
   const [startError, setStartError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
 
   // 기간 변경 시 자동으로 필터링된 목록 재조회 (300ms 디바운스)
   useEffect(() => {
@@ -78,7 +79,8 @@ export default function RobustnessTestCreatePage() {
     }
   }, [startAt, endAt])
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    if (starting) return
     if (!startAt || !endAt) {
       setStartError('테스트 기간을 모두 선택해주세요.')
       return
@@ -88,15 +90,33 @@ export default function RobustnessTestCreatePage() {
       return
     }
     setStartError(null)
+    setStarting(true)
 
-    // Fire-and-forget — BE 가 테스트를 백그라운드에서 처리하므로 응답을 기다리지 않음.
-    // 사용자는 즉시 목록 페이지로 이동, 새 테스트가 이력 상단에 표시됨.
-    // (응답/에러는 콘솔에만 남김 — 필요시 토스트 시스템 추가 검토)
-    runRobustnessTest({ startDate: startAt, endDate: endAt })
-      .then((res) => console.log('[POST /robustness/run] response:', res))
-      .catch((err) => console.error('[POST /robustness/run] error:', err))
+    try {
+      const res = await runRobustnessTest({
+        startDate: startAt,
+        endDate: endAt,
+      })
+      console.log('[POST /robustness/run] response:', res)
 
-    navigate('/robustness')
+      // 응답에서 testId 추출 — BE 응답 키 명이 다를 수 있어 testId / id 모두 체크
+      const id = res?.testId ?? res?.id
+      if (id !== undefined && id !== null) {
+        navigate(`/robustness/${id}`)
+      } else {
+        // testId 못 찾으면 fallback — 목록 페이지로
+        console.warn(
+          '[POST /robustness/run] 응답에서 testId 를 찾지 못함, 목록으로 이동',
+          res,
+        )
+        navigate('/robustness')
+      }
+    } catch (err) {
+      console.error('[POST /robustness/run] error:', err)
+      setStartError(extractErrorMessage(err, '테스트 시작에 실패했습니다.'))
+    } finally {
+      setStarting(false)
+    }
   }
 
   return (
@@ -122,11 +142,22 @@ export default function RobustnessTestCreatePage() {
         <button
           type="button"
           onClick={handleStart}
-          disabled={videos.length === 0 || !startAt || !endAt}
+          disabled={
+            videos.length === 0 || !startAt || !endAt || starting
+          }
           className="ml-auto inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Play className="h-4 w-4" />
-          테스트 시작
+          {starting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              시작 중...
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4" />
+              테스트 시작
+            </>
+          )}
         </button>
       </div>
 

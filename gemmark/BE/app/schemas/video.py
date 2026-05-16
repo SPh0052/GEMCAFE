@@ -23,6 +23,7 @@ class VideoListItem(BaseModel):
     name: str = Field(..., description="원본 파일명")
     type: str = Field(..., description="파일 타입 (확장자)")
     size: int = Field(..., description="파일 크기 (bytes)")
+    thumbnailUrl: str | None = Field(None, description="썸네일 URL (없으면 null)")
     createdAt: datetime = Field(..., description="생성 시각 (ISO 8601)")
 
 
@@ -47,6 +48,7 @@ class VideoDetailData(BaseModel):
     payloadBits: int = Field(..., description="페이로드 비트 수")
     businessId: str = Field(..., description="사업자 ID")
     contentUuid: str = Field(..., description="콘텐츠 UUID")
+    thumbnailUrl: str | None = Field(None, description="썸네일 URL (없으면 null)")
     createdAt: datetime = Field(..., description="생성 타임스탬프")
     watermarkHex: str = Field(..., description="워터마크 페이로드 HEX")
 

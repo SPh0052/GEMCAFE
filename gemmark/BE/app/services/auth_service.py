@@ -1,18 +1,24 @@
-"""관리자 인증 서비스 — 로그인/로그아웃 비즈니스 로직."""
+"""관리자 인증 서비스 — 로그인/로그아웃/토큰 재발급 비즈니스 로직."""
 
 from datetime import datetime, timezone
 from typing import Any
 
+from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import InvalidCredentialsError, MissingAuthParameterError
+from app.core.exceptions import (
+    InvalidCredentialsError,
+    InvalidTokenError,
+    MissingAuthParameterError,
+)
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    decode_token,
     verify_password,
 )
-from app.schemas.auth import LoginData
+from app.schemas.auth import LoginData, RefreshData
 from app.services import admin_service, token_blacklist
 
 
@@ -62,3 +68,39 @@ async def logout(token_payload: dict[str, Any]) -> None:
     ttl_seconds = max(0, int(exp - now_ts))
 
     await token_blacklist.add(jti, ttl_seconds)
+
+
+async def refresh_access_token(refresh_token: str | None) -> RefreshData:
+    """refresh 토큰으로 새 access 토큰 발급.
+
+    - 토큰 누락/위변조/만료 → AUTH-003 (InvalidTokenError)
+    - access 타입(refresh가 아님) → AUTH-003
+    - 블랙리스트(로그아웃됨) → AUTH-003
+    - 성공 → 새 access 토큰만 발급 (refresh는 그대로)
+    """
+    if not refresh_token:
+        raise InvalidTokenError()
+
+    try:
+        payload = decode_token(refresh_token)
+    except JWTError:
+        raise InvalidTokenError()
+
+    if payload.get("type") != "refresh":
+        raise InvalidTokenError()
+
+    jti = payload.get("jti")
+    if jti and await token_blacklist.is_blacklisted(jti):
+        raise InvalidTokenError()
+
+    subject = payload.get("sub")
+    if not subject:
+        raise InvalidTokenError()
+
+    new_access = create_access_token(subject=subject)
+
+    return RefreshData(
+        accessToken=new_access,
+        tokenType="Bearer",
+        expiresIn=settings.JWT_ACCESS_EXPIRE_MINUTES * 60,
+    )

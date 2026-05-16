@@ -164,6 +164,12 @@ async def _stream_to_disk(
     return written
 
 
+def _thumbnail_url(thumbnail_name: str | None) -> str | None:
+    if not thumbnail_name:
+        return None
+    return f"/api/v1/files/watermarked/{thumbnail_name}"
+
+
 async def list_watermarked_videos(
     db: AsyncSession,
     admin_id: int,
@@ -195,6 +201,7 @@ async def list_watermarked_videos(
             name=row.original_file_name,
             type=row.file_type,
             size=row.file_size,
+            thumbnailUrl=_thumbnail_url(row.thumbnail_name),
             createdAt=row.created_at,
         )
         for row in rows
@@ -228,6 +235,7 @@ async def get_watermarked_video_detail(
         payloadBits=PAYLOAD_BITS,
         businessId=WATERMARK_BUSINESS_ID,
         contentUuid=row.content_uuid,
+        thumbnailUrl=_thumbnail_url(row.thumbnail_name),
         createdAt=row.created_at,
         watermarkHex=row.watermark_hex,
     )

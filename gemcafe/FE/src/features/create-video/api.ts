@@ -8,6 +8,7 @@ interface ApiResponse<T> {
 
 /** AI 호출은 BE 처리 시간이 길어 axios 기본 30s timeout 으로 부족 — 개별 호출에 적용. */
 const AI_TIMEOUT_MS = 180_000
+const KEYFRAME_TIMEOUT_MS = 300_000
 
 // ─── Step 2. 케이크 이미지 분석 ──────────────────────────────────
 /**
@@ -249,7 +250,7 @@ export async function generateKeyframe(
   const res = await api.post<ApiResponse<KeyframeResult>>(
     `/cakes/sessions/${sessionId}/keyframes`,
     body,
-    { timeout: AI_TIMEOUT_MS },
+    { timeout: KEYFRAME_TIMEOUT_MS },
   )
   return res.data.data
 }
