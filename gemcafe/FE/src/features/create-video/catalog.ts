@@ -29,7 +29,7 @@ export const SIMULATIONS: SimulationItem[] = [
   { key: 'hand_half', label_kr: '손으로 반 가르기', image: ASSET('divine.png') },
   { key: 'cream_scoop', label_kr: '한 스푼 떠내기', image: ASSET('spoons.png') },
   { key: 'smash', label_kr: '뭉개기', image: ASSET('smash.png') },
-  { key: 'topping_drop', label_kr: '위에서 떨어트리기', image: ASSET('drop.png') },
+  { key: 'topping_fall', label_kr: '위에서 떨어트리기', image: ASSET('drop.png') },
   { key: 'glazed_effect', label_kr: '글레이즈드 효과', image: ASSET('glaze.png') },
 ]
 
@@ -37,7 +37,7 @@ export const SIMULATIONS: SimulationItem[] = [
 const CATEGORY_SIMULATIONS: Record<FocusCategory, string[]> = {
   base: ['spoon', 'fork_bite', 'cut_in_half'],
   creams: ['hand_half', 'cream_scoop', 'smash'],
-  toppings: ['topping_drop'],
+  toppings: ['topping_fall'],
   coating: ['glazed_effect'],
 }
 
@@ -121,4 +121,17 @@ export function categoryForKeyword(
   if (analysis.toppings?.includes(keyword)) return 'toppings'
   if (analysis.coating && analysis.coating === keyword) return 'coating'
   return null
+}
+
+/**
+ * Normalize legacy simulation keys to current catalog keys.
+ * Add aliases here when FE has older persisted values.
+ */
+export function normalizeSimulationCode(code: string | null | undefined): string | null {
+  if (code == null) return null
+  const map: Record<string, string> = {
+    // legacy -> current
+    topping_drop: 'topping_fall',
+  }
+  return map[code] ?? code
 }

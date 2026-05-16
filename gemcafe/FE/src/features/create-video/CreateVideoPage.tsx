@@ -21,6 +21,7 @@ import {
   categoryForKeyword,
   keywordLabel,
   simulationsForCategory,
+  normalizeSimulationCode,
   type FocusCategory,
 } from './catalog'
 
@@ -97,7 +98,7 @@ export default function CreateVideoPage() {
           )
         }
         if (s.selections?.simulationCode)
-          setSimulationCode(s.selections.simulationCode)
+          setSimulationCode(normalizeSimulationCode(s.selections.simulationCode))
         // backgroundCode: 명시적 null 이면 "미선택" (UI 키 'none') 으로 매핑.
         const bg = s.selections?.backgroundCode
         if (typeof bg === 'string' && bg.length > 0) setBackgroundCode(bg)
@@ -237,7 +238,7 @@ export default function CreateVideoPage() {
     if (!sessionId) return
     try {
       await updateSessionSelections(sessionId, {
-        simulationCode: nextSimulationCode,
+        simulationCode: normalizeSimulationCode(nextSimulationCode),
         backgroundCode:
           nextBackgroundCode === 'none' ? null : nextBackgroundCode,
         focus: nextFocusKey,
@@ -287,8 +288,9 @@ export default function CreateVideoPage() {
     setError(null)
     setGeneratingKeyframe(true)
     try {
+      const simToSend = normalizeSimulationCode(simulationCode)
       const res = await generateKeyframe(sessionId, {
-        simulationCode,
+        simulationCode: simToSend,
         // '미선택' (UI 키 'none') → API 에는 null 전송
         backgroundCode: backgroundCode === 'none' ? null : backgroundCode,
         focus: focusKey ?? '',
@@ -310,8 +312,9 @@ export default function CreateVideoPage() {
     setError(null)
     setGeneratingPrompt(true)
     try {
+      const simToSend = normalizeSimulationCode(simulationCode)
       const res = await generatePreviewPrompt(sessionId, {
-        simulationCode,
+        simulationCode: simToSend,
         backgroundCode: backgroundCode === 'none' ? null : backgroundCode,
         focus: focusKey ?? '',
         hint: prompt,
