@@ -952,6 +952,15 @@ def build_prompts(
                 start_frame = f"{signature}\n\n{start_frame}"
             video = f"{signature}\n\n{video}"
 
+        # 온도 hint — analysis.is_warm 이 True 일 때만 발화 (라바/몰튼 케이크 등).
+        # I2I 에는 키프레임에 그려질 steam/glossy melt 단서, I2V 에는 viscous flow 단서.
+        temperature_note = prompt_locks.get_temperature_note_en(analysis)
+        if temperature_note:
+            instruction = f"{temperature_note}\n\n{instruction}"
+            if start_frame is not None:
+                start_frame = f"{temperature_note}\n\n{start_frame}"
+            video = f"{temperature_note}\n\n{video}"
+
     # 배경/힌트가 있으면 프롬프트 끝에 덧붙임.
     # 배경은 prompt_locks.MOOD_LIGHTING의 자연어 묘사로 변환 (raw 키 박지 않음).
     # 단 start_frame_prompt 는 이미 "Preserve the exact same background" 같이 자체

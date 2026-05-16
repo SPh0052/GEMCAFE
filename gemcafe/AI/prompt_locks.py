@@ -881,6 +881,28 @@ def get_cake_structure_context_en(analysis: dict) -> str:
     )
 
 
+def get_temperature_note_en(analysis: Optional[dict]) -> str:
+    """
+    analysis['is_warm'] → I2I/I2V 프롬프트에 박을 영어 온도 hint.
+
+    is_warm=True 면 따뜻한 디저트 시그니처(증기·점성 흐름·glossy melt) 를 화면에
+    살리도록 한 줄 가이드. False/없음/비boolean 이면 빈 문자열 (대부분 케이크는 차갑게
+    서빙되므로 라인 안 박는 게 기본).
+
+    예: analysis = {"is_warm": True}  (라바 케이크)
+        → "Temperature: served warm — emphasize visible steam rising from the surface,
+           glossy melt highlights, and slow viscous flow of any molten or warm elements."
+    """
+    if not analysis:
+        return ""
+    if analysis.get("is_warm") is not True:   # True 일 때만 발화 (None/False 모두 무시)
+        return ""
+    return (
+        "Temperature: served warm — emphasize visible steam rising from the surface, "
+        "glossy melt highlights, and slow viscous flow of any molten or warm elements."
+    )
+
+
 def get_signature_feature_en(analysis: Optional[dict]) -> str:
     """
     analysis['key_feature'] → I2I/I2V 프롬프트에 박을 영어 시그니처 라인.
