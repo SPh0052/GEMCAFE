@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Film, Sparkles } from 'lucide-react'
+import { Film, Loader2, Sparkles } from 'lucide-react'
 import { AuthedImage } from '@/shared/components/AuthedMedia'
 import { extractErrorMessage } from '@/shared/lib/errors'
 import { getInProgressSessions, type InProgressSession } from './api'
@@ -107,34 +107,68 @@ export default function CreateLandingPage() {
       {/* 진행 중 세션 그리드 */}
       {!loading && !error && inProgress.length > 0 && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
-          {inProgress.map((s) => (
-            <button
-              key={s.sessionId}
-              type="button"
-              onClick={() =>
-                navigate('/create/new', { state: { sessionId: s.sessionId } })
-              }
-              className="group flex flex-col gap-2 text-left"
-            >
-              <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-200 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-xl">
-                <AuthedImage
-                  src={s.inputImage.url}
-                  alt={s.inputImage.fileName}
-                  className="h-full w-full object-cover"
-                  fallbackClassName="h-full w-full bg-linear-to-br from-amber-100 to-orange-100"
-                />
-                <div className="absolute inset-0 bg-black/10 transition group-hover:bg-black/20" />
-                <span className="absolute left-2.5 top-2.5 rounded-full bg-amber-500/95 px-2.5 py-1 text-[10px] font-bold text-white shadow">
-                  {labelForStatus(s.status)}
-                </span>
-              </div>
-              <div className="px-0.5">
-                <p className="text-sm font-semibold text-gray-800 transition group-hover:text-brand-600">
-                  {formatDate(s.createdAt)}
-                </p>
-              </div>
-            </button>
-          ))}
+          {inProgress.map((s) => {
+            const isGenerating = isGeneratingStatus(s.status)
+            return (
+              <button
+                key={s.sessionId}
+                type="button"
+                disabled={isGenerating}
+                onClick={() =>
+                  navigate('/create/new', { state: { sessionId: s.sessionId } })
+                }
+                className={`group flex flex-col gap-2 text-left ${
+                  isGenerating ? 'cursor-not-allowed' : ''
+                }`}
+              >
+                <div
+                  className={`relative aspect-square overflow-hidden rounded-2xl bg-gray-200 shadow-sm transition ${
+                    isGenerating
+                      ? 'opacity-85'
+                      : 'group-hover:-translate-y-0.5 group-hover:shadow-xl'
+                  }`}
+                >
+                  <AuthedImage
+                    src={s.inputImage.url}
+                    alt={s.inputImage.fileName}
+                    className="h-full w-full object-cover"
+                    fallbackClassName="h-full w-full bg-linear-to-br from-amber-100 to-orange-100"
+                  />
+                  <div
+                    className={`absolute inset-0 transition ${
+                      isGenerating
+                        ? 'bg-black/45'
+                        : 'bg-black/10 group-hover:bg-black/20'
+                    }`}
+                  />
+                  <span
+                    className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10px] font-bold text-white shadow ${
+                      isGenerating ? 'bg-gray-900/85' : 'bg-amber-500/95'
+                    }`}
+                  >
+                    {labelForStatus(s.status)}
+                  </span>
+                  {isGenerating && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="text-xs font-bold">영상 생성 중</span>
+                    </div>
+                  )}
+                </div>
+                <div className="px-0.5">
+                  <p
+                    className={`text-sm font-semibold transition ${
+                      isGenerating
+                        ? 'text-gray-500'
+                        : 'text-gray-800 group-hover:text-brand-600'
+                    }`}
+                  >
+                    {formatDate(s.createdAt)}
+                  </p>
+                </div>
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -163,6 +197,8 @@ function formatDate(iso: string): string {
 }
 
 function labelForStatus(status: string): string {
+  if (isGeneratingStatus(status)) return '영상 생성 중'
+
   switch (status) {
     case 'ANALYZED':
       return '분석 완료'
@@ -173,4 +209,8 @@ function labelForStatus(status: string): string {
     default:
       return '진행 중'
   }
+}
+
+function isGeneratingStatus(status: string): boolean {
+  return status === 'GENERATING' || status === 'VIDEO_GENERATING'
 }
