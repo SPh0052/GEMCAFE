@@ -40,7 +40,7 @@ INPUT_IMAGE_PATH = "./test_cake.jpg"
 
 # 시뮬레이션 / focus / 배경 / 힌트 (pipeline.py 와 동일 의미)
 SIMULATION = "cut_in_half"             # smash | fork_bite | cut_in_half | cream_scoop |
-                                       # strawberry_fall | strawberry_cascade
+                                       # topping_fall
 FOCUS = None                           # None=자동, "strawberry" 등=수동
 BACKGROUND = None                      # None=교체 안 함, "white_marble" 등
 USER_HINT = None

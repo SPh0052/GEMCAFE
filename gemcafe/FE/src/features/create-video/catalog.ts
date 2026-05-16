@@ -57,16 +57,10 @@ export const SIMULATIONS: SimulationItem[] = [
     applicable_focus: ['whipped_cream'],
   },
   {
-    key: 'strawberry_fall',
-    label_kr: '딸기 떨어지기',
+    key: 'topping_fall',
+    label_kr: '위에서 떨어뜨리기',
     image: ASSET('chop.png'),
-    applicable_focus: ['strawberry'],
-  },
-  {
-    key: 'strawberry_cascade',
-    label_kr: '딸기 폭포',
-    image: ASSET('divine.png'),
-    applicable_focus: ['strawberry'],
+    applicable_focus: ['strawberry', 'blueberry', 'mango'],
   },
 ]
 
@@ -98,7 +92,7 @@ export const FOCUSES: FocusItem[] = [
   {
     key: 'strawberry',
     label_kr: '딸기',
-    applicable_simulations: ['strawberry_fall', 'strawberry_cascade'],
+    applicable_simulations: ['topping_fall'],
   },
   {
     key: 'whipped_cream',

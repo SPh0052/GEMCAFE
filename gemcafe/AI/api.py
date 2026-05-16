@@ -100,7 +100,7 @@ class VideoRequest(BaseModel):
             "video_prompt_kr 사용 시 필수. "
             "잠금 라이브러리에서 카메라/부정 프롬프트/길이 조회용. "
             "예: smash / fork_bite / cut_in_half / cream_scoop / "
-            "strawberry_fall / strawberry_cascade. "
+            "topping_fall. "
             "전체 목록은 GET /catalog."
         ),
     )
@@ -290,7 +290,7 @@ def keyframe_endpoint(
         ...,
         description=(
             "시뮬레이션 키. 'smash' / 'fork_bite' / 'cut_in_half' / 'cream_scoop' / "
-            "'strawberry_fall' / 'strawberry_cascade'. 전체 목록은 GET /catalog."
+            "'topping_fall'. 전체 목록은 GET /catalog."
         ),
     ),
     focus: Optional[str] = Form(

@@ -427,32 +427,14 @@ SIMULATIONS = {
         ),
     },
     # ─────────────────────────────────────────────────────────────────
-    "strawberry_fall": {
-        "label_kr": "딸기가 케이크 위로 톡 떨어진다",
+    "topping_fall": {
+        "label_kr": "위에서 떨어뜨리기",
         "category": "topping",   # 토핑이 위에서 떨어져 안착 — 카테고리 자동 focus 는 topping 역할
-        "applicable_focus": ["strawberry"],
-        "frame_strategy": "i2i_is_start",   # 역방향: I2I = 딸기 없는 시작 상태
-        "instruction_template": (
-            "Edit the input image for a 9:16 vertical short-form video start frame. "
-            "DO NOT regenerate or replace the cake. Use the exact input image as the base. "
-            "Preserve the cake pixel-by-pixel: same shape, same cream, same plate, same "
-            "background, same lighting. "
-            "ONLY remove the {focus} from the top of the cake. The cake should look complete "
-            "but without the {focus} — as if the {focus} hasn't been placed on it yet. Keep the "
-            "cream surface where the {focus} was, smooth and natural, as if untouched. "
-            "Do not change anything else. Photorealistic, sharp focus, natural lighting."
-        ),
-        "video_template": (
-            "A single {focus} falls gently from above and lands softly on top of the cake, "
-            "settling into its natural position on the cream with a slight bounce on impact. "
-            "The cake itself stays still. No morphing, no extra elements appear."
-        ),
-    },
-    # ─────────────────────────────────────────────────────────────────
-    "strawberry_cascade": {
-        "label_kr": "딸기가 우수수 쏟아진다",
-        "category": "topping",   # 토핑이 위에서 쏟아져 안착 — 카테고리 자동 focus 는 topping 역할
-        "applicable_focus": ["strawberry"],
+        # 기존 strawberry_fall + strawberry_cascade 의 통합본 (S14P31S307-624).
+        # 분석에서 추출된 어떤 topping 이든 자동 적용. 한 알이 톡 떨어지는 단일
+        # 안착부터 우수수 쏟아지는 다량 안착까지 영상 모델이 컨텍스트에 맞게
+        # 자연스럽게 해석하도록 양쪽을 모두 허용하는 phrasing.
+        "applicable_focus": ["strawberry", "blueberry", "mango"],
         "frame_strategy": "i2i_is_start",   # 역방향: I2I = 토핑 없는 시작 상태
         "instruction_template": (
             "Edit the input image for a 9:16 vertical short-form video start frame. "
@@ -474,14 +456,15 @@ SIMULATIONS = {
             "position, size, and framing in the image."
         ),
         "video_template": (
-            "Fresh {focus} pieces cascade from above the frame onto the cake's top "
-            "surface. Slow-motion fall: the {focus} pieces tumble through the air, "
-            "bounce on the surface with subtle deformation, and settle into a dense "
-            "even arrangement that progressively covers the entire top of the cake. "
-            "Small water droplets glisten on their natural surface, with the {focus} "
-            "emphasized as the most prominent visual element in the scene. Static "
-            "camera, soft diffused studio lighting, shallow depth of field, premium "
-            "food commercial aesthetic, hyper-realistic textures."
+            "Fresh {focus} pieces fall gently from above the frame onto the cake's top "
+            "surface. The fall may be a single piece settling alone or several pieces "
+            "cascading down in sequence — in either case, each piece tumbles through "
+            "the air, lands on the surface with subtle deformation on impact, bounces "
+            "softly, and settles into a final resting position. Small water droplets "
+            "glisten on the natural surface of the {focus}, emphasized as the most "
+            "prominent visual element in the scene. Static camera, soft diffused studio "
+            "lighting, shallow depth of field, premium food commercial aesthetic, "
+            "hyper-realistic textures."
         ),
     },
 }

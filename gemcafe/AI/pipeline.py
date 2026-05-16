@@ -38,10 +38,9 @@ INPUT_IMAGE_PATH = "./test_cake.jpg"
 # 시뮬레이션 (GET /catalog 의 simulations[].key 와 일치)
 #   "smash"              뭉개기                  (i2i = end frame)
 #   "fork_bite"          포크로 한 입 뜨기        (i2i = end frame)
-#   "cut_in_half"        반으로 자르기           (i2i = end frame)
+#   "cut_in_half"        칼로 단면 가르기         (i2i = end frame)
 #   "cream_scoop"        크림만 떠내기           (i2i = end frame)
-#   "strawberry_fall"    딸기가 케이크 위로 떨어짐 (i2i = start frame, 역방향)
-#   "strawberry_cascade" 딸기 우수수             (i2i = start frame, 역방향)
+#   "topping_fall"       위에서 떨어뜨리기 (단일·다량 자동, i2i = start frame, 역방향)
 SIMULATION = "cream_scoop"
 
 # 강조할 요소 (focus) — 정식 키: "sponge" / "whipped_cream" / "strawberry"
@@ -221,7 +220,7 @@ def main():
 
     # frame_strategy에 따라 start/end 결정
     #   i2i_is_end   → base_url=START, keyframe=END  (smash/fork_bite/cut_in_half/cream_scoop)
-    #   i2i_is_start → keyframe=START, base_url=END  (strawberry_fall/strawberry_cascade)
+    #   i2i_is_start → keyframe=START, base_url=END  (topping_fall)
     if kf["frame_strategy"] == "i2i_is_end":
         start_url, end_url = kf["base_url"], kf["keyframe_url"]
     else:
