@@ -61,6 +61,7 @@ export type InProgressStatus =
   | 'READY_TO_GENERATE'
   | 'GENERATING'
   | 'VIDEO_GENERATING'
+  | 'SUBMITTED'
   | string
 
 export interface InProgressSession {
@@ -72,6 +73,8 @@ export interface InProgressSession {
     /** 인증 보호 경로일 수 있음 — 카드 썸네일로 사용. AuthedImage 권장 */
     url: string
   }
+  /** SUBMITTED 상태일 때 영상 생성 진행 상황을 `/creating` 페이지에서 조회용. */
+  videoId?: number | null
 }
 
 export interface InProgressList {
