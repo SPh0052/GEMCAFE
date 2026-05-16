@@ -427,6 +427,154 @@ SIMULATIONS = {
         ),
     },
     # ─────────────────────────────────────────────────────────────────
+    "lift_slice": {
+        "label_kr": "한 조각 쏙 들어올리기",
+        "category": "sheet",   # 시트 슬라이스 통째 들어올림 — base 역할
+        # 2단계 I2I 체인 (cream_scoop 와 동일 패턴):
+        #   start_frame_template — 입력 슬라이스로 홀케이크를 재구성한 시작 프레임
+        #   instruction_template — 그 홀케이크에서 슬라이스가 떠올려진 마지막 프레임
+        # 영상 = 홀케이크 → 한 조각이 케이크 서버로 떠올라 빈 wedge 가 드러남.
+        "applicable_focus": [
+            "sponge", "vanilla_sponge", "chocolate_sponge",
+            "baked_cheese", "ladyfinger_biscuit",
+        ],
+        "frame_strategy": "i2i_is_end",
+        "slot_phrases": {
+            "instruction": {
+                "cream":   "; the {value} between sheet layers remains crisply defined on both cut faces of the lifted slice",
+                "topping": ". Any {value} on top of the slice stays securely in place on the slice's surface during the lift",
+            },
+            "video": {
+                "cream":   "; the {value} layers stay neatly stacked through the lift, no smearing or shifting",
+            },
+        },
+        # 1단계 — 입력 슬라이스 이미지로부터 홀케이크를 상상·재구성한 시작 프레임
+        "start_frame_template": (
+            "Edit the provided image of a single triangular cake slice. The slice has "
+            "two flat cut faces created when it was originally cut from a whole round "
+            "cake. Reconstruct the COMPLETE original round whole cake from which this "
+            "slice was cut, placing the slice back into its original position within "
+            "the whole cake so that the two cut faces of the slice are perfectly flush "
+            "against the matching cut faces of the rest of the cake.\n\n"
+            "The resulting whole cake must be:\n"
+            "- A round 360-degree whole cake when viewed from above\n"
+            "- Built by extending the slice's exact top decoration, side coating, "
+            "cream pattern, base, colors, and textures consistently around the entire "
+            "perimeter — the rest of the cake looks identical in style and materials "
+            "to the input slice, just continued around the full circumference\n"
+            "- The original slice is fully integrated into the whole cake with NO "
+            "visible gap, NO visible cut line, NO visible seam between the slice and "
+            "the rest — it reads as one continuous unbroken cake\n"
+            "- Sitting on the same plate or surface style as the original input "
+            "image, with the plate scaled up appropriately to fit the whole cake\n\n"
+            "Preserve the input image's background, lighting direction and quality, "
+            "color temperature, camera height and distance, and overall photographic "
+            "style. Photorealistic, high-detail food photography, shallow depth of "
+            "field focused on the whole cake."
+        ),
+        # 2단계 — 그 홀케이크에서 슬라이스가 케이크 서버로 떠올려진 마지막 프레임
+        "instruction_template": (
+            "Edit the provided image of a whole round cake for a 9:16 vertical "
+            "short-form video end frame, showing a single triangular slice now lifted "
+            "cleanly off the whole cake by a polished stainless steel cake server.\n\n"
+            "The slice being lifted is one wedge of the whole cake — about 1/8 to "
+            "1/6 of the full 360-degree cake. The cake server enters from the "
+            "lower-right of the frame at a shallow angle, with the flat triangular "
+            "blade fully inserted beneath the slice, supporting it from below. The "
+            "handle extends out of the frame toward the lower-right corner.\n\n"
+            "The slice is lifted gently into the upper-center of the frame, with a "
+            "clear air gap of roughly 3 to 5 centimeters between the bottom of the "
+            "slice and the surface of the whole cake below. The slice stays level "
+            "and intact, holding its full triangular shape with no tilt, no "
+            "collapse, no crumbs falling.\n\n"
+            "Both cut faces of the lifted slice — the two triangular sides where it "
+            "was separated from the whole cake — are clearly visible in profile, "
+            "exposing the {focus} as the dominant feature of the cross-section"
+            "{cream}{topping}. The internal structure reads as crisp and freshly cut.\n\n"
+            "The whole cake below shows a corresponding wedge-shaped gap where the "
+            "slice used to sit. The exposed inner faces of the remaining whole cake "
+            "match the lifted slice's cut faces exactly — same internal structure, "
+            "same materials, same colors.\n\n"
+            "Preserve the cake's pixel-level appearance otherwise: same top "
+            "decoration, same side coating, same cream pattern around the remaining "
+            "rim, same plate, same background and lighting. Photorealistic dessert "
+            "advertising aesthetic, shallow depth of field focused on the lifted "
+            "slice, the cake body softly out of focus below."
+        ),
+        "video_template": (
+            "A polished stainless steel cake server slides in smoothly from the "
+            "lower-right of the frame, slips its flat triangular blade beneath one "
+            "wedge of the whole cake, and lifts the slice cleanly off in one "
+            "continuous, deliberate motion. The slice rises gently into the "
+            "upper-center of the frame, staying level the whole way up, with both "
+            "cut faces of the slice clearly visible — the {focus} is emphasized as "
+            "the dominant cross-section{cream}. The slice settles in mid-air with a "
+            "small air gap above the whole cake, which now shows a clean wedge-shaped "
+            "gap where the slice used to be. Static camera throughout, no panning, "
+            "no zooming, smooth ASMR-style food cinematography."
+        ),
+    },
+    # ─────────────────────────────────────────────────────────────────
+    "hand_split": {
+        "label_kr": "손으로 반 가르기",
+        "category": "cream",   # 가르며 단면의 크림을 노출 — cream 역할 강조
+        # 양손(검은 장갑)이 슬라이스 양 끝을 잡고 깔끔하게 두 조각으로 가름.
+        # whipped/ganache/mascarpone/baked_cheese 는 모두 ductile 아니므로 stretching
+        # 없이 깨끗한 단절. molten_chocolate 은 stretching 시그니처라 디자인 충돌 → 제외.
+        "applicable_focus": [
+            "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
+        ],
+        "frame_strategy": "i2i_is_end",
+        "slot_phrases": {
+            "instruction": {
+                "base":    "; the {value} body of the slice breaks cleanly along the split, exposing the layered baked structure on both halves",
+                "topping": ". Any {value} on top of the slice stays attached to one of the two halves and may shift slightly with the pulling motion",
+            },
+            "video": {
+                "base":    "; the {value} layers part cleanly along the break",
+            },
+        },
+        "instruction_template": (
+            "Edit the input image for a 9:16 vertical short-form video end frame, "
+            "showing the cake slice now split into two halves by two human hands "
+            "wearing black food-safe nitrile gloves.\n\n"
+            "Both gloved hands grip the slice from its two pointed ends — the left "
+            "hand from the left tip, the right hand from the right tip — with "
+            "fingers wrapped around the bottom and sides of each half for a secure "
+            "grip. The hands have just pulled the two halves apart, leaving a clear "
+            "gap of roughly 4 to 6 centimeters of empty air between the freshly "
+            "exposed inner faces.\n\n"
+            "Each half retains its original triangular shape on the outside, with "
+            "all external surfaces (top, sides, bottom) intact. The break runs "
+            "cleanly down the middle of the slice, perpendicular to its long edge, "
+            "revealing two flat inner cross-sections that face each other across "
+            "the gap.\n\n"
+            "The {focus} is clearly visible and emphasized as the most prominent "
+            "feature on both freshly exposed inner faces{base}{topping}. The break "
+            "is sharp and clean — no stretching strands, no stringing, no dripping "
+            "material connecting the two halves through the gap. The space between "
+            "the halves is empty air.\n\n"
+            "Preserve the cake's pixel-level appearance otherwise: same toppings on "
+            "the surface, same cream pattern on external surfaces, same colors. "
+            "The plate stays in place below. Background, lighting, and camera "
+            "framing remain identical to the input.\n\n"
+            "Photorealistic dessert close-up aesthetic, shallow depth of field "
+            "focused on the exposed inner cross-sections."
+        ),
+        "video_template": (
+            "Two black-gloved hands enter from the left and right edges of the "
+            "frame, grip the slice firmly from both pointed ends, and in a single "
+            "smooth, continuous motion pull the slice apart toward the edges of "
+            "the frame. The slice splits cleanly down the middle, the two halves "
+            "separating into the air with a clear gap opening between them, "
+            "revealing two flat inner cross-sections that face each other — the "
+            "{focus} is emphasized as the dominant feature on both exposed faces"
+            "{base}. The break stays clean throughout the motion, with no "
+            "stretching strands or stringing across the gap. Static camera, "
+            "smooth steady motion, ASMR-style food cinematography."
+        ),
+    },
+    # ─────────────────────────────────────────────────────────────────
     "topping_fall": {
         "label_kr": "위에서 떨어뜨리기",
         "category": "topping",   # 토핑이 위에서 떨어져 안착 — 카테고리 자동 focus 는 topping 역할
