@@ -419,6 +419,20 @@ TEXTURE_PROFILES = {
             "가볍게 갈라짐. 단면이 매끈하고 끊김이 짧고 깨끗함. 결이 없는 균질한 "
             "거품 구조라 늘어지거나 실처럼 늘어붙지 않음."
         ),
+        # 영어 텍스처: feedback_cream_vocab — stretch/strand/string/pull 금지,
+        # dollop/peaks/glossy/billowy/satin 사용.
+        "under_pressure_en": (
+            "The whipped cream yields softly under the tool, compressing into a clean "
+            "indentation and spreading outward in soft billowy peaks. Cream that clings "
+            "to the tool forms clean dollops with crisp tips — no stretching, no "
+            "stringing, no trailing strands."
+        ),
+        "when_cut_en": (
+            "The whipped cream parts cleanly along the break, exposing a soft billowy "
+            "interior with delicate ridges and satin highlights on both freshly exposed "
+            "faces. The cream keeps its shape with clean break edges — no stretching "
+            "strands, no stringing across the gap."
+        ),
         "visual_identity_en": "fluffy whipped cream (light, airy, soft white dairy cream)",
     },
     "cream": {
@@ -439,6 +453,17 @@ TEXTURE_PROFILES = {
             "매끈하고 균질한 단면이 살짝 윤기를 띠며 깔끔하게 갈라짐. 결이 없는 점성 "
             "질감이라 늘어지거나 부스러지지 않고 단면 모서리가 또렷함."
         ),
+        "under_pressure_en": (
+            "The mascarpone yields slowly under the tool with a dense satin sheen, "
+            "compressing into a clean indentation and clinging thickly to the tool. "
+            "It holds its shape with a clean break — no stretching, no strands."
+        ),
+        "when_cut_en": (
+            "The mascarpone parts cleanly along the break, exposing a smooth dense "
+            "satin interior with crisp clean edges on both freshly exposed faces. The "
+            "filling clings briefly at the break face but keeps its shape with no "
+            "stretching strands or stringing across the gap."
+        ),
         "visual_identity_en": "mascarpone cream (rich Italian dairy with smooth surface and slight sheen)",
     },
     "ganache": {
@@ -453,6 +478,19 @@ TEXTURE_PROFILES = {
         "when_cut_kr": (
             "매끈한 단면이 강한 윤기를 띠며 깔끔하게 갈라짐. 단면 양쪽에 도구를 따라 "
             "얇은 점성 자국이 남고, 진한 갈색이 또렷이 노출됨."
+        ),
+        # ganache 는 점성 ductile 재료라 약한 stretch 허용 — viscous trails / clinging
+        "under_pressure_en": (
+            "The ganache yields slowly under the tool with a deep glossy sheen, the "
+            "surface depression staying smooth. Thick viscous trails cling to the tool "
+            "and may briefly stretch before snapping off — the dark chocolate stays "
+            "glossy at the indentation edge."
+        ),
+        "when_cut_en": (
+            "The ganache parts cleanly along the break, exposing a smooth glossy "
+            "interior with deep dark chocolate color on both freshly exposed faces. "
+            "Thick viscous trails cling at the break edges with brief stretching "
+            "before snapping."
         ),
         "visual_identity_en": "chocolate ganache (smooth glossy thick chocolate cream)",
     },
@@ -470,6 +508,18 @@ TEXTURE_PROFILES = {
             "흘러내림. 점성 액체가 도구 양쪽에 늘어붙으며 가는 실처럼 늘어지다 끊어지고, "
             "단면 아래쪽에 광택 있는 웅덩이가 고임."
         ),
+        # molten_chocolate 만 진짜 늘어남 시그니처 허용 (라바 케이크 핵심 비주얼)
+        "under_pressure_en": (
+            "The warm molten chocolate flows out from the indentation with a slow "
+            "viscous stream, clinging to the tool in glossy threads that stretch and "
+            "trail before slowly snapping. A pool of warm dark chocolate gathers below."
+        ),
+        "when_cut_en": (
+            "The cut releases the warm molten chocolate inside, which begins to flow "
+            "slowly outward from the cross-section in a dark glossy stream. Viscous "
+            "strands trail from the tool with visible stretching — this is the "
+            "signature lava reveal. A warm chocolate pool gathers at the base of the cut."
+        ),
         "visual_identity_en": "molten chocolate (warm dark flowing chocolate sauce with viscous glossy texture)",
     },
 
@@ -478,24 +528,60 @@ TEXTURE_PROFILES = {
         "label_kr": "스펀지 시트",
         "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",
         "when_cut_kr": "부스러기 발생, 결과 층 노출",
+        "under_pressure_en": (
+            "The sponge compresses elastically under the tool with a slight spring-back, "
+            "the airy crumb structure pushed inward. A few small crumbs may detach at "
+            "the indentation edge."
+        ),
+        "when_cut_en": (
+            "The sponge parts cleanly along the cut, exposing the fluffy airy crumb "
+            "structure with visible individual air pockets. A few small crumbs may "
+            "detach at the cut edge."
+        ),
         "visual_identity_en": "sponge cake (soft baked layers with airy crumb texture)",
     },
     "vanilla_sponge": {
         "label_kr": "바닐라 스펀지",
         "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",
         "when_cut_kr": "노란빛 결과 층 드러남",
+        "under_pressure_en": (
+            "The vanilla sponge compresses elastically with a slight spring-back, the "
+            "pale yellow airy crumb pushed inward. Small crumbs may detach at the edge."
+        ),
+        "when_cut_en": (
+            "The vanilla sponge parts cleanly along the cut, exposing the pale yellow "
+            "fluffy crumb structure with visible air pockets. Small crumbs at the cut edge."
+        ),
         "visual_identity_en": "vanilla sponge cake (pale yellow soft baked layers)",
     },
     "chocolate_sponge": {
         "label_kr": "초콜릿 스펀지",
         "under_pressure_kr": "탄력 있게 짓눌렸다 일부 복원",
         "when_cut_kr": "진한 갈색 결과 층 드러남",
+        "under_pressure_en": (
+            "The chocolate sponge compresses elastically with a slight spring-back, the "
+            "dark brown airy crumb pushed inward. Small crumbs may detach at the edge."
+        ),
+        "when_cut_en": (
+            "The chocolate sponge parts cleanly along the cut, exposing the dark brown "
+            "fluffy crumb structure with visible air pockets. Small crumbs at the cut edge."
+        ),
         "visual_identity_en": "chocolate sponge cake (dark brown soft baked layers)",
     },
     "ladyfinger_biscuit": {
         "label_kr": "레이디핑거",
         "under_pressure_kr": "살짝 부서지고 시럽이 배어남",
         "when_cut_kr": "단면에 시럽 자국 노출",
+        "under_pressure_en": (
+            "The syrup-soaked ladyfinger compresses softly under the tool, releasing a "
+            "small amount of coffee syrup at the indentation. The biscuit yields with "
+            "minimal spring-back and may shed a few moist crumbs at the edge."
+        ),
+        "when_cut_en": (
+            "The ladyfinger parts along the break, exposing a syrup-saturated golden "
+            "interior with visible coffee staining throughout. Moist crumbs at the "
+            "break edges and slight syrup beading on the freshly exposed faces."
+        ),
         "visual_identity_en": "ladyfinger biscuit (coffee-soaked golden sponge fingers)",
     },
     "baked_cheese": {
@@ -516,6 +602,24 @@ TEXTURE_PROFILES = {
             "밀도 높은 푸딩이나 커스터드처럼 정적인 상태를 유지함. 수분기를 머금은 "
             "은은한 반무광 표면. Basque 의 경우 겉면의 탄화된 거친 갈색 질감과 속의 "
             "실크 같은 매끈한 크림색 단면이 극명한 대비를 이룸."
+        ),
+        # ⚠️ 모델이 "cheese" 보면 모짜렐라처럼 늘어지게 그리는 default 강함 — 영어
+        # 텍스처에서도 "NOT stretchy / NOT stringy / NOT mozzarella" 명시 필수.
+        "under_pressure_en": (
+            "The baked cream cheese filling yields slowly with dense resistance, "
+            "compressing into a clean indentation. The cream clings thickly at the "
+            "contact surface but does NOT stretch into strands or fibers — it behaves "
+            "like chilled custard or pudding, NOT like mozzarella or any melting "
+            "cheese. The interior stays dense, smooth, and non-elastic at the edge."
+        ),
+        "when_cut_en": (
+            "The break exposes a silky smooth pale cream-colored interior with crisp "
+            "clean edges on both freshly exposed faces. The cream cheese filling "
+            "clings briefly at the break face but does NOT stretch into strands or "
+            "fibers of any kind — zero stringiness, zero melt threads, zero pulling "
+            "apart like mozzarella or melting cheese. The interior reads as dense, "
+            "like chilled custard or pudding. For Basque-style, the dark caramelized "
+            "crust stays intact at the edges of the break."
         ),
         "visual_identity_en": (
             "baked cream cheese filling (highly dense, non-elastic, smooth texture; "
