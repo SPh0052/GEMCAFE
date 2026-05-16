@@ -130,6 +130,24 @@ Example 5 (a Basque-style baked cheesecake — dense terrine style):
 "suggested_focus": ["baked_cheese", "caramelized_top", "dense_interior"]
 }
 
+Example 6 (a decorated layered cake with firm piped whipped cream — stabilized style, NOT freshly billowy):
+{
+"cake_type": "layered_cream",
+"base": ["vanilla_sponge"],
+"creams": ["whipped_cream"],
+"toppings": ["strawberry"],
+"coating": "whipped_cream_coating",
+"key_feature": "sharp piped rosettes of firm stabilized whipped cream",
+"is_warm": false,
+"is_layered": true,
+"element_textures": {
+  "whipped_cream": "firm stabilized piped rosettes holding sharp ridges and crisp edges, NOT freshly soft",
+  "vanilla_sponge": "tight even crumb, moderately moist, holds clean cut",
+  "strawberry": "whole halved berries with bright glossy cut faces"
+},
+"suggested_focus": ["stabilized_cream", "piped_rosettes", "vanilla_sponge"]
+}
+
 === ELEMENT NAMING RULES (STRICT) ===
 
 For the data fields (base, creams, toppings, coating), output ONLY these
@@ -164,6 +182,19 @@ type can have very different textures — e.g. a Basque cheesecake can be
 runny/oozing, dense/fudgy, or somewhere in between. A whipped cream can be
 billowy fresh peaks or stabilized firm rosettes. Sponge can be dry crumbly
 or syrup-soaked moist.
+
+EVERY cake type — not just cheesecake — has instance-level variation.
+Describe each visible element along these axes whenever applicable:
+  - consistency:   runny ↔ creamy/spoonable ↔ dense/firm ↔ stiff
+  - moisture:      dry crumbly ↔ moist ↔ deeply soaked
+  - surface look:  glossy/wet ↔ matte ↔ rough/grainy
+  - aeration:      airy/billowy ↔ medium ↔ compact/dense
+  - structure:     barely-holds-shape ↔ holds-soft-shape ↔ holds-clean-cut-edges
+
+Visual cues to read:
+  - cut face is rounded/bulging vs sharp vertical → softer vs firmer
+  - glossy reflective vs matte surface → wetter vs drier
+  - color saturation, crumb size, edge crispness, surface tension
 
 Rules:
 - Keys MUST match the canonical element keys used in base/creams/toppings
