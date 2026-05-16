@@ -141,6 +141,8 @@ public class VideoGenerationService {
     public void completeVideo(Integer videoId, VideoFileService.StoredVideo stored) {
         Video video = videoRepository.findById(videoId).orElseThrow();
         video.markCompleted(stored.storedFileName(), (int) stored.fileSize(), stored.thumbnailFileName());
+        videoSessionRepository.findByVideoId(videoId).ifPresent(VideoSession::abandon);
+        log.info("[VIDEO-COMPLETE] videoId={} session abandoned", videoId);
     }
 
     @Transactional
