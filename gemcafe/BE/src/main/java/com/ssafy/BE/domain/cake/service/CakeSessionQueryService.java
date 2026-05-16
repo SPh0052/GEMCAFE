@@ -37,7 +37,8 @@ public class CakeSessionQueryService {
     private static final List<VideoSessionStatus> IN_PROGRESS_STATUSES = List.of(
             VideoSessionStatus.ANALYZED,
             VideoSessionStatus.KEYFRAMING,
-            VideoSessionStatus.READY_TO_GENERATE
+            VideoSessionStatus.READY_TO_GENERATE,
+            VideoSessionStatus.SUBMITTED
     );
 
     private final VideoSessionRepository videoSessionRepository;
