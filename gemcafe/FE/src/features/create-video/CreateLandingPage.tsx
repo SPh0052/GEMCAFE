@@ -109,14 +109,21 @@ export default function CreateLandingPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
           {inProgress.map((s) => {
             const isGenerating = isGeneratingStatus(s.status)
+            const handleCardClick = () => {
+              if (isGenerating && s.videoId) {
+                // SUBMITTED 상태: /creating으로 이동해 영상 생성 진행 상황 조회
+                navigate('/creating', { state: { videoId: s.videoId } })
+              } else if (!isGenerating) {
+                // 진행 중인 세션: /create/new로 이동해 작업 계속
+                navigate('/create/new', { state: { sessionId: s.sessionId } })
+              }
+            }
             return (
               <button
                 key={s.sessionId}
                 type="button"
                 disabled={isGenerating}
-                onClick={() =>
-                  navigate('/create/new', { state: { sessionId: s.sessionId } })
-                }
+                onClick={handleCardClick}
                 className={`group flex flex-col gap-2 text-left ${
                   isGenerating ? 'cursor-not-allowed' : ''
                 }`}
@@ -212,5 +219,5 @@ function labelForStatus(status: string): string {
 }
 
 function isGeneratingStatus(status: string): boolean {
-  return status === 'GENERATING' || status === 'VIDEO_GENERATING'
+  return status === 'GENERATING' || status === 'VIDEO_GENERATING' || status === 'SUBMITTED'
 }
