@@ -141,14 +141,14 @@ SIMULATIONS = {
             "pattern, same plate, same background, same lighting. "
             "ADD ONLY this change: a metal fork is pressed down into the top of the cake from "
             "above, gently compressing the {focus}. A visible indentation forms where the fork "
-            "pushes in, with the {focus} squished and slightly spread to the sides{topping}{base}. "
+            "pushes in, with the {focus} squished and slightly spread to the sides{topping}{base}{texture}. "
             "The fork is partially visible above the cake and partially embedded in it. "
             "Do not regenerate any existing element. Photorealistic, sharp focus, natural lighting."
         ),
         "video_template": (
             "A metal fork descends slowly from above and presses down into the top of the cake, "
             "gently compressing the {focus}. The {focus} visibly squishes and spreads to the "
-            "sides under the pressure, while the rest of the cake stays in place{topping}. "
+            "sides under the pressure, while the rest of the cake stays in place{topping}{texture}. "
             "Smooth steady downward motion. Realistic physics, no morphing of the cake."
         ),
     },
@@ -200,7 +200,7 @@ SIMULATIONS = {
             "actual internal structure — layers, fillings, and inclusions that truly "
             "exist inside the cake in the input image. The {focus} is clearly visible "
             "and emphasized as the most prominent feature on the exposed cross-section"
-            "{cream}{topping}{interior_structure}. "
+            "{cream}{topping}{interior_structure}{texture}. "
             "Faithfully reflect whatever is actually inside the cake; do NOT invent "
             "layers, fillings, or textures that are not visible in the original\n"
             "- On the cake body below, in an area that AVOIDS any prominent whole "
@@ -240,7 +240,7 @@ SIMULATIONS = {
             "lifts smoothly back up, scooping out a single full-height bite that stays "
             "impaled on the tines, revealing the cake's actual inner cross-section on the "
             "cut faces, with the {focus} clearly visible and emphasized as the most "
-            "prominent feature on the exposed cross-section{cream}{interior_structure}. As the fork rises, it settles "
+            "prominent feature on the exposed cross-section{cream}{interior_structure}{texture}. As the fork rises, it settles "
             "in the upper right area of the frame, clearly separated from the cake with "
             "empty space between them. The cake stays in place on whatever surface or liner "
             "it sits on throughout the motion; any toppings or decorations on the cake's "
@@ -290,7 +290,7 @@ SIMULATIONS = {
             "The cake's internal layers are pushed apart on both sides of the blade, "
             "revealing the internal texture in sharp detail, with the {focus} clearly "
             "emphasized as the most prominent and detailed feature on the exposed "
-            "cross-section{cream}{topping}{interior_structure}.\n\n"
+            "cross-section{cream}{topping}{interior_structure}{texture}.\n\n"
             "Photorealistic food photography, ultra-detailed texture, ASMR-style food "
             "cinematography aesthetic, soft natural lighting, emphasis on tactile texture "
             "and freshness."
@@ -301,7 +301,7 @@ SIMULATIONS = {
             "the blade descends, the cake's internal layers are gently pushed apart along "
             "the blade's path, gradually revealing the cake's internal texture — exposed "
             "with vivid color and natural texture, with the {focus} clearly emphasized as "
-            "the most prominent and detailed texture on the exposed cross-section{cream}{interior_structure}.\n\n"
+            "the most prominent and detailed texture on the exposed cross-section{cream}{interior_structure}{texture}.\n\n"
             "The knife moves at a steady, deliberate pace — slow enough to savor each "
             "moment of the cut, like an ASMR food video. The cake's internal structure "
             "softly parts along the blade, and tiny details of the moist interior become "
@@ -402,7 +402,7 @@ SIMULATIONS = {
 
             "A generous heap of {focus}, freshly scooped out from the entire length of "
             "the channel, sits piled on top of the spoon's bowl, mounded above the rim "
-            "of the bowl.\n\n"
+            "of the bowl{texture}.\n\n"
 
             "The dessert remains whole and intact otherwise: no chunks have broken off "
             "the dessert as a whole, no pieces have fallen, the dessert is NOT crumbling "
@@ -422,7 +422,7 @@ SIMULATIONS = {
             "spoon presses into the cut face near the top and drags downward along the "
             "center of the cut face, scooping out a long vertical channel in one fluid "
             "stroke from top to bottom. As the spoon drags down, it gradually accumulates "
-            "a heap of {focus} on its bowl. Camera remains locked and still, no panning, "
+            "a heap of {focus} on its bowl{texture}. Camera remains locked and still, no panning, "
             "no zooming, no shaking, no tilting."
         ),
     },
@@ -490,7 +490,7 @@ SIMULATIONS = {
             "Both cut faces of the lifted slice — the two triangular sides where it "
             "was separated from the whole cake — are clearly visible in profile, "
             "exposing the {focus} as the dominant feature of the cross-section"
-            "{cream}{topping}{interior_structure}. The internal structure reads as crisp and freshly cut.\n\n"
+            "{cream}{topping}{interior_structure}{texture}. The internal structure reads as crisp and freshly cut.\n\n"
             "The whole cake below shows a corresponding wedge-shaped gap where the "
             "slice used to sit. The exposed inner faces of the remaining whole cake "
             "match the lifted slice's cut faces exactly — same internal structure, "
@@ -508,7 +508,7 @@ SIMULATIONS = {
             "continuous, deliberate motion. The slice rises gently into the "
             "upper-center of the frame, staying level the whole way up, with both "
             "cut faces of the slice clearly visible — the {focus} is emphasized as "
-            "the dominant cross-section{cream}{interior_structure}. The slice settles in mid-air with a "
+            "the dominant cross-section{cream}{interior_structure}{texture}. The slice settles in mid-air with a "
             "small air gap above the whole cake, which now shows a clean wedge-shaped "
             "gap where the slice used to be. Static camera throughout, no panning, "
             "no zooming, smooth ASMR-style food cinematography."
@@ -550,7 +550,7 @@ SIMULATIONS = {
             "revealing two flat inner cross-sections that face each other across "
             "the gap.\n\n"
             "The {focus} is clearly visible and emphasized as the most prominent "
-            "feature on both freshly exposed inner faces{base}{topping}{interior_structure}. The break "
+            "feature on both freshly exposed inner faces{base}{topping}{interior_structure}{texture}. The break "
             "is sharp and clean — no stretching strands, no stringing, no dripping "
             "material connecting the two halves through the gap. The space between "
             "the halves is empty air.\n\n"
@@ -569,7 +569,7 @@ SIMULATIONS = {
             "separating into the air with a clear gap opening between them, "
             "revealing two flat inner cross-sections that face each other — the "
             "{focus} is emphasized as the dominant feature on both exposed faces"
-            "{base}{interior_structure}. The break stays clean throughout the motion, with no "
+            "{base}{interior_structure}{texture}. The break stays clean throughout the motion, with no "
             "stretching strands or stringing across the gap. Static camera, "
             "smooth steady motion, ASMR-style food cinematography."
         ),
@@ -704,6 +704,7 @@ def _resolve_slot_phrases(
     analysis: Optional[dict],
     template_kind: str,
     focus_key: Optional[str] = None,
+    simulation_id: Optional[str] = None,
 ) -> dict[str, str]:
     """
     시뮬의 slot_phrases[template_kind] 정의 + analysis → {base, cream, topping} 의
@@ -722,7 +723,7 @@ def _resolve_slot_phrases(
     Returns:
         {"base": "...", "cream": "...", "topping": "..."} — 각 값은 최종 phrase 또는 "".
     """
-    result = {"base": "", "cream": "", "topping": "", "interior_structure": ""}
+    result = {"base": "", "cream": "", "topping": "", "interior_structure": "", "texture": ""}
     if analysis is None:
         return result
 
@@ -773,6 +774,20 @@ def _resolve_slot_phrases(
                 "body without separate layers"
             )
     # None/누락 — 빈 문자열 유지 (placeholder 위치도 통째 omit)
+
+    # texture 슬롯 — focus 요소 × 시뮬 액션 타입 (under_pressure / when_cut) 에
+    # 매칭되는 영어 텍스처 묘사를 한 줄로 박음. 도구 중립적 phrasing 이라 어떤 액션
+    # 시뮬에든 자연스럽게 결합. action_type 이 None 인 시뮬(topping_fall) 또는 focus
+    # 의 영어 텍스처 필드 없으면 빈 문자열.
+    if simulation_id and focus_key:
+        action_type = prompt_locks.SIMULATION_ACTION_TYPE.get(simulation_id)
+        if action_type:  # None 이면 텍스처 가이드 자체 불필요
+            texture_field = f"{action_type}_en"
+            focus_profile = prompt_locks.TEXTURE_PROFILES.get(focus_key, {})
+            texture_text = focus_profile.get(texture_field, "")
+            if texture_text:
+                cleaned = texture_text.strip().rstrip(".")
+                result["texture"] = f". {cleaned}"
     return result
 
 
@@ -947,8 +962,9 @@ def build_prompts(
     # 슬롯 phrase 해결 — 시뮬에 slot_phrases 정의 + analysis 있을 때만 채워짐.
     # 미정의/미해당 슬롯은 빈 문자열이라 템플릿의 {base}{cream}{topping} 자리는 사라짐.
     # focus 와 동일 요소를 가리키는 슬롯은 중복 묘사 방지를 위해 비움.
-    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction", focus_key=focus)
-    slot_vid = _resolve_slot_phrases(sim, analysis, "video", focus_key=focus)
+    # simulation_id 는 {texture} 슬롯 결정용 (SIMULATION_ACTION_TYPE 조회).
+    slot_inst = _resolve_slot_phrases(sim, analysis, "instruction", focus_key=focus, simulation_id=simulation)
+    slot_vid = _resolve_slot_phrases(sim, analysis, "video", focus_key=focus, simulation_id=simulation)
     fmt_inst = _SafeDict(focus=focus_text, **slot_inst)
     fmt_vid = _SafeDict(focus=focus_text, **slot_vid)
 
