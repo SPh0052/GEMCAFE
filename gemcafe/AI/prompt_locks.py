@@ -97,7 +97,8 @@ CAMERA_DIRECTIVES = {
 # =====================================================================
 TECHNICAL_BASELINE = (
     "Slow motion playback, shallow depth of field, soft cinematic lighting, "
-    "4K photorealistic, professional food photography aesthetic, ASMR style"
+    "4K photorealistic, professional food photography aesthetic, ASMR style, "
+    "end on a 1-second static hold after the action completes"
 )
 
 
