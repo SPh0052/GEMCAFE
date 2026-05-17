@@ -100,7 +100,7 @@ class VideoRequest(BaseModel):
             "video_prompt_kr 사용 시 필수. "
             "잠금 라이브러리에서 카메라/부정 프롬프트/길이 조회용. "
             "예: smash / fork_bite / cut_in_half / cream_scoop / "
-            "topping_fall. "
+            "lift_slice / hand_split / topping_fall. "
             "전체 목록은 GET /catalog."
         ),
     )
@@ -108,10 +108,10 @@ class VideoRequest(BaseModel):
         None,
         description=(
             "강조 요소 키 (sponge / whipped_cream / ganache / molten_chocolate / "
-            "mascarpone_cream / baked_cheese / strawberry). 주어지면 (simulation × "
-            "focus) 조합에 맞게 카메라 디렉티브가 선택됨 — 같은 시뮬레이션이라도 "
-            "강조 요소에 따라 카메라 동선/포커스가 달라진다. /keyframe 호출 시 쓴 "
-            "focus 를 그대로 전달하면 됨."
+            "mascarpone_cream / baked_cheese / mousse / strawberry). 주어지면 "
+            "(simulation × focus) 조합에 맞게 카메라 디렉티브가 선택됨 — 같은 "
+            "시뮬레이션이라도 강조 요소에 따라 카메라 동선/포커스가 달라진다. "
+            "/keyframe 호출 시 쓴 focus 를 그대로 전달하면 됨."
         ),
     )
     background: Optional[str] = Field(
@@ -239,6 +239,7 @@ def catalog() -> dict:
         "molten_chocolate": "흐르는 초콜릿",
         "mascarpone_cream": "마스카포네 크림",
         "baked_cheese":     "치즈 필링",
+        "mousse":           "무스",
     }
     focuses = [
         {
@@ -290,7 +291,7 @@ def keyframe_endpoint(
         ...,
         description=(
             "시뮬레이션 키. 'smash' / 'fork_bite' / 'cut_in_half' / 'cream_scoop' / "
-            "'topping_fall'. 전체 목록은 GET /catalog."
+            "'lift_slice' / 'hand_split' / 'topping_fall'. 전체 목록은 GET /catalog."
         ),
     ),
     focus: Optional[str] = Form(
