@@ -26,7 +26,7 @@ from app.core.exceptions import (
     WatermarkEmbedError,
     WatermarkVerifyError,
 )
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.models.verification import VerificationHistory, VerificationStatus
 from app.models.video import VideoWatermarked
@@ -136,6 +136,108 @@ async def embed_watermark(
 
 
 # ──────────────────────────────────────────────────────────
+# External embed (gemcafe → gemmark, internal HTTP, gateway-net 신뢰)
+# ──────────────────────────────────────────────────────────
+
+
+async def embed_watermark_external(
+    db: AsyncSession,
+    source_file_path: str,
+    downloader_user_id: str,
+    alpha: int | None = None,
+) -> dict:
+    """gemcafe 등 외부 서비스가 호출하는 경량 워터마크 삽입.
+
+    - in-memory 등록부 skip (gemmark 어드민 UI 흐름과 무관)
+    - 원본 파일 경로를 직접 받아 같은 파일명으로 WATERMARKED_DIR 에 저장
+    - video_watermarked DB 행은 기록 (verify 시 매칭되도록)
+        admin_id 는 settings.WATERMARK_SYSTEM_ADMIN_ID 의 system 계정 사용
+    - 인증 없음 (gateway-net 내부 호출만 도달 가능한 전제)
+    """
+    src_path = Path(source_file_path)
+    if not src_path.exists():
+        raise VideoNotFoundError()
+
+    effective_alpha = int(alpha) if alpha is not None else int(settings.WATERMARK_ALPHA)
+
+    # 원본 파일명에서 .mp4 떼고 uuid 부분만 payload 에 사용
+    video_uuid = src_path.stem
+    payload = make_payload_bits(video_uuid, downloader_user_id)
+
+    settings.WATERMARKED_DIR.mkdir(parents=True, exist_ok=True)
+    dest_path = settings.WATERMARKED_DIR / src_path.name
+
+    try:
+        stats = await asyncio.to_thread(
+            embed_video_file,
+            src_path,
+            dest_path,
+            payload,
+            settings.WATERMARK_KEY,
+            float(effective_alpha),
+        )
+    except Exception:
+        dest_path.unlink(missing_ok=True)
+        raise WatermarkEmbedError()
+
+    payload_hex = bits_to_hex(payload)
+
+    # 썸네일 생성 (검증 결과 UI 등에서 활용)
+    thumb_path = settings.WATERMARKED_DIR / f"{video_uuid}.jpg"
+    thumb_ok = await asyncio.to_thread(save_first_frame, dest_path, thumb_path)
+    thumbnail_name = thumb_path.name if thumb_ok else None
+
+    # 동일 content_uuid 의 기존 활성 행이 있으면 soft-delete 처리한 뒤 새 행 INSERT.
+    # → 사용자가 같은 영상 재공유 / alpha 재설정 등으로 여러 번 호출해도
+    #   "가장 최신 활성 행은 항상 1개" 가 보장돼, 영상 상세/검증 조회가 안 깨짐.
+    # → verification_history 의 FK 는 옛 행을 그대로 가리키므로 깨질 일 없음.
+    now = datetime.now(KST)
+    await db.execute(
+        update(VideoWatermarked)
+        .where(
+            VideoWatermarked.content_uuid == video_uuid,
+            VideoWatermarked.deleted_at.is_(None),
+        )
+        .values(deleted_at=now)
+    )
+
+    # video_watermarked 행 INSERT — verify 시 watermark_hex 매칭에 사용.
+    # admin_id 는 gemcafe origin 영상용 system 계정 (사전에 admin 테이블에 존재해야 함).
+    record = VideoWatermarked(
+        admin_id=settings.WATERMARK_SYSTEM_ADMIN_ID,
+        content_uuid=video_uuid,
+        watermark_hex=payload_hex,
+        alpha=effective_alpha,
+        original_file_name=src_path.name,
+        stored_file_name=dest_path.name,
+        thumbnail_name=thumbnail_name,
+        file_type=dest_path.suffix.lstrip(".").lower(),
+        file_size=dest_path.stat().st_size,
+        duration_sec=stats["duration_sec"],
+        embed_psnr=stats["psnr"],
+        processing_time=stats.get("processing_time"),
+        processing_fps=stats.get("processing_fps"),
+    )
+    try:
+        db.add(record)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        dest_path.unlink(missing_ok=True)
+        if thumbnail_name:
+            thumb_path.unlink(missing_ok=True)
+        raise WatermarkEmbedError()
+
+    return {
+        "storedFileName": dest_path.name,
+        "fileSize": dest_path.stat().st_size,
+        "durationSec": stats["duration_sec"],
+        "watermarkHex": payload_hex,
+        "processingTime": stats.get("processing_time"),
+    }
+
+
+# ──────────────────────────────────────────────────────────
 # Verify
 # ──────────────────────────────────────────────────────────
 
@@ -164,15 +266,27 @@ async def verify_watermark(
     admin_id: int,
     video_id: str | None,
 ) -> WatermarkVerifyData:
-    """videoId로 등록된 영상에서 워터마크를 추출하고 등록부와 매칭."""
+    """videoId로 워터마크 영상 검증.
+
+    검색 경로 (우선순위):
+      1. in-memory 등록부 (gemmark 어드민 업로드 흐름)
+      2. WATERMARKED_DIR/<uuid>.mp4 직접 (gemcafe origin 등 외부 등록 영상)
+    """
     if not video_id:
         raise VerifyVideoIdMissingError()
 
-    info = video_service.get_video_info(video_id)
-    if info is None:
-        raise VerifyVideoNotFoundError()
+    video_uuid = _strip_video_prefix(video_id)
 
-    src_path = _resolve_verify_target(info, video_id)
+    info = video_service.get_video_info(video_id)
+    if info is not None:
+        src_path = _resolve_verify_target(info, video_id)
+    else:
+        # 등록부 miss — gemcafe origin 등 외부에서 embed-from-path 로 들어온 영상.
+        # WATERMARKED_DIR 에 같은 uuid 의 워터마크 파일이 있으면 그것으로 검증.
+        candidate = settings.WATERMARKED_DIR / f"{video_uuid}.mp4"
+        if not candidate.exists():
+            raise VerifyVideoNotFoundError()
+        src_path = candidate
 
     try:
         extracted_bits, _stats = await asyncio.to_thread(

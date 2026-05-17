@@ -1,32 +1,39 @@
 package com.ssafy.BE.domain.video.service;
 
 import com.ssafy.BE.domain.video.dto.WatermarkDownloadResponse;
-import com.ssafy.BE.domain.video.dto.WatermarkRequestMessage;
 import com.ssafy.BE.domain.video.entity.Video;
 import com.ssafy.BE.domain.video.entity.VideoStatus;
-import com.ssafy.BE.domain.video.publisher.WatermarkPublisher;
 import com.ssafy.BE.domain.video.repository.VideoRepository;
 import com.ssafy.BE.global.config.WatermarkProperties;
 import com.ssafy.BE.global.exception.BusinessException;
 import com.ssafy.BE.global.exception.ErrorCode;
+import com.ssafy.BE.infra.gemmark.GemmarkWatermarkClient;
+import com.ssafy.BE.infra.gemmark.dto.GemmarkEmbedFromPathRequest;
+import com.ssafy.BE.infra.gemmark.dto.GemmarkEmbedFromPathResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
-
+/**
+ * 워터마크 삽입 + 다운로드 URL 발급.
+ *
+ * 동기 흐름: gemcafe-be → gemmark-be(/watermark/embed-from-path) HTTP 호출 →
+ * gemmark 가 ffmpeg 로 워터마크 입혀 watermarked/ 디렉터리에 저장 →
+ * gemcafe-be 가 파일명 받아 보호된 다운로드 URL 구성해 응답.
+ *
+ * FE 는 응답의 downloadUrl 로 fetch + blob 다운로드 (또는 Web Share API 호출).
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class VideoWatermarkService {
 
     private static final String VIDEO_SUBDIR = "ai-videos";
-    private static final String SSE_URL_TEMPLATE = "/api/v1/jobs/%s/stream";
+    private static final String DOWNLOAD_URL_FMT = "/api/v1/files/watermark/%d";
 
     private final VideoRepository videoRepository;
-    private final JobStateService jobStateService;
-    private final WatermarkPublisher watermarkPublisher;
+    private final GemmarkWatermarkClient gemmarkClient;
     private final WatermarkProperties watermark;
 
     @Value("${app-video.subdir}")
@@ -43,25 +50,24 @@ public class VideoWatermarkService {
             throw new BusinessException(ErrorCode.VIDEO_NOT_READY);
         }
 
-        String jobId = "wm_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         String sourceFilePath = buildSourcePath(video.getStoredFileName());
 
-        jobStateService.initialize(jobId, userId, videoId);
-
-        WatermarkRequestMessage message = new WatermarkRequestMessage(
-                jobId,
-                userId,
-                videoId,
-                sourceFilePath,
-                String.valueOf(userId),
-                watermark.alpha()
+        GemmarkEmbedFromPathResponse result = gemmarkClient.embedFromPath(
+                new GemmarkEmbedFromPathRequest(
+                        sourceFilePath,
+                        String.valueOf(userId),
+                        watermark.alpha()
+                )
         );
-        watermarkPublisher.publish(message);
 
-        log.info("[WM-REQUEST] jobId={} userId={} videoId={} sourcePath={}",
-                jobId, userId, videoId, sourceFilePath);
+        log.info("[WM-EMBED] userId={} videoId={} sourcePath={} resultFile={} size={}",
+                userId, videoId, sourceFilePath, result.storedFileName(), result.fileSize());
 
-        return new WatermarkDownloadResponse(jobId, String.format(SSE_URL_TEMPLATE, jobId));
+        return new WatermarkDownloadResponse(
+                String.format(DOWNLOAD_URL_FMT, video.getId()),
+                result.storedFileName(),
+                result.fileSize()
+        );
     }
 
     private String buildSourcePath(String storedFileName) {

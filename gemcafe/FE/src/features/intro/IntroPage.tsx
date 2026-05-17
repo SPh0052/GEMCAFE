@@ -2,12 +2,10 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   ArrowDown,
-  Camera,
   ChevronRight,
   Clock3,
   Image as ImageIcon,
   Music,
-  Play,
   Share2,
   Sparkles,
   Type,
@@ -15,46 +13,18 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react'
+import SiteFooter from '@/layout/SiteFooter'
+import IntroHeader, { IntroHeaderSpacer } from '@/layout/IntroHeader'
 
-const ASSET = (file: string) => `${import.meta.env.BASE_URL}${file}`
+// 한글/공백 포함 파일명도 URL safe 하도록 인코딩 — 영문/숫자만 있는 파일명은 no-op.
+const ASSET = (file: string) =>
+  `${import.meta.env.BASE_URL}${encodeURIComponent(file)}`
 
 export default function IntroPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-gray-900 antialiased">
-      {/* ───── Top Nav (fixed) ───── */}
-      <nav className="fixed inset-x-0 top-0 z-40 border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 pb-4 pt-6 sm:px-10">
-          <Link to="/intro" className="group flex items-center gap-3">
-            <img
-              src={ASSET('logo.png')}
-              alt="gem.cafe 로고"
-              className="h-12 w-12 transition group-hover:scale-105"
-            />
-            <img
-              src={ASSET('logo_text.png')}
-              alt="gem.cafe"
-              className="h-8"
-            />
-          </Link>
-          <div className="flex items-center gap-2.5">
-            <Link
-              to="/login"
-              className="rounded-lg bg-brand-100 px-5 py-2.5 text-base font-medium text-brand-500 transition hover:bg-brand-200"
-            >
-              로그인
-            </Link>
-            <Link
-              to="/signup"
-              className="rounded-lg bg-brand-500 px-5 py-2.5 text-base font-medium text-white transition hover:bg-brand-600"
-            >
-              회원가입
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* nav 가 fixed 라 본문이 가려지지 않도록 스페이서 */}
-      <div className="h-24" aria-hidden="true" />
+      <IntroHeader />
+      <IntroHeaderSpacer />
 
       {/* ═══════════════════════════════════ HERO (centered, miricanvas-style) ═══════════════════════════════════ */}
       <section className="relative overflow-hidden">
@@ -62,16 +32,16 @@ export default function IntroPage() {
         <div className="absolute -left-32 -top-32 -z-10 h-96 w-96 rounded-full bg-brand-400/30 blur-3xl" />
         <div className="absolute -right-32 top-40 -z-10 h-112 w-md rounded-full bg-amber-300/25 blur-3xl" />
 
-        <div className="mx-auto max-w-5xl px-5 pb-20 pt-16 text-center sm:px-8 sm:pb-28 sm:pt-24">
+        <div className="mx-auto max-w-5xl px-7 pb-20 pt-16 text-center sm:px-8 sm:pb-28 sm:pt-24">
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-brand-600 shadow-sm backdrop-blur">
             <span className="relative flex h-2 w-2">
               <span className="absolute inset-0 animate-ping rounded-full bg-brand-400 opacity-75" />
               <span className="relative h-2 w-2 rounded-full bg-brand-500" />
             </span>
-            AI BETA · 카페 영상 자동 생성
+            카페 영상 자동 생성
           </span>
 
-          <h1 className="mx-auto mt-7 max-w-4xl text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+          <h1 className="mx-auto mt-7 max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
             카페 광고 영상,
             <br />
             <span className="relative inline-block">
@@ -79,12 +49,13 @@ export default function IntroPage() {
                 AI 가 1분 만에
               </span>
               <span className="absolute inset-x-0 -bottom-2 h-3 -rotate-1 rounded-full bg-brand-200/50 blur-sm" />
-            </span>{' '}
-            완성
+            </span>
+            <br className="sm:hidden" />
+            <span className="whitespace-nowrap"> 완성</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-600 sm:text-xl">
-            메뉴 사진 한 장만 올리면 AI 가 카페 분위기에 맞는
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-gray-600 sm:text-lg md:text-xl">
+            메뉴 사진 한 장만 올리면 AI 가 카페 분위기에 맞는{' '}
             <br className="hidden sm:block" />
             매력적인 광고 영상을 자동으로 만들어드려요.
           </p>
@@ -106,7 +77,8 @@ export default function IntroPage() {
             </a>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs font-medium text-gray-500">
+          {/* 20% 키운 라벨 — text-xs(0.75rem) → text-[0.9rem] */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[0.9rem] font-medium text-gray-500">
             <Tick>가입 즉시 무료 체험</Tick>
             <Tick>카드 등록 불필요</Tick>
             <Tick>모바일 PWA 지원</Tick>
@@ -114,17 +86,17 @@ export default function IntroPage() {
 
           {/* Hero visual — big centered phone with decorations */}
           <div className="relative mx-auto mt-16 w-full max-w-2xl">
-            {/* Floating left chip */}
-            <div className="absolute -left-2 top-8 z-20 rotate-[-8deg] rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-gray-900/10 ring-1 ring-gray-100 sm:-left-12">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                <Sparkles className="h-4 w-4 text-brand-500" />
+            {/* Floating left chip — 약 3배 사이즈 */}
+            <div className="absolute -left-4 top-2 z-20 rotate-[-8deg] rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-gray-900/15 ring-1 ring-gray-100 sm:-left-16 sm:px-8 sm:py-5">
+              <div className="flex items-center gap-3 text-lg font-semibold text-gray-800 sm:gap-4 sm:text-2xl">
+                <Sparkles className="h-6 w-6 text-brand-500 sm:h-8 sm:w-8" />
                 AI 가 분석 중...
               </div>
             </div>
-            {/* Floating right chip */}
-            <div className="absolute -right-2 bottom-32 z-20 rotate-6 rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-gray-900/10 ring-1 ring-gray-100 sm:-right-12">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                <Clock3 className="h-4 w-4 text-orange-500" />
+            {/* Floating right chip — 약 3배 사이즈 */}
+            <div className="absolute -right-4 bottom-24 z-20 rotate-6 rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-gray-900/15 ring-1 ring-gray-100 sm:-right-16 sm:px-8 sm:py-5">
+              <div className="flex items-center gap-3 text-lg font-semibold text-gray-800 sm:gap-4 sm:text-2xl">
+                <Clock3 className="h-6 w-6 text-orange-500 sm:h-8 sm:w-8" />
                 1분이면 완성
               </div>
             </div>
@@ -133,17 +105,17 @@ export default function IntroPage() {
             <div className="absolute inset-0 -z-10 translate-y-10 scale-95 rounded-[3rem] bg-linear-to-br from-brand-400/40 via-orange-300/30 to-rose-300/40 blur-3xl" />
 
             <div className="relative mx-auto w-72 rotate-3 overflow-hidden rounded-[2.5rem] border-10 border-gray-900 bg-gray-900 shadow-2xl shadow-gray-900/40 transition hover:rotate-0 sm:w-80">
-              <div
-                className="relative aspect-9/16 w-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${ASSET('hanok.png')})` }}
-              >
+              <div className="relative aspect-9/16 w-full bg-gray-900">
+                {/* 목업 안에서 자동 재생되는 데모 영상(gif). object-cover 로 9:16 프레임 꽉 채움. */}
+                <img
+                  src={ASSET('mock.gif')}
+                  alt="gem.cafe 광고 영상 데모"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
                 <div className="absolute left-1/2 top-3 z-20 h-5 w-24 -translate-x-1/2 rounded-full bg-gray-900" />
                 <div className="absolute inset-0 bg-linear-to-b from-black/0 via-black/0 to-black/70" />
 
-                <div className="absolute inset-0 flex flex-col justify-between p-6">
-                  <div className="mt-6 self-start rounded-full bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand-600">
-                    AI 생성 · 00:45
-                  </div>
+                <div className="absolute inset-0 flex flex-col justify-end p-6">
                   <div>
                     <div className="text-2xl font-semibold text-white drop-shadow-lg">
                       딸기 생크림
@@ -151,7 +123,7 @@ export default function IntroPage() {
                       케이크
                     </div>
                     <div className="mt-1 text-xs font-medium text-white/85">
-                      한옥 카페 · 흘러내리기 효과
+                      피크닉 · 포크로 자르기
                     </div>
                     <div className="mt-4 flex items-center gap-2">
                       <div className="h-1 flex-1 rounded-full bg-white/30">
@@ -164,13 +136,6 @@ export default function IntroPage() {
                   </div>
                 </div>
 
-                {/* play button */}
-                <button
-                  type="button"
-                  className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-xl backdrop-blur transition hover:scale-110"
-                >
-                  <Play className="h-7 w-7 fill-brand-500 text-brand-500" />
-                </button>
               </div>
             </div>
           </div>
@@ -180,14 +145,15 @@ export default function IntroPage() {
       {/* ═══════════════════════════════════ STATS STRIP ═══════════════════════════════════ */}
       <section className="relative overflow-hidden bg-gray-950 py-14 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,106,0,0.18),transparent_60%)]" />
-        <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="relative mx-auto max-w-7xl px-7 sm:px-8">
           <div className="grid grid-cols-2 gap-y-10 sm:grid-cols-4">
             {stats.map((s) => (
               <div key={s.label} className="text-center">
                 <div className="bg-linear-to-br from-brand-300 to-orange-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
                   {s.value}
                 </div>
-                <div className="mt-1.5 text-xs font-medium tracking-wide text-gray-400 sm:text-sm">
+                {/* 20% 확대: text-xs(0.75rem)→text-[0.9rem], sm:text-sm(0.875rem)→sm:text-[1.05rem] */}
+                <div className="mt-1.5 text-[0.9rem] font-medium tracking-wide text-gray-400 sm:text-[1.05rem]">
                   {s.label}
                 </div>
               </div>
@@ -197,10 +163,12 @@ export default function IntroPage() {
       </section>
 
       {/* ═══════════════════════════════════ INPUT → OUTPUT FLOW ═══════════════════════════════════ */}
-      <section className="bg-linear-to-b from-white via-orange-50/30 to-white py-24 sm:py-32">
-        <div className="mx-auto max-w-6xl px-5 sm:px-8">
+      <section className="relative overflow-hidden bg-linear-to-b from-white via-orange-50/50 to-amber-50/40 py-24 sm:py-32">
+        <div className="pointer-events-none absolute -right-32 top-32 -z-10 h-80 w-80 rounded-full bg-orange-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 bottom-20 -z-10 h-72 w-72 rounded-full bg-amber-200/40 blur-3xl" />
+        <div className="mx-auto max-w-6xl px-7 sm:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
+            <span className="rounded-full bg-brand-50 px-3 py-1 text-[0.9rem] font-semibold uppercase tracking-widest text-brand-600">
               How it works
             </span>
             <h2 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
@@ -221,47 +189,27 @@ export default function IntroPage() {
             <FlowCard
               title="① 메뉴 사진"
               subtitle="딸기 생크림 케이크.jpg"
-              icon={Camera}
-              bg={ASSET('flow.png')}
+              bg={ASSET('딸기 생크림 케이크.jpg')}
               accent="from-amber-100 to-orange-100"
             />
 
             <FlowArrow />
 
-            {/* AI */}
-            <div className="relative flex flex-col rounded-4xl border border-gray-100 bg-linear-to-br from-gray-900 to-gray-950 p-7 text-white shadow-xl">
-              <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-brand-500/30 blur-3xl" />
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-                <Sparkles className="h-6 w-6 text-brand-300" />
-              </div>
-              <div className="relative mt-6">
-                <div className="text-xs font-semibold uppercase tracking-widest text-brand-300">
-                  ② AI 가 분석
-                </div>
-                <div className="mt-2 text-xl font-semibold">
-                  색·질감·재료 자동 인식
-                </div>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {['딸기', '크림', '촉촉함'].map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full border border-white/20 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/90"
-                    >
-                      # {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+            {/* AI — 다른 카드들과 동일한 FlowCard 레이아웃 (텍스트 하단 정렬, chop.png 배경) */}
+            <FlowCard
+              title="② AI 가 분석"
+              subtitle="색·질감·재료 자동 인식"
+              bg={ASSET('chop.png')}
+              accent="from-gray-100 to-brand-100"
+              tags={['딸기', '크림', '촉촉함']}
+            />
 
             <FlowArrow />
 
-            {/* Video */}
+            {/* Video — gif 가 그대로 자동 재생 */}
             <FlowCard
               title="③ 광고 영상"
-              subtitle="00:45 · 한옥 카페"
-              icon={Play}
-              bg={ASSET('hanok.png')}
+              bg={ASSET('mock.gif')}
               accent="from-rose-100 to-brand-100"
             />
           </div>
@@ -269,8 +217,13 @@ export default function IntroPage() {
       </section>
 
       {/* ═══════════════════════════════════ 4 STEP DETAIL ═══════════════════════════════════ */}
-      <section id="how" className="bg-white py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+      <section
+        id="how"
+        className="relative overflow-hidden bg-linear-to-b from-amber-50/40 via-white to-orange-50/30 py-24 sm:py-32"
+      >
+        <div className="pointer-events-none absolute -left-32 top-20 -z-10 h-96 w-96 rounded-full bg-amber-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-32 bottom-0 -z-10 h-96 w-96 rounded-full bg-rose-200/30 blur-3xl" />
+        <div className="mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
               4단계면 끝나요
@@ -306,9 +259,9 @@ export default function IntroPage() {
 
       {/* ═══════════════════════════════════ ALTERNATING FEATURES ═══════════════════════════════════ */}
       <section className="bg-linear-to-b from-orange-50/30 via-white to-white py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
+            <span className="rounded-full bg-gray-900 px-3 py-1 text-[0.9rem] font-semibold uppercase tracking-widest text-white">
               Features
             </span>
             <h2 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
@@ -430,7 +383,7 @@ export default function IntroPage() {
           }}
         />
 
-        <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="relative mx-auto max-w-7xl px-7 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
               이런 분께
@@ -464,8 +417,9 @@ export default function IntroPage() {
       </section>
 
       {/* ═══════════════════════════════════ FAQ ═══════════════════════════════════ */}
-      <section className="bg-white py-24 sm:py-32">
-        <div className="mx-auto max-w-3xl px-5 sm:px-8">
+      <section className="relative overflow-hidden bg-linear-to-b from-white via-amber-50/30 to-orange-50/40 py-24 sm:py-32">
+        <div className="pointer-events-none absolute left-1/2 top-1/3 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-orange-200/25 blur-3xl" />
+        <div className="mx-auto max-w-3xl px-7 sm:px-8">
           <div className="text-center">
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
               FAQ
@@ -503,18 +457,19 @@ export default function IntroPage() {
       <section className="relative overflow-hidden py-24 sm:py-32">
         <div className="absolute left-1/2 top-1/2 -z-10 h-160 w-160 -translate-x-1/2 -translate-y-1/2 rounded-full bg-linear-to-br from-brand-200/40 via-orange-200/30 to-rose-200/40 blur-3xl" />
 
-        <div className="mx-auto max-w-3xl px-5 text-center sm:px-8">
+        <div className="mx-auto max-w-3xl px-7 text-center sm:px-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-600 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5" />
             지금 시작하기
           </div>
-          <h2 className="mt-6 text-5xl font-extrabold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
+          <h2 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
             첫 영상,
             <br />
             <span className="bg-linear-to-br from-brand-500 via-orange-500 to-rose-500 bg-clip-text text-transparent">
               지금 1분이면
-            </span>{' '}
-            완성
+            </span>
+            <br className="sm:hidden" />
+            <span className="whitespace-nowrap"> 완성</span>
           </h2>
           <p className="mt-6 text-lg text-gray-600 sm:text-xl">
             가입 즉시 무료로 사용해보실 수 있습니다.
@@ -537,23 +492,7 @@ export default function IntroPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════ FOOTER ═══════════════════════════════════ */}
-      <footer className="border-t border-gray-100 bg-white py-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-8">
-          <div className="flex items-center gap-2">
-            <UtensilsCrossed className="h-4 w-4 text-brand-500" />
-            <span className="text-sm font-semibold tracking-tight">
-              <span className="text-brand-500">gem</span>.cafe
-            </span>
-            <span className="text-xs text-gray-400">
-              · AI 카페 영상 자동 생성
-            </span>
-          </div>
-          <div className="text-xs text-gray-400">
-            © 2026 gem.cafe. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
@@ -563,34 +502,52 @@ export default function IntroPage() {
 function FlowCard({
   title,
   subtitle,
-  icon: Icon,
   bg,
   accent,
+  tags,
 }: {
   title: string
-  subtitle: string
-  icon: typeof Camera
-  bg: string
+  subtitle?: string
+  /** 배경 이미지 — png/jpg/gif 모두 허용 (gif 는 자동 재생). */
+  bg?: string
   accent: string
+  /** 하단 라벨 아래에 해시 태그 칩으로 표시 (옵션). */
+  tags?: string[]
 }) {
   return (
     <div className="group relative overflow-hidden rounded-4xl border border-gray-100 bg-white shadow-xl transition hover:-translate-y-1">
       <div className={`relative aspect-4/5 bg-linear-to-br ${accent}`}>
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${bg})` }}
-        />
-        <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
-        <div className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/95 text-brand-500 shadow-md backdrop-blur">
-          <Icon className="h-5 w-5" />
-        </div>
+        {bg && (
+          // <img> 로 깔면 gif 도 자연스럽게 재생됨. object-cover 로 4:5 프레임 채움.
+          <img
+            src={bg}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        {/* 하단 텍스트 가독성용 그라데이션 */}
+        <div className="absolute inset-0 bg-linear-to-t from-black/65 via-black/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-5 text-white">
           <div className="text-xs font-semibold uppercase tracking-widest text-white/80 drop-shadow">
             {title}
           </div>
-          <div className="mt-1 text-lg font-semibold tracking-tight drop-shadow-lg">
-            {subtitle}
-          </div>
+          {subtitle && (
+            <div className="mt-1 text-lg font-semibold tracking-tight drop-shadow-lg">
+              {subtitle}
+            </div>
+          )}
+          {tags && tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm"
+                >
+                  # {t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -735,9 +692,10 @@ const marqueeWords = [
 /* ───────── 보조 ───────── */
 
 function Tick({ children }: { children: React.ReactNode }) {
+  // ✓ 배지·체크마크 20% 확대: h-4 w-4 (1rem) → h-[1.2rem] w-[1.2rem], text-[10px] → text-[12px]
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-linear-to-br from-brand-400 to-orange-500 text-[10px] font-extrabold text-white shadow-sm">
+      <span className="flex h-[1.2rem] w-[1.2rem] items-center justify-center rounded-full bg-linear-to-br from-brand-400 to-orange-500 text-[12px] font-extrabold text-white shadow-sm">
         ✓
       </span>
       {children}

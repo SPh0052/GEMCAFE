@@ -5,6 +5,7 @@ import com.ssafy.BE.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,6 +13,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +34,102 @@ public class VideoFileService {
 
     private static final String THUMBNAIL_SUBDIR = "thumbnails";
 
+    private static final long MAX_VIDEO_SIZE = 100L * 1024 * 1024; // 100MB
+    private static final long MAX_THUMB_SIZE = 10L * 1024 * 1024;  // 10MB
+    private static final Set<String> ALLOWED_VIDEO_EXTS = Set.of("mp4");
+    private static final Set<String> ALLOWED_VIDEO_MIMES = Set.of("video/mp4");
+    private static final Set<String> ALLOWED_THUMB_EXTS = Set.of("jpg", "jpeg", "png");
+    private static final Set<String> ALLOWED_THUMB_MIMES = Set.of("image/jpeg", "image/png");
+
+    public StoredVideo saveUploadedFiles(MultipartFile videoFile, MultipartFile thumbnail) {
+        validateVideo(videoFile);
+        validateThumbnail(thumbnail);
+
+        String uuid = UUID.randomUUID().toString();
+        String storedFileName = uuid + ".mp4";
+        String thumbnailFileName = uuid + "_thumb.jpg";
+
+        Path videoDir = Path.of(uploadDir, videoSubdir);
+        Path thumbDir = videoDir.resolve(THUMBNAIL_SUBDIR);
+
+        try {
+            Files.createDirectories(videoDir);
+            Files.createDirectories(thumbDir);
+            try (InputStream in = videoFile.getInputStream()) {
+                Files.copy(in, videoDir.resolve(storedFileName), StandardCopyOption.REPLACE_EXISTING);
+            }
+            try (InputStream in = thumbnail.getInputStream()) {
+                Files.copy(in, thumbDir.resolve(thumbnailFileName), StandardCopyOption.REPLACE_EXISTING);
+            }
+            return new StoredVideo(storedFileName, videoFile.getSize(), thumbnailFileName);
+        } catch (IOException e) {
+            log.error("[VIDEO-FILE] upload save failed: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.VIDEO_FILE_UPLOAD_FAILED);
+        }
+    }
+
+    public void deleteFiles(String storedFileName, String thumbnailFileName) {
+        Path videoDir = Path.of(uploadDir, videoSubdir);
+        Path thumbDir = videoDir.resolve(THUMBNAIL_SUBDIR);
+        if (storedFileName != null) {
+            deleteQuietly(videoDir.resolve(storedFileName));
+        }
+        if (thumbnailFileName != null) {
+            deleteQuietly(thumbDir.resolve(thumbnailFileName));
+        }
+    }
+
+    private void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            log.warn("[VIDEO-FILE] delete failed (ignored): {} ({})", path, e.getMessage());
+        }
+    }
+
+    private void validateVideo(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_INVALID);
+        }
+        if (file.getSize() > MAX_VIDEO_SIZE) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_SIZE_EXCEEDED);
+        }
+        String ext = extractExtension(file.getOriginalFilename()).toLowerCase();
+        if (!ALLOWED_VIDEO_EXTS.contains(ext)) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_INVALID);
+        }
+        String contentType = file.getContentType();
+        if (contentType != null && !ALLOWED_VIDEO_MIMES.contains(contentType.toLowerCase())) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_INVALID);
+        }
+    }
+
+    private void validateThumbnail(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_INVALID);
+        }
+        if (file.getSize() > MAX_THUMB_SIZE) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_SIZE_EXCEEDED);
+        }
+        String ext = extractExtension(file.getOriginalFilename()).toLowerCase();
+        if (!ALLOWED_THUMB_EXTS.contains(ext)) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_INVALID);
+        }
+        String contentType = file.getContentType();
+        if (contentType != null && !ALLOWED_THUMB_MIMES.contains(contentType.toLowerCase())) {
+            throw new BusinessException(ErrorCode.VIDEO_FILE_INVALID);
+        }
+    }
+
+    private String extractExtension(String fileName) {
+        if (fileName == null) return "";
+        int idx = fileName.lastIndexOf('.');
+        return idx >= 0 ? fileName.substring(idx + 1) : "";
+    }
+
+    // 영상 끝 부분 fade-out / 마지막 프레임 정지 같은 거 제거용. AI 생성 직후 호출.
+    private static final double TRIM_TAIL_SECONDS = 1.0;
+
     public StoredVideo downloadAndThumbnail(String videoUrl) {
         String uuid = UUID.randomUUID().toString();
         String storedFileName = uuid + ".mp4";
@@ -45,7 +143,9 @@ public class VideoFileService {
         try {
             Files.createDirectories(videoDir);
             Files.createDirectories(thumbDir);
-            long size = downloadToDisk(videoUrl, videoPath);
+            downloadToDisk(videoUrl, videoPath);
+            trimTail(videoPath, TRIM_TAIL_SECONDS);
+            long size = Files.size(videoPath);
             extractThumbnail(videoPath, thumbPath);
             return new StoredVideo(storedFileName, size, thumbnailFileName);
         } catch (IOException e) {
@@ -58,6 +158,91 @@ public class VideoFileService {
         log.info("[VIDEO-FILE] downloading {} -> {}", url, target);
         try (InputStream in = URI.create(url).toURL().openStream()) {
             return Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * 영상 끝 N초 잘라내기. 재인코딩 없이 stream copy 라 빠르고 화질 손실 0.
+     * keyframe 단위로 잘라서 정밀도는 ±0.5초 정도 — 마지막 1초 정리 용도라 충분.
+     */
+    private void trimTail(Path videoPath, double secondsToCut) throws IOException {
+        double duration = probeDuration(videoPath);
+        if (duration <= secondsToCut + 0.5) {
+            log.warn("[VIDEO-FILE] trim skipped (too short): duration={}s cut={}s", duration, secondsToCut);
+            return;
+        }
+        double targetDuration = duration - secondsToCut;
+        Path tempOut = videoPath.resolveSibling(videoPath.getFileName() + ".trim.mp4");
+
+        log.info("[VIDEO-FILE] trimming {}s -> keeping {}s ({})", secondsToCut, targetDuration, videoPath);
+        ProcessBuilder pb = new ProcessBuilder(
+                ffmpegPath,
+                "-y",
+                "-i", videoPath.toString(),
+                "-t", String.format(java.util.Locale.ROOT, "%.3f", targetDuration),
+                "-c", "copy",
+                "-movflags", "+faststart",
+                tempOut.toString()
+        );
+        pb.redirectErrorStream(true);
+
+        Process process = pb.start();
+        try (InputStream in = process.getInputStream()) {
+            in.readAllBytes();
+        }
+
+        try {
+            boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                Files.deleteIfExists(tempOut);
+                throw new IOException("ffmpeg trim timeout");
+            }
+            if (process.exitValue() != 0) {
+                Files.deleteIfExists(tempOut);
+                throw new IOException("ffmpeg trim exit=" + process.exitValue());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Files.deleteIfExists(tempOut);
+            throw new IOException("ffmpeg trim interrupted", e);
+        }
+
+        Files.move(tempOut, videoPath,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    /**
+     * ffprobe 로 영상 길이(초) 측정.
+     */
+    private double probeDuration(Path videoPath) throws IOException {
+        ProcessBuilder pb = new ProcessBuilder(
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                videoPath.toString()
+        );
+        Process process = pb.start();
+        String out;
+        try (InputStream in = process.getInputStream()) {
+            out = new String(in.readAllBytes()).trim();
+        }
+        try {
+            boolean finished = process.waitFor(10, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new IOException("ffprobe timeout");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("ffprobe interrupted", e);
+        }
+        try {
+            return Double.parseDouble(out);
+        } catch (NumberFormatException e) {
+            throw new IOException("ffprobe parse failed: '" + out + "'", e);
         }
     }
 

@@ -1,16 +1,21 @@
 """
-Gemini 3.1 Flash-Lite 래퍼 — 오토 프롬프팅용 LLM 호출.
+Gemini 2.5 Flash-Lite 래퍼 — SSAFY GMS 게이트웨이 경유 오토 프롬프팅용 LLM 호출.
 
 3가지 단계:
   1) generate_korean_preview()      슬롯 → 자연스러운 한국어 묘사 (사장님 노출용)
   2) translate_to_video_prompt()    사장님 한국어 → 영상 모델용 영어
   3) expand_hint() (선택)           짧은 한국어 힌트 → 4가지 측면으로 확장
 
-환경변수:
-  GEMINI_API_KEY   .env 파일에 추가 필요
+엔드포인트:
+  Google 공식 API 대신 SSAFY GMS 프록시(https://gms.ssafy.io/gmsapi/...)를 사용.
+  요청 본문/응답 형식은 Google Gemini API 와 동일하므로 google-genai SDK 의
+  base_url 만 갈아끼우면 동작한다.
 
-비용:
-  Gemini 3.1 Flash-Lite 기준 1회 호출 매우 저렴 (Flash 대비 ~3분의 1)
+환경변수:
+  GMS_KEY   .env 파일에 추가 필요 (SSAFY GMS 발급키)
+
+비용 (크레딧/토큰, GMS 기준):
+  Gemini 2.5 Flash-Lite — input 0.001 / output 0.004
 """
 
 import json
@@ -26,20 +31,27 @@ from google.genai import types as genai_types
 # 클라이언트 초기화
 # =====================================================================
 _client: Optional[genai.Client] = None
-# 모델 ID — Gemini 3.1 Flash-Lite. 다른 모델로 바꾸려면 여기만 수정.
-# 후보: "gemini-3.1-flash-lite" / "gemini-2.5-flash-lite" / "gemini-2.5-flash"
-_MODEL = "gemini-3.1-flash-lite"
+# 모델 ID — Gemini 2.5 Flash-Lite (GMS 제공). 다른 모델로 바꾸려면 여기만 수정.
+# 후보: "gemini-2.5-flash-lite" / "gemini-2.5-flash" / "gemini-2.5-pro"
+_MODEL = "gemini-2.5-flash-lite"
+
+# GMS 프록시 베이스 URL — google-genai SDK 가 자동으로 "v1beta/models/{model}:generateContent"
+# 경로를 뒤에 붙이므로 여기는 도메인 + 정확한 prefix 까지만 잡으면 된다.
+_GMS_BASE_URL = "https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com/"
 
 
 def _get_client() -> genai.Client:
     global _client
     if _client is None:
-        api_key = os.environ.get("GEMINI_API_KEY")
+        api_key = os.environ.get("GMS_KEY")
         if not api_key:
             raise RuntimeError(
-                "GEMINI_API_KEY 환경변수 미설정. .env 파일에 추가하세요."
+                "GMS_KEY 환경변수 미설정. .env 파일에 추가하세요."
             )
-        _client = genai.Client(api_key=api_key)
+        _client = genai.Client(
+            api_key=api_key,
+            http_options=genai_types.HttpOptions(base_url=_GMS_BASE_URL),
+        )
     return _client
 
 
@@ -291,8 +303,9 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
 
-    print(f"[모델] {_MODEL}")
-    print(f"[GEMINI_API_KEY] {'설정됨' if os.environ.get('GEMINI_API_KEY') else '❌ 미설정'}\n")
+    print(f"[모델] {_MODEL} (via GMS)")
+    print(f"[base_url] {_GMS_BASE_URL}")
+    print(f"[GMS_KEY] {'설정됨' if os.environ.get('GMS_KEY') else '❌ 미설정'}\n")
 
     # ───────────────────────────────────────
     # Phase 1 — 한국어 미리보기 생성 (질감 가이드 포함)

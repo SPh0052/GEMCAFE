@@ -22,6 +22,7 @@ public enum ErrorCode {
     // User
     USER_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "USER-001", "이미 가입된 이메일입니다"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-002", "해당 사용자를 찾을 수 없습니다"),
+    PROFILE_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-003", "프로필 이미지가 설정되어 있지 않습니다"),
 
     // Image upload
     IMAGE_INVALID_FORMAT(HttpStatus.BAD_REQUEST, "IMAGE-001", "지원하지 않는 파일 형식입니다 (jpg/jpeg/png만 허용)"),
@@ -57,12 +58,23 @@ public enum ErrorCode {
     VIDEO_NOT_FOUND(HttpStatus.NOT_FOUND, "VIDEO-001", "해당 영상을 찾을 수 없습니다"),
     VIDEO_FILE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "VIDEO-002", "영상 파일 처리 중 오류가 발생했습니다"),
     VIDEO_NOT_READY(HttpStatus.BAD_REQUEST, "VIDEO-003", "영상이 아직 준비되지 않았습니다"),
+    VIDEO_FILE_INVALID(HttpStatus.BAD_REQUEST, "VIDEO-004", "영상 파일 형식이 올바르지 않습니다"),
+    VIDEO_FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "VIDEO-005", "영상 파일 크기가 한도를 초과했습니다"),
+    VIDEO_FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "VIDEO-006", "영상 파일 업로드에 실패했습니다"),
 
     // Watermark / Job
     WATERMARK_SOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "WM-001", "워터마크 처리할 원본 영상 파일을 찾을 수 없습니다"),
     WATERMARK_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "WM-002", "해당 작업을 찾을 수 없거나 만료되었습니다"),
     WATERMARK_JOB_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-003", "워터마크 작업 요청 발행에 실패했습니다"),
     WATERMARK_PROGRESS_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-004", "진행 상태 메시지 파싱에 실패했습니다"),
+    WATERMARK_EMBED_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "WM-005", "gemmark 워터마크 서비스에 연결할 수 없습니다"),
+    WATERMARK_EMBED_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WM-006", "워터마크 삽입에 실패했습니다"),
+
+    // Social upload (Upload-Post)
+    SOCIAL_UPLOAD_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "SOC-001", "SNS 업로드할 워터마크 영상 파일을 찾을 수 없습니다"),
+    SOCIAL_UPLOAD_UNREACHABLE(HttpStatus.SERVICE_UNAVAILABLE, "SOC-002", "SNS 업로드 서비스에 연결할 수 없습니다"),
+    SOCIAL_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SOC-003", "SNS 업로드에 실패했습니다"),
+    SOCIAL_PLATFORM_INVALID(HttpStatus.BAD_REQUEST, "SOC-004", "지원하지 않는 SNS 플랫폼입니다"),
 
     // Common
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "COM-001", "요청 형식이 올바르지 않습니다"),

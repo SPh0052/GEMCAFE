@@ -40,7 +40,8 @@ class AttackSuccessRateItem(BaseModel):
     attackTypeId: str = Field(..., description="공격 유형 ID (robustness_attack_type.id)")
     attackType: str = Field(..., description="공격 유형 표시명")
     passRate: float = Field(
-        ..., description="통과율 (%) – BER ≤ 0.3 AND PSNR ≥ 30.0 비율, 소수 1자리"
+        ...,
+        description="통과율 (%) – 해당 공격을 통과한 영상 수 / 전체 영상 수, 소수 1자리",
     )
     passedCount: int = Field(..., description="통과한 영상 수")
     totalCount: int = Field(..., description="해당 공격 유형으로 평가된 고유 영상 수")

@@ -1,6 +1,7 @@
 import enum
 from datetime import date, datetime
 
+from app.models.robustness import RobustnessTestStatus
 from app.schemas.video import VideoListData
 from pydantic import BaseModel, Field
 
@@ -28,19 +29,28 @@ class FailedVideoItem(BaseModel):
 
 
 class RobustnessRunData(BaseModel):
-    totalCount: int
-    successCount: int
-    failCount: int
-    averageBer: float
-    averagePsnr: float
-    averageProcessingTime: float
-    failedVideos: list[FailedVideoItem]
+    testId: int
+    status: RobustnessTestStatus
 
 
 class RobustnessRunResponse(BaseModel):
     status: int = 200
-    message: str = "강건성 테스트 실행 성공"
+    message: str = "강건성 테스트 실행 접수"
     data: RobustnessRunData
+
+
+class RobustnessStatusData(BaseModel):
+    status: RobustnessTestStatus
+    processedCount: int
+    totalCount: int
+    successCount: int
+    failCount: int
+
+
+class RobustnessStatusResponse(BaseModel):
+    status: int = 200
+    message: str = "강건성 테스트 진행 상태 조회 성공"
+    data: RobustnessStatusData
 
 
 class TestPassedStatus(str, enum.Enum):
@@ -69,6 +79,7 @@ class RobustnessAttackItem(BaseModel):
     ber: float
     psnr: float
     duration: float
+    passed: bool
 
 
 class RobustnessAttackResultData(BaseModel):
@@ -89,6 +100,7 @@ class RobustnessHistoryItem(BaseModel):
     testId: int
     startDate: date
     endDate: date
+    status: RobustnessTestStatus
     totalCount: int
     successCount: int
     failCount: int

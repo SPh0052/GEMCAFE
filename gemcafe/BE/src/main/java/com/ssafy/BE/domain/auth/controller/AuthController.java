@@ -83,6 +83,23 @@ public class AuthController {
         return ApiResponse.ok("로그아웃 성공");
     }
 
+    @Operation(summary = "Refresh 토큰으로 새 Access 토큰 발급 (refresh 도 rotation 처리)")
+    @PostMapping("/refresh")
+    public ApiResponse<LoginResponse> refresh(
+            HttpServletResponse response,
+            @CookieValue(name = "${app.cookie.refresh-name:refreshToken}", required = false) String refreshToken
+    ) {
+        TokenPair tokens = authService.refresh(refreshToken);
+        addRefreshCookie(response, tokens.refreshToken());
+
+        LoginResponse body = new LoginResponse(
+                tokens.accessToken(),
+                "Bearer",
+                tokens.accessExpiresIn()
+        );
+        return ApiResponse.ok("토큰 재발급 성공", body);
+    }
+
     @Operation(summary = "구글 ID Token 로그인 (Google Identity Services 의 credential 을 그대로 전달)")
     @PostMapping("/google")
     public ApiResponse<GoogleLoginResponse> googleLogin(

@@ -91,7 +91,7 @@ class VideoRequest(BaseModel):
         None,
         description=(
             "사장님이 한국어로 작성/편집한 영상 묘사. "
-            "지정 시 LLM(Gemini 3.1 Flash-Lite) 변환 후 잠금 라이브러리(카메라/기술/부정 프롬프트) 자동 결합."
+            "지정 시 LLM(Gemini 2.5 Flash-Lite via GMS) 변환 후 잠금 라이브러리(카메라/기술/부정 프롬프트) 자동 결합."
         ),
     )
     simulation: Optional[str] = Field(
@@ -100,8 +100,18 @@ class VideoRequest(BaseModel):
             "video_prompt_kr 사용 시 필수. "
             "잠금 라이브러리에서 카메라/부정 프롬프트/길이 조회용. "
             "예: smash / fork_bite / cut_in_half / cream_scoop / "
-            "strawberry_fall / strawberry_cascade. "
+            "lift_slice / hand_split / topping_fall. "
             "전체 목록은 GET /catalog."
+        ),
+    )
+    focus: Optional[str] = Field(
+        None,
+        description=(
+            "강조 요소 키 (sponge / whipped_cream / ganache / molten_chocolate / "
+            "mascarpone_cream / baked_cheese / mousse / strawberry). 주어지면 "
+            "(simulation × focus) 조합에 맞게 카메라 디렉티브가 선택됨 — 같은 "
+            "시뮬레이션이라도 강조 요소에 따라 카메라 동선/포커스가 달라진다. "
+            "/keyframe 호출 시 쓴 focus 를 그대로 전달하면 됨."
         ),
     )
     background: Optional[str] = Field(
@@ -205,6 +215,9 @@ def catalog() -> dict:
         {
             "key": sim_key,
             "label_kr": sim_def["label_kr"],
+            # category: "sheet" / "cream" / "topping" — FE 가 카테고리 탭으로 그룹화 가능.
+            # 카테고리가 정의된 시뮬은 focus 자동 결정 지원 → FE 가 focus 선택 UI 생략 가능.
+            "category": sim_def.get("category"),
             "applicable_focus": list(sim_def["applicable_focus"]),
             "frame_strategy": sim_def["frame_strategy"],
             "recommended_duration": prompt_locks.get_duration(sim_key),
@@ -219,9 +232,14 @@ def catalog() -> dict:
 
     # 요소(focus) — 정식 키 + 한국어 라벨. 별칭은 호환용으로만 노출.
     focus_labels_kr = {
-        "sponge":        "시트",
-        "strawberry":    "딸기",
-        "whipped_cream": "크림",
+        "sponge":           "시트",
+        "strawberry":       "딸기",
+        "whipped_cream":    "생크림",
+        "ganache":          "가나슈",
+        "molten_chocolate": "흐르는 초콜릿",
+        "mascarpone_cream": "마스카포네 크림",
+        "baked_cheese":     "치즈 필링",
+        "mousse":           "무스",
     }
     focuses = [
         {
@@ -247,18 +265,19 @@ def analyze_endpoint(
     """
     케이크 이미지 분석 (STEP 2).
 
-    Moondream3가 케이크의 cake_type, creams, toppings, suggested_focus 등을
-    JSON으로 추출. 프론트는 suggested_focus를 라디오 버튼/카드로 표시.
+    Gemini 2.5 Pro (GMS 게이트웨이) 가 케이크의 cake_type, creams, toppings,
+    suggested_focus 등을 JSON 으로 추출. 프론트는 suggested_focus 를 라디오 버튼/카드로 표시.
 
-    ⚠️ BE는 응답 dict를 보관해뒀다가 `/keyframe` 호출 시 `analysis_json` 으로 다시 전달해야 함
-       (focus를 명시적으로 지정하지 않을 경우).
+    ⚠️ BE 는 응답 dict 를 보관해뒀다가 `/keyframe` 호출 시 `analysis_json` 으로 다시 전달해야 함
+       (focus 를 명시적으로 지정하지 않을 경우).
     """
-    require_fal_key()
     image_path = save_upload(image)
     try:
-        image_url = analyze_module.upload(image_path)
-        analysis = analyze_module.analyze_with_moondream(
-            image_url, analyze_module.ANALYSIS_PROMPT
+        # analyze_with_gemini 는 (parsed_dict, raw_text, response_info) 3-tuple 반환.
+        # FastAPI 는 dict 만 받으므로 첫 번째 요소만 응답.
+        # 이미지는 로컬 파일 경로 그대로 전달 — Gemini 가 bytes 로 직접 읽음 (upload 불필요).
+        analysis, _raw_text, _response_info = analyze_module.analyze_with_gemini(
+            image_path, analyze_module.ANALYSIS_PROMPT
         )
         return analysis
     except Exception as e:
@@ -272,7 +291,7 @@ def keyframe_endpoint(
         ...,
         description=(
             "시뮬레이션 키. 'smash' / 'fork_bite' / 'cut_in_half' / 'cream_scoop' / "
-            "'strawberry_fall' / 'strawberry_cascade'. 전체 목록은 GET /catalog."
+            "'lift_slice' / 'hand_split' / 'topping_fall'. 전체 목록은 GET /catalog."
         ),
     ),
     focus: Optional[str] = Form(
@@ -296,6 +315,15 @@ def keyframe_endpoint(
             "/analyze 응답 dict를 JSON 문자열로 직렬화해서 전달. "
             "focus가 None일 때 suggested_focus 자동 선택용. "
             "focus 명시하면 무시 가능. 멀티유저 안전성을 위해 명시 전달 권장."
+        ),
+    ),
+    aspect_ratio: str = Form(
+        "9:16",
+        description=(
+            "키프레임/영상 종횡비. 기본값 '9:16' (숏폼/YouTube Shorts/Reels/TikTok). "
+            "다른 값: '16:9'(가로) / '1:1'(정사각형) / 'auto'(원본 비율). "
+            "BE/FE 가 안 보내도 production 기본인 9:16 으로 동작. "
+            "키프레임이 이 비율로 생성되면 Veo first-last-frame 영상도 같은 비율로 출력됨."
         ),
     ),
 ) -> dict:
@@ -361,6 +389,7 @@ def keyframe_endpoint(
             hint=hint,
             seed=seed,
             analysis=analysis_dict,
+            aspect_ratio=aspect_ratio,
         )
         return result
     except (ValueError, FileNotFoundError) as e:
@@ -374,7 +403,7 @@ def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
     """
     오토 프롬프팅 Phase 1 — 슬롯 → 자연스러운 한국어 미리보기.
 
-    Gemini 3.1 Flash-Lite가 사장님이 만들 영상의 모습을 한국어 2~3문장으로 묘사.
+    Gemini 2.5 Flash-Lite (SSAFY GMS 경유) 가 사장님이 만들 영상의 모습을 한국어 2~3문장으로 묘사.
     이 결과를 화면에 띄워서 사장님이 편집 가능. 편집된 한국어를 /video의 video_prompt_kr 로 전달.
 
     AI 호출이지만 영상 생성은 안 하므로 비용은 거의 무시할 수준.
@@ -391,7 +420,7 @@ def preview_prompts_endpoint(req: PreviewPromptsRequest) -> dict:
         )
         return {"korean_preview": korean_preview}
     except RuntimeError as e:
-        # GEMINI_API_KEY 미설정 등
+        # GMS_KEY 미설정 등
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"한국어 미리보기 생성 실패: {e}")
@@ -427,6 +456,7 @@ def video_endpoint(req: VideoRequest) -> dict:
                 simulation=req.simulation,
                 background=req.background,
                 model_id=req.model_id,
+                focus=req.focus,
             )
         except RuntimeError as e:
             raise HTTPException(status_code=500, detail=str(e))

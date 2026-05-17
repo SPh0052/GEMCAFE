@@ -77,6 +77,13 @@ public class VideoSession {
         this.expiresAt = expiresAt;
     }
 
+    public void updateSelections(String simulationCode, String backgroundCode, String focus, String hint) {
+        if (simulationCode != null) this.simulationCode = simulationCode;
+        if (backgroundCode != null) this.backgroundCode = backgroundCode;
+        if (focus != null) this.focus = focus;
+        if (hint != null) this.hint = hint;
+    }
+
     public void updateChoices(String simulationCode, String backgroundCode, String focus, String hint) {
         this.simulationCode = simulationCode;
         this.backgroundCode = backgroundCode;

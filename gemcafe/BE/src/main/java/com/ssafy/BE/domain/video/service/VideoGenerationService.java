@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -58,7 +60,14 @@ public class VideoGenerationService {
         session.submit(video.getId());
 
         VideoGenerationMessage message = buildMessage(video.getId(), userId, keyframe, session);
-        publisher.publish(message);
+        // 트랜잭션 commit 이후에 publish — 안 그러면 Worker 가 commit 전 메시지 받아서
+        // findById 실패("not found, dropping message") → 영상이 GENERATING 상태로 영원히 멈춤.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publisher.publish(message);
+            }
+        });
 
         log.info("[VIDEO-CREATE] videoId={} sessionId={} userId={} gem={}",
                 video.getId(), session.getId(), userId, GEM_COST);
@@ -132,6 +141,8 @@ public class VideoGenerationService {
     public void completeVideo(Integer videoId, VideoFileService.StoredVideo stored) {
         Video video = videoRepository.findById(videoId).orElseThrow();
         video.markCompleted(stored.storedFileName(), (int) stored.fileSize(), stored.thumbnailFileName());
+        videoSessionRepository.findByVideoId(videoId).ifPresent(VideoSession::abandon);
+        log.info("[VIDEO-COMPLETE] videoId={} session abandoned", videoId);
     }
 
     @Transactional

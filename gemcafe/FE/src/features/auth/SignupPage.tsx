@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Check, Loader2 } from 'lucide-react'
 import MobileShell from '@/shared/components/MobileShell'
+import IntroHeader, { IntroHeaderSpacer } from '@/layout/IntroHeader'
 import Button from '@/shared/components/Button'
 import TextField from '@/shared/components/TextField'
 import { signup } from './api'
@@ -30,11 +31,24 @@ export default function SignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ── 실시간 인라인 검증 ──
+  // 입력값이 비어있을 땐 에러 표시하지 않음 (사용자가 입력을 시작했을 때만 노출).
+  // 버튼 disable 은 별도로 canSubmit 로 처리하되, 사용자가 *왜* 비활성화됐는지
+  // 알 수 있도록 에러 메시지를 각 필드 아래에 함께 표시.
+  const emailError = form.email ? validateEmail(form.email) : null
+  const passwordError = form.password ? validatePassword(form.password) : null
+  const passwordMismatchError =
+    form.passwordConfirm && form.password !== form.passwordConfirm
+      ? '비밀번호가 일치하지 않습니다.'
+      : null
+
   const canSubmit =
     form.name &&
     form.email &&
+    !emailError &&
     form.phone &&
     form.password &&
+    !passwordError &&
     form.password === form.passwordConfirm &&
     agreements.service &&
     agreements.privacy
@@ -106,7 +120,10 @@ export default function SignupPage() {
   }
 
   return (
-    <MobileShell>
+    <>
+      <IntroHeader />
+      <MobileShell>
+        <IntroHeaderSpacer />
       <div className="flex flex-1 flex-col px-6 py-8">
         <header className="mb-6">
           <h1 className="text-2xl font-bold">회원가입</h1>
@@ -129,6 +146,7 @@ export default function SignupPage() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             autoComplete="email"
+            error={emailError}
           />
           <TextField
             label="전화번호"
@@ -136,15 +154,19 @@ export default function SignupPage() {
             inputMode="numeric"
             placeholder="01012345678"
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            // 숫자 외 입력 즉시 차단 — 붙여넣기 / 자동완성도 동일하게 필터링
+            onChange={(e) =>
+              setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })
+            }
           />
           <TextField
             label="비밀번호"
             type="password"
-            placeholder="비밀번호를 입력해주세요"
+            placeholder="영문·숫자 포함 8자 이상"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             autoComplete="new-password"
+            error={passwordError}
           />
           <TextField
             label="비밀번호 확인"
@@ -155,6 +177,7 @@ export default function SignupPage() {
               setForm({ ...form, passwordConfirm: e.target.value })
             }
             autoComplete="new-password"
+            error={passwordMismatchError}
           />
 
           <div className="space-y-2 pt-2">
@@ -208,7 +231,8 @@ export default function SignupPage() {
           </Link>
         </p>
       </div>
-    </MobileShell>
+      </MobileShell>
+    </>
   )
 }
 

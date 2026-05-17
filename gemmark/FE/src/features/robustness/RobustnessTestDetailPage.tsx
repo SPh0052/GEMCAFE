@@ -5,10 +5,8 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
-  Download,
   FileDown,
   FileVideo,
-  Filter,
   Loader2,
   X,
 } from 'lucide-react'
@@ -42,28 +40,46 @@ export default function RobustnessTestDetailPage() {
       return
     }
     let cancelled = false
-    setLoading(true)
-    setError(null)
+    let pollTimer: ReturnType<typeof setTimeout> | null = null
 
-    getRobustnessTestDetail(id)
-      .then((res) => {
-        console.log('[GET /robustness/tests/{id}] response:', res)
-        if (cancelled) return
-        setDetail(res)
-      })
-      .catch((err) => {
-        console.error('[GET /robustness/tests/{id}] error:', err)
-        if (cancelled) return
-        setError(
-          extractErrorMessage(err, '테스트 상세 정보를 불러오지 못했습니다.'),
-        )
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+    const fetch = (showLoader: boolean) => {
+      if (showLoader) {
+        setLoading(true)
+        setError(null)
+      }
+      getRobustnessTestDetail(id)
+        .then((res) => {
+          console.log('[GET /robustness/tests/{id}] response:', res)
+          if (cancelled) return
+          setDetail(res)
+          // 진행 중(success+fail < total) 이면 5초 뒤 자동 재조회
+          const processed = res.successCount + res.failCount
+          if (processed < res.totalCount) {
+            pollTimer = setTimeout(() => fetch(false), 5000)
+          }
+        })
+        .catch((err) => {
+          console.error('[GET /robustness/tests/{id}] error:', err)
+          if (cancelled) return
+          if (showLoader) {
+            setError(
+              extractErrorMessage(
+                err,
+                '테스트 상세 정보를 불러오지 못했습니다.',
+              ),
+            )
+          }
+        })
+        .finally(() => {
+          if (!cancelled && showLoader) setLoading(false)
+        })
+    }
+
+    fetch(true)
 
     return () => {
       cancelled = true
+      if (pollTimer) clearTimeout(pollTimer)
     }
   }, [id])
 
@@ -214,7 +230,10 @@ export default function RobustnessTestDetailPage() {
         <Card>
           <h3 className="text-sm font-bold text-gray-900">평균 품질 지표</h3>
           <dl className="mt-4 space-y-3">
-            <MetricRow label="평균 BER" value={`${detail.avgBer.toFixed(2)}%`} />
+            <MetricRow
+              label="평균 BER"
+              value={`${(detail.avgBer * 100).toFixed(2)}%`}
+            />
             <MetricRow
               label="평균 PSNR"
               value={`${detail.avgPsnr.toFixed(1)} dB`}
@@ -231,7 +250,7 @@ export default function RobustnessTestDetailPage() {
           <dl className="mt-4 space-y-3">
             <MetricRow
               label="표준 편차 (BER)"
-              value={`${detail.sdBer.toFixed(2)}%`}
+              value={`${(detail.sdBer * 100).toFixed(2)}%`}
             />
             <MetricRow
               label="표준 편차 (PSNR)"
@@ -246,32 +265,10 @@ export default function RobustnessTestDetailPage() {
       </div>
 
       <Card className="p-0">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="px-6 py-4">
           <h3 className="text-base font-bold text-gray-900">
             실패 영상 리스트 ({detail.failCount}건)
           </h3>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="필터"
-              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-            >
-              <Filter className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleExportReport}
-              disabled={exporting}
-              aria-label="리포트 내보내기"
-              className="rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {exporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-            </button>
-          </div>
         </div>
         <table className="w-full">
           <thead>
@@ -479,12 +476,12 @@ function buildReportData(
       failureCount: detail.failCount,
     },
     qualityMetrics: {
-      averageBer: `${detail.avgBer.toFixed(2)}%`,
+      averageBer: `${(detail.avgBer * 100).toFixed(2)}%`,
       averagePsnr: `${detail.avgPsnr.toFixed(1)} dB`,
       averageFps: `${detail.avgDuration.toFixed(2)}초`,
     },
     stdDev: {
-      ber: `${detail.sdBer.toFixed(2)}%`,
+      ber: `${(detail.sdBer * 100).toFixed(2)}%`,
       psnr: `${detail.sdPsnr.toFixed(1)} dB`,
       fps: `${detail.sdDuration.toFixed(2)}초`,
     },

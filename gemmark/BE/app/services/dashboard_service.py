@@ -162,8 +162,7 @@ async def get_attack_success_rate(db: AsyncSession) -> AttackSuccessRateData:
         select(
             RobustnessAttackDetail.attack_type_id.label("attack_type_id"),
             RobustnessTestVideo.video_watermarked_id.label("video_watermarked_id"),
-            RobustnessAttackDetail.ber.label("ber"),
-            RobustnessAttackDetail.psnr.label("psnr"),
+            RobustnessAttackDetail.passed.label("passed"),
             row_number_col,
         )
         .select_from(RobustnessAttackDetail)
@@ -180,7 +179,7 @@ async def get_attack_success_rate(db: AsyncSession) -> AttackSuccessRateData:
     )
 
     passed_expr = case(
-        ((ranked.c.ber <= 0.3) & (ranked.c.psnr >= 30.0), 1),
+        (ranked.c.passed.is_(True), 1),
         else_=0,
     )
 

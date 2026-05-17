@@ -1,61 +1,61 @@
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Camera, Loader2, RefreshCw, Sparkles, Wand2 } from 'lucide-react'
 import Button from '@/shared/components/Button'
 import { extractErrorMessage } from '@/shared/lib/errors'
 import {
   analyzeCakeImage,
   createVideo,
+  fetchAuthedImageAsBlobUrl,
   generateKeyframe,
   generatePreviewPrompt,
+  getSessionDetail,
   selectKeyframe,
+  updateSessionSelections,
+  updateVideoPrompt,
   type CakeAnalysis,
   type KeyframeResult,
 } from './api'
-
-const ASSET = (file: string) => `${import.meta.env.BASE_URL}${file}`
+import {
+  BACKGROUNDS,
+  categoryForKeyword,
+  keywordLabel,
+  simulationsForCategory,
+  normalizeSimulationCode,
+  type FocusCategory,
+} from './catalog'
 
 const MAX_KEYFRAME_ATTEMPTS = 3
 const GEM_COST = 6
 
-// BE 에서 사용할 integer id 직접 매핑. 추후 BE 가 옵션 목록 API 를 내려주면 fetch 로 대체.
-interface Simulation {
-  id: number
-  label: string
-  image: string
+interface CreateLocationState {
+  /** CreateLandingPage 의 "이어서 만들기" 카드 클릭 시 전달되는 세션 ID */
+  sessionId?: number
 }
-const simulations: Simulation[] = [
-  { id: 1, label: '흘러내리기', image: ASSET('flow.png') },
-  { id: 2, label: '단면 보여주기', image: ASSET('chop.png') },
-  { id: 3, label: '반으로 가르기', image: ASSET('divine.png') },
-]
-
-interface Background {
-  id: number
-  label: string
-  image: string
-}
-const backgrounds: Background[] = [
-  { id: 1, label: '한옥 카페', image: ASSET('hanok.png') },
-  { id: 2, label: '레트로 카페', image: ASSET('retro.png') },
-  { id: 3, label: '나무 책상', image: ASSET('wood.png') },
-  { id: 4, label: '피크닉', image: ASSET('picnic.png') },
-]
 
 export default function CreateVideoPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const incomingSessionId =
+    (location.state as CreateLocationState | null)?.sessionId
   const fileInputRef = useRef<HTMLInputElement>(null)
+  /** 세션 복원 진행 중 — 그동안 입력 disable */
+  const [restoring, setRestoring] = useState(!!incomingSessionId)
 
   // ── Step 1: 이미지 + analyze ──
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [sessionId, setSessionId] = useState<number | null>(null)
+  /** analyze API 응답 — 추천 키워드 칩 렌더링과 카테고리 추론에 사용. */
   const [analysis, setAnalysis] = useState<CakeAnalysis | null>(null)
 
   // ── Step 2~6: 선택값 ──
-  const [selectedFocus, setSelectedFocus] = useState<string | null>(null)
-  const [selectedSimId, setSelectedSimId] = useState<number | null>(null)
-  const [selectedBgId, setSelectedBgId] = useState<number | null>(null)
+  /** 사용자가 선택한 강조 키워드 (예: 'baked_cheese'). API focus 필드로 그대로 전송. */
+  const [focusKey, setFocusKey] = useState<string | null>(null)
+  /** focusKey 가 어느 카테고리(base/creams/toppings/coating)에서 왔는지 — 시뮬레이션 필터에 사용. */
+  const [focusCategory, setFocusCategory] = useState<FocusCategory | null>(null)
+  const [simulationCode, setSimulationCode] = useState<string | null>(null)
+  const [backgroundCode, setBackgroundCode] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
 
   // ── Step 7: 키프레임 ──
@@ -74,21 +74,118 @@ export default function CreateVideoPage() {
 
   const [error, setError] = useState<string | null>(null)
 
+  // ── 세션 복원 — location.state.sessionId 있으면 상세 fetch 해서 state 채움 ──
+  useEffect(() => {
+    if (!incomingSessionId) return
+    let cancelled = false
+    /** 복원 중 만든 blob URL — unmount 시 revoke (메모리 누수 방지) */
+    let createdBlobUrl: string | null = null
+    setRestoring(true)
+    ;(async () => {
+      try {
+        const s = await getSessionDetail(incomingSessionId)
+        if (cancelled) return
+        console.log('[GET /cakes/sessions/{id}] response:', s)
+        setSessionId(s.sessionId)
+        // analysis 먼저 세팅 — focus 카테고리 추론에 필요
+        const restoredAnalysis = (s.analysis ?? null) as CakeAnalysis | null
+        setAnalysis(restoredAnalysis)
+        if (s.selections?.focus) {
+          setFocusKey(s.selections.focus)
+          // 저장된 focus 가 analysis 의 어느 카테고리에서 왔는지 역추적
+          setFocusCategory(
+            categoryForKeyword(s.selections.focus, restoredAnalysis),
+          )
+        }
+        if (s.selections?.simulationCode)
+          setSimulationCode(normalizeSimulationCode(s.selections.simulationCode))
+        // backgroundCode: 명시적 null 이면 "미선택" (UI 키 'none') 으로 매핑.
+        const bg = s.selections?.backgroundCode
+        if (typeof bg === 'string' && bg.length > 0) setBackgroundCode(bg)
+        else if (bg === null) setBackgroundCode('none')
+        if (s.selections?.hint) setPrompt(s.selections.hint)
+        if (s.videoPromptKr) setAutoPrompt(s.videoPromptKr)
+        // 키프레임 — SessionKeyframe → KeyframeResult 로 매핑
+        const restoredKfs: KeyframeResult[] = s.keyframes.map((kf) => ({
+          keyframeId: kf.keyframeId,
+          attemptNumber: kf.attemptNumber,
+          keyframeUrl: kf.keyframeUrl,
+        }))
+        setKeyframes(restoredKfs)
+        if (s.selectedKeyframeId) setSelectedKeyframeId(s.selectedKeyframeId)
+
+        // 입력 이미지 — axios 통해 blob URL 변환 (인증 헤더 + dev proxy 매핑 보장)
+        if (s.inputImage?.url) {
+          try {
+            const blobUrl = await fetchAuthedImageAsBlobUrl(s.inputImage.url)
+            if (cancelled) {
+              URL.revokeObjectURL(blobUrl)
+              return
+            }
+            createdBlobUrl = blobUrl
+            setImagePreview(blobUrl)
+          } catch (imgErr) {
+            console.warn('[세션 복원] 입력 이미지 fetch 실패', imgErr)
+            // 이미지 없어도 다음 단계 진행 가능 — 그냥 skip
+          }
+        }
+      } catch (err) {
+        if (cancelled) return
+        console.error('[GET /cakes/sessions/{id}] 실패', err)
+        setError(extractErrorMessage(err, '세션을 불러오지 못했어요.'))
+      } finally {
+        if (!cancelled) setRestoring(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl)
+    }
+  }, [incomingSessionId])
+
+  // 선택된 카테고리에 맞는 시뮬레이션만 필터링
+  const availableSimulations = useMemo(
+    () => simulationsForCategory(focusCategory),
+    [focusCategory],
+  )
+
+  /**
+   * 분석 결과의 base / creams / toppings / coating 을 펼쳐서
+   * 한 줄의 키워드 칩 목록으로 변환. 빈 배열·'none' 은 제외.
+   */
+  const focusKeywords = useMemo<
+    Array<{ keyword: string; category: FocusCategory }>
+  >(() => {
+    if (!analysis) return []
+    const items: Array<{ keyword: string; category: FocusCategory }> = []
+    analysis.base?.forEach((k) => items.push({ keyword: k, category: 'base' }))
+    analysis.creams?.forEach((k) =>
+      items.push({ keyword: k, category: 'creams' }),
+    )
+    analysis.toppings?.forEach((k) =>
+      items.push({ keyword: k, category: 'toppings' }),
+    )
+    if (analysis.coating && analysis.coating !== 'none') {
+      items.push({ keyword: analysis.coating, category: 'coating' })
+    }
+    return items
+  }, [analysis])
+
   const attemptsLeft = MAX_KEYFRAME_ATTEMPTS - keyframes.length
   const canGenerateKeyframe =
     !!sessionId &&
-    !!selectedSimId &&
-    !!selectedBgId &&
-    !!selectedFocus &&
+    !!simulationCode &&
+    !!backgroundCode &&
+    !!focusKey &&
     attemptsLeft > 0 &&
     !generatingKeyframe
   const canCreateVideo =
     !!sessionId && !!selectedKeyframeId && !creatingVideo && !generatingKeyframe
   const canGeneratePrompt =
     !!sessionId &&
-    !!selectedSimId &&
-    !!selectedBgId &&
-    !!selectedFocus &&
+    !!simulationCode &&
+    !!backgroundCode &&
+    !!focusKey &&
     !generatingPrompt
 
   const handleImagePick = () => fileInputRef.current?.click()
@@ -102,11 +199,15 @@ export default function CreateVideoPage() {
 
     // 새 이미지 선택 시 이전 결과 초기화
     setImagePreview(URL.createObjectURL(file))
-    setAnalysis(null)
     setSessionId(null)
-    setSelectedFocus(null)
+    setAnalysis(null)
+    setFocusKey(null)
+    setFocusCategory(null)
+    setSimulationCode(null)
+    setBackgroundCode(null)
     setKeyframes([])
     setSelectedKeyframeId(null)
+    setAutoPrompt('')
     setError(null)
 
     setAnalyzing(true)
@@ -114,7 +215,7 @@ export default function CreateVideoPage() {
       const res = await analyzeCakeImage(file)
       console.log('[POST /cakes/analyze] response:', res)
       setSessionId(res.sessionId)
-      setAnalysis(res.analysis ?? {})
+      setAnalysis(res.analysis ?? null)
     } catch (err) {
       console.error('[POST /cakes/analyze] error:', err)
       setError(extractErrorMessage(err, '이미지 분석에 실패했습니다.'))
@@ -123,16 +224,76 @@ export default function CreateVideoPage() {
     }
   }
 
+  const persistSelections = async ({
+    nextSimulationCode = simulationCode,
+    nextBackgroundCode = backgroundCode,
+    nextFocusKey = focusKey,
+    nextPrompt = prompt,
+  }: {
+    nextSimulationCode?: string | null
+    nextBackgroundCode?: string | null
+    nextFocusKey?: string | null
+    nextPrompt?: string
+  } = {}) => {
+    if (!sessionId) return
+    try {
+      await updateSessionSelections(sessionId, {
+        simulationCode: normalizeSimulationCode(nextSimulationCode),
+        backgroundCode:
+          nextBackgroundCode === 'none' ? null : nextBackgroundCode,
+        focus: nextFocusKey,
+        hint: nextPrompt,
+      })
+    } catch (err) {
+      console.warn('[PATCH /selections] 저장 실패', err)
+    }
+  }
+
+  const handleFocusSelect = (keyword: string, category: FocusCategory) => {
+    const allowed = simulationsForCategory(category).map((s) => s.key)
+    const nextSimulationCode =
+      simulationCode && allowed.includes(simulationCode) ? simulationCode : null
+
+    setFocusKey(keyword)
+    setFocusCategory(category)
+    setSimulationCode(nextSimulationCode)
+    void persistSelections({
+      nextFocusKey: keyword,
+      nextSimulationCode,
+    })
+  }
+
+  const handleSimulationSelect = (code: string) => {
+    setSimulationCode(code)
+    void persistSelections({ nextSimulationCode: code })
+  }
+
+  const handleBackgroundSelect = (code: string) => {
+    setBackgroundCode(code)
+    void persistSelections({ nextBackgroundCode: code })
+  }
+
+  const handleHintBlur = () => {
+    void persistSelections()
+  }
+
   const handleGenerateKeyframe = async () => {
-    if (!canGenerateKeyframe || !sessionId || !selectedSimId || !selectedBgId)
+    if (
+      !canGenerateKeyframe ||
+      !sessionId ||
+      !simulationCode ||
+      !backgroundCode
+    )
       return
     setError(null)
     setGeneratingKeyframe(true)
     try {
+      const simToSend = normalizeSimulationCode(simulationCode)!
       const res = await generateKeyframe(sessionId, {
-        simulationId: selectedSimId,
-        backgroundId: selectedBgId,
-        focus: selectedFocus ?? '',
+        simulationCode: simToSend,
+        // '미선택' (UI 키 'none') → API 에는 null 전송
+        backgroundCode: backgroundCode === 'none' ? null : backgroundCode,
+        focus: focusKey ?? '',
         hint: prompt,
       })
       console.log('[POST /cakes/sessions/.../keyframes] response:', res)
@@ -146,15 +307,16 @@ export default function CreateVideoPage() {
   }
 
   const handleGeneratePrompt = async () => {
-    if (!canGeneratePrompt || !sessionId || !selectedSimId || !selectedBgId)
+    if (!canGeneratePrompt || !sessionId || !simulationCode || !backgroundCode)
       return
     setError(null)
     setGeneratingPrompt(true)
     try {
+      const simToSend = normalizeSimulationCode(simulationCode)!
       const res = await generatePreviewPrompt(sessionId, {
-        simulationId: selectedSimId,
-        backgroundId: selectedBgId,
-        focus: selectedFocus ?? '',
+        simulationCode: simToSend,
+        backgroundCode: backgroundCode === 'none' ? null : backgroundCode,
+        focus: focusKey ?? '',
         hint: prompt,
       })
       console.log('[POST /cakes/sessions/.../preview-prompts] response:', res)
@@ -164,6 +326,15 @@ export default function CreateVideoPage() {
       setError(extractErrorMessage(err, '자동 프롬프트 생성에 실패했습니다.'))
     } finally {
       setGeneratingPrompt(false)
+    }
+  }
+
+  const handlePromptBlur = async () => {
+    if (!sessionId || !autoPrompt.trim()) return
+    try {
+      await updateVideoPrompt(sessionId, autoPrompt, prompt)
+    } catch (err) {
+      console.warn('[PATCH /video-prompt] 저장 실패', err)
     }
   }
 
@@ -189,26 +360,30 @@ export default function CreateVideoPage() {
     }
   }
 
-  // analysis dict 를 평탄화 — 배열 value 는 개별 태그로 펼침.
-  // 예: { fruit: ["strawberry", "blueberry"], texture: "creamy" }
-  //  →  [{ key: "fruit", value: "strawberry" }, { key: "fruit", value: "blueberry" }, { key: "texture", value: "creamy" }]
-  const analysisTags: { key: string; value: string }[] = []
-  if (analysis) {
-    for (const [k, v] of Object.entries(analysis)) {
-      if (Array.isArray(v)) {
-        v.forEach((item) => analysisTags.push({ key: k, value: String(item) }))
-      } else if (v != null) {
-        analysisTags.push({ key: k, value: String(v) })
-      }
-    }
+  // 세션 복원 로딩 — full-page spinner
+  if (restoring) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 py-12 text-gray-500">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
+        <p className="text-sm">진행 중인 세션을 불러오는 중...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 px-5 pb-6 pt-5">
-      <h1 className="text-xl font-bold text-gray-900">영상 만들기</h1>
+    <div className="flex flex-1 flex-col gap-6 px-5 pb-6 pt-6">
+      <header>
+        <p className="text-sm font-medium text-brand-500">Create</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900">
+          영상 만들기
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          메뉴 사진과 옵션을 골라 AI 가 자동으로 만들어드려요.
+        </p>
+      </header>
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
           {error}
         </div>
       )}
@@ -226,7 +401,7 @@ export default function CreateVideoPage() {
           type="button"
           onClick={handleImagePick}
           disabled={analyzing}
-          className="relative flex h-44 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-gray-500 transition hover:border-brand-300 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-70"
+          className="relative flex h-48 w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl border-2 border-dashed border-gray-200 bg-linear-to-br from-gray-50 to-orange-50/40 text-gray-500 transition hover:border-brand-300 hover:from-brand-50 hover:to-orange-50/60 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {imagePreview ? (
             <>
@@ -256,24 +431,69 @@ export default function CreateVideoPage() {
         </button>
       </Section>
 
-      {/* 분석 결과 태그 — analyze 성공 후에만 표시 */}
-      {analysis && analysisTags.length > 0 && (
-        <Section title="강조할 포인트 (1개 선택)">
-          <div className="flex flex-wrap gap-2">
-            {analysisTags.map((tag, i) => {
-              const active = selectedFocus === tag.value
+      {/* 강조 키워드 선택 — analyze 결과에서 동적으로 칩 렌더링 */}
+      {sessionId && (
+        <Section title="강조할 키워드 (1개 선택)">
+          {focusKeywords.length === 0 ? (
+            <p className="text-xs text-gray-400">
+              분석 결과에서 강조할 만한 키워드를 찾지 못했어요. 다른 사진으로
+              시도해보세요.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {focusKeywords.map((item) => {
+                const active = focusKey === item.keyword
+                return (
+                  <button
+                    key={`${item.category}:${item.keyword}`}
+                    type="button"
+                    onClick={() =>
+                      handleFocusSelect(item.keyword, item.category)
+                    }
+                    className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                      active
+                        ? 'border-brand-500 bg-brand-50 text-brand-600'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {keywordLabel(item.keyword)}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* 시뮬레이션 선택 — focus 선택 후 노출 */}
+      {focusKey && availableSimulations.length > 0 && (
+        <Section title="시뮬레이션 선택">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {availableSimulations.map((sim) => {
+              const isActive = simulationCode === sim.key
               return (
                 <button
-                  key={`${tag.key}-${tag.value}-${i}`}
+                  key={sim.key}
                   type="button"
-                  onClick={() => setSelectedFocus(tag.value)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                    active
-                      ? 'border-brand-500 bg-brand-50 text-brand-600'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  onClick={() => handleSimulationSelect(sim.key)}
+                  className={`relative flex h-24 w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-200 p-4 text-white transition md:h-32 ${
+                    isActive ? 'ring-2 ring-brand-500 ring-offset-2' : ''
                   }`}
+                  style={{
+                    backgroundImage: sim.image ? `url(${sim.image})` : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
                 >
-                  {tag.value}
+                  <span className="absolute inset-0 bg-black/35" />
+                  <span className="relative text-base font-semibold drop-shadow-md">
+                    {sim.label_kr}
+                  </span>
+                  {isActive && (
+                    <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-xs text-white">
+                      ✓
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -281,79 +501,55 @@ export default function CreateVideoPage() {
         </Section>
       )}
 
-      {/* 시뮬레이션 선택 */}
-      <Section title="시뮬레이션 선택">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          {simulations.map((sim) => {
-            const isActive = selectedSimId === sim.id
-            return (
-              <button
-                key={sim.id}
-                type="button"
-                onClick={() => setSelectedSimId(sim.id)}
-                className={`relative flex h-24 w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-200 p-4 text-white transition md:h-32 ${
-                  isActive ? 'ring-2 ring-brand-500 ring-offset-2' : ''
-                }`}
-                style={{
-                  backgroundImage: `url(${sim.image})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
-                <span className="absolute inset-0 bg-black/35" />
-                <span className="relative text-base font-semibold drop-shadow-md">
-                  {sim.label}
-                </span>
-                {isActive && (
-                  <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-xs text-white">
-                    ✓
+      {/* 배경 설정 — 시뮬레이션 선택 후 노출 */}
+      {simulationCode && (
+        <Section title="배경 설정">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {BACKGROUNDS.map((bg) => {
+              const isActive = backgroundCode === bg.key
+              const hasImage = !!bg.image
+              return (
+                <button
+                  key={bg.key}
+                  type="button"
+                  onClick={() => handleBackgroundSelect(bg.key)}
+                  className={`relative flex aspect-2/1 items-center justify-center overflow-hidden rounded-2xl p-3 transition ${
+                    hasImage
+                      ? 'bg-gray-200 text-white'
+                      : 'border border-dashed border-gray-300 bg-gray-50 text-gray-500'
+                  } ${isActive ? 'ring-2 ring-brand-500 ring-offset-2' : ''}`}
+                  style={{
+                    backgroundImage: bg.image ? `url(${bg.image})` : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  {hasImage && <span className="absolute inset-0 bg-black/35" />}
+                  <span
+                    className={`relative text-base font-semibold ${
+                      hasImage ? 'drop-shadow-md' : ''
+                    }`}
+                  >
+                    {bg.label_kr}
                   </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </Section>
-
-      {/* 배경 설정 */}
-      <Section title="배경 설정">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {backgrounds.map((bg) => {
-            const isActive = selectedBgId === bg.id
-            return (
-              <button
-                key={bg.id}
-                type="button"
-                onClick={() => setSelectedBgId(bg.id)}
-                className={`relative flex aspect-2/1 items-center justify-center overflow-hidden rounded-2xl bg-gray-200 p-3 text-white transition ${
-                  isActive ? 'ring-2 ring-brand-500 ring-offset-2' : ''
-                }`}
-                style={{
-                  backgroundImage: `url(${bg.image})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
-                <span className="absolute inset-0 bg-black/35" />
-                <span className="relative text-base font-semibold drop-shadow-md">
-                  {bg.label}
-                </span>
-                {isActive && (
-                  <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] text-white">
-                    ✓
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </Section>
+                  {isActive && (
+                    <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] text-white">
+                      ✓
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </Section>
+      )}
 
       {/* 추가 프롬프트 (hint) */}
       <Section title="추가 프롬프트 (선택)">
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
+          onBlur={handleHintBlur}
           placeholder="추가하고 싶은 구체적인 연출이 있다면 입력해주세요 (예: 딸기 토핑이 떨어지는 모습)"
           rows={3}
           className="w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
@@ -387,6 +583,7 @@ export default function CreateVideoPage() {
             <textarea
               value={autoPrompt}
               onChange={(e) => setAutoPrompt(e.target.value)}
+              onBlur={handlePromptBlur}
               rows={3}
               className="mt-3 w-full resize-none rounded-2xl border border-brand-200 bg-brand-50/40 px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
@@ -422,11 +619,12 @@ export default function CreateVideoPage() {
             메뉴 사진을 업로드해야 키프레임을 생성할 수 있어요.
           </p>
         )}
-        {sessionId && (!selectedFocus || !selectedSimId || !selectedBgId) && (
-          <p className="mt-2 text-xs text-gray-400">
-            강조할 포인트·시뮬레이션·배경을 모두 선택해주세요.
-          </p>
-        )}
+        {sessionId &&
+          (!focusKey || !simulationCode || !backgroundCode) && (
+            <p className="mt-2 text-xs text-gray-400">
+              강조할 요소·시뮬레이션·배경을 모두 선택해주세요.
+            </p>
+          )}
 
         {keyframes.length > 0 && (
           <div className="mt-4 grid grid-cols-3 gap-2">
@@ -496,7 +694,10 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold text-gray-700">{title}</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-700">
+        <span className="h-1 w-4 rounded-full bg-brand-500" />
+        {title}
+      </h2>
       {children}
     </section>
   )

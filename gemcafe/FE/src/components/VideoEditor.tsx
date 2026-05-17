@@ -1,19 +1,43 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { api } from '@/shared/lib/axios'
 import {
+  Check,
+  Download,
   Home,
   Loader2,
   Music,
   Pause,
+  Pencil,
   Play,
-  Plus,
+  Save,
+  Share2,
   Smile,
   Trash2,
   Type,
   Upload,
-  UploadCloud,
 } from 'lucide-react'
+import {
+  requestWatermarkDownload,
+  updateVideo,
+} from '@/features/my-videos/api'
+import {
+  requestNotificationPermissionOnce,
+  showAppNotification,
+} from '@/shared/lib/notify'
+import {
+  BGM_CATEGORIES,
+  CATEGORY_QUERIES,
+  TRACKS_PER_CATEGORY,
+  type BgmCategory,
+} from '@/features/bgm/categories'
+import {
+  getStreamUrl,
+  getTrackPageUrl,
+  searchTracks,
+  type AudiusTrack,
+} from '@/features/bgm/audius'
 import BottomNav from '@/layout/BottomNav'
 
 // 디자인 기준 캔버스 크기 — 텍스트 위치/사이즈는 모두 이 기준으로 정규화.
@@ -192,45 +216,8 @@ const STICKER_CATEGORIES: StickerDef['category'][] = [
   '동물',
 ]
 
-// 카페 홍보 숏츠에 어울리는 BGM — 분위기별 카테고리 (10 슬롯).
-//
-// 검증된 Pixabay URL 은 4개. 나머지 슬롯은 같은 URL 을 재사용 중이라
-// pixabay.com/music 에서 카테고리 톤에 맞는 mp3 링크를 찾아 url 만 교체하면 자동 다양화.
-const BGM_CATEGORIES = ['밝음', '잔잔', '로파이', '어쿠스틱', '재즈'] as const
-type BgmCategory = (typeof BGM_CATEGORIES)[number]
-
-interface BgmDef {
-  title: string
-  url: string
-  category: BgmCategory
-}
-
-const URL_BRIGHT_UKULELE =
-  'https://cdn.pixabay.com/audio/2022/10/30/audio_b6e8a44f97.mp3'
-const URL_CAFE_MORNING =
-  'https://cdn.pixabay.com/audio/2022/08/02/audio_884fe92c21.mp3'
-const URL_LOUNGE =
-  'https://cdn.pixabay.com/audio/2023/03/09/audio_c6ccf25a68.mp3'
-const URL_LATTE =
-  'https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3'
-
-const BGM_LIST: BgmDef[] = [
-  // 밝음 — 우쿨렐레/팝
-  { title: '햇살 우쿨렐레', url: URL_BRIGHT_UKULELE, category: '밝음' },
-  { title: '봄날의 카페', url: URL_BRIGHT_UKULELE, category: '밝음' }, // TODO: 다른 트랙
-  { title: '경쾌한 휘파람', url: URL_BRIGHT_UKULELE, category: '밝음' }, // TODO
-  // 잔잔 — 차분한 모닝/라떼 톤
-  { title: '맑은 아침의 카페', url: URL_CAFE_MORNING, category: '잔잔' },
-  { title: '라떼 한 잔의 여유', url: URL_LATTE, category: '잔잔' },
-  { title: '비 오는 오후', url: URL_CAFE_MORNING, category: '잔잔' }, // TODO
-  // 로파이
-  { title: '깊은 밤의 로파이', url: URL_LOUNGE, category: '로파이' }, // TODO
-  { title: '책 읽는 시간', url: URL_LOUNGE, category: '로파이' }, // TODO
-  // 어쿠스틱
-  { title: '따스한 어쿠스틱 기타', url: URL_LATTE, category: '어쿠스틱' }, // TODO
-  // 재즈
-  { title: '아늑한 라운지 재즈', url: URL_LOUNGE, category: '재즈' },
-]
+// BGM 트랙은 Jamendo API 에서 동적으로 받아옴 (Pixabay hotlink 차단 대체).
+// 카테고리 정의·매핑은 features/bgm/categories.ts, API 클라이언트는 features/bgm/jamendo.ts 참고.
 
 interface TextItem {
   id: string
@@ -269,7 +256,21 @@ const newId = () => Math.random().toString(36).slice(2, 9)
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v))
 
+interface EditorLocationState {
+  /** VideoDetailPage 에서 편집하기 클릭 시 전달되는 영상 정보 */
+  videoId?: number
+  title?: string
+  /** 사용자에게 표시할 파일명 (영상 위 오버레이 + 편집 가능) */
+  originFileName?: string
+  /** 인증 보호된 영상 서빙 URL (예: /dev/files/gemcafe/ai-videos/abc.mp4) */
+  videoUrl?: string
+  thumbnailUrl?: string
+}
+
 export default function VideoEditor() {
+  const location = useLocation()
+  const incomingVideo = (location.state as EditorLocationState | null) ?? null
+
   // refs
   const containerRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -289,10 +290,52 @@ export default function VideoEditor() {
   // recorder refs
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  // 저장 흐름에서 자동 녹화한 경우 — onstop 에서 다운로드 스킵 + Promise resolve
+  const recordingForSaveRef = useRef(false)
+  const recordingResolveRef = useRef<
+    ((r: { video: Blob; thumbnail: Blob | null }) => void) | null
+  >(null)
+  const recordingRejectRef = useRef<((err: Error) => void) | null>(null)
 
   // state
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [videoLoaded, setVideoLoaded] = useState(false)
+  // 파일명 — VideoDetailPage 에서 넘어온 originFileName 으로 초기화, 클릭 시 인라인 편집 가능
+  const [fileName, setFileName] = useState<string>(
+    incomingVideo?.originFileName ?? '',
+  )
+  const [editingFileName, setEditingFileName] = useState(false)
+  const fileNameInputRef = useRef<HTMLInputElement | null>(null)
+  // 변경사항 저장 상태
+  const [savingChanges, setSavingChanges] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>(
+    'idle',
+  )
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  /** 녹화 완료 후 합성된 영상 blob (편집본). PATCH 시 videoFile 로 첨부. */
+  const [editedVideoBlob, setEditedVideoBlob] = useState<Blob | null>(null)
+  /** 편집본과 함께 보낼 썸네일 (canvas 마지막 프레임 JPEG). */
+  const [editedThumbnailBlob, setEditedThumbnailBlob] = useState<Blob | null>(
+    null,
+  )
+  /** 워터마크 처리 중 — 풀스크린 로딩 모달 표시용 */
+  const [watermarkLoading, setWatermarkLoading] = useState(false)
+  /** 저장 시 편집본 자동 합성 진행 중 (텍스트·스티커·BGM 을 영상에 baked) */
+  const [bakingForSave, setBakingForSave] = useState(false)
+  /** 워터마크 다운로드 진행 중 (버튼 spinner + 중복 클릭 방지) */
+  const [downloading, setDownloading] = useState(false)
+  /**
+   * 마지막 저장 (PATCH) 이후 사용자 변경사항이 있는지.
+   * 텍스트/스티커/BGM/파일명 어느 하나라도 바뀌면 true. 저장 성공하면 false.
+   * 변경 없으면 저장/다운로드/공유 시 PATCH 스킵 (BE 호출 절약 + UX 일관성).
+   */
+  const [isDirty, setIsDirty] = useState(false)
+  /** isDirty effect 가 mount 시 실행되며 초기값 변화로 dirty 되는 거 방지 */
+  const dirtyTrackerInitRef = useRef(true)
+  // 저장 가능 조건 — videoId 가 있고 변경사항이 있을 때만.
+  // isDirty=false 면 BE 호출 의미 없어서 버튼 자체를 disable.
+  const canSave =
+    !!incomingVideo?.videoId && !savingChanges && isDirty
   const [isPlaying, setIsPlaying] = useState(false)
   const [textInput, setTextInput] = useState('')
   const [fontFamily, setFontFamily] = useState(FONTS[0].family)
@@ -303,7 +346,8 @@ export default function VideoEditor() {
   const [outline, setOutline] = useState(false)
   const [bgmUrl, setBgmUrl] = useState<string | null>(null)
   const [bgmVolume, setBgmVolume] = useState(0.5)
-  const [previewBgmUrl, setPreviewBgmUrl] = useState<string | null>(null)
+  /** 미리듣기 중인 BGM 의 고유 키 (title+idx) — URL 만으론 같은 트랙 여러개 매칭됨 */
+  const [previewBgmKey, setPreviewBgmKey] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState(false)
   const [activeTab, setActiveTab] = useState<
     'text' | 'bgm' | 'sticker' | null
@@ -325,6 +369,18 @@ export default function VideoEditor() {
   >('음료')
   // BGM 패널의 활성 카테고리
   const [bgmCategory, setBgmCategory] = useState<BgmCategory>('밝음')
+  // 카테고리별로 Jamendo API 로 받아온 트랙 캐시. 한 번 받으면 재요청 안 함.
+  const [bgmTracksByCategory, setBgmTracksByCategory] = useState<
+    Partial<Record<BgmCategory, AudiusTrack[]>>
+  >({})
+  const [bgmLoading, setBgmLoading] = useState(false)
+  const [bgmError, setBgmError] = useState<string | null>(null)
+  // 선택된 트랙의 attribution 정보 (artist + license URL) — 저장 후에도 화면에 표시
+  const [bgmAttribution, setBgmAttribution] = useState<{
+    title: string
+    artist: string
+    licenseUrl: string
+  } | null>(null)
   // 컨테이너 dim 추적 — DraggableText 가 표시 사이즈 계산할 때 사용
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
@@ -333,6 +389,49 @@ export default function VideoEditor() {
   useEffect(() => {
     textsRef.current = texts
   }, [texts])
+
+  // 사용자 변경사항 감지 — 텍스트/스티커/BGM/파일명 변하면 isDirty=true.
+  // mount 첫 트리거 (초기값 세팅) 는 ref 로 무시 → 진짜 사용자 액션만 dirty 로 마킹.
+  useEffect(() => {
+    if (dirtyTrackerInitRef.current) {
+      dirtyTrackerInitRef.current = false
+      return
+    }
+    setIsDirty(true)
+  }, [texts, stickers, bgmUrl, fileName])
+
+  // BGM 탭이 열렸고 현재 카테고리 트랙이 아직 안 받아졌으면 Jamendo 검색.
+  // 캐시 (bgmTracksByCategory) 가 있으면 재요청 X — 같은 카테고리 재방문 시 즉시 표시.
+  useEffect(() => {
+    if (activeTab !== 'bgm') return
+    if (bgmTracksByCategory[bgmCategory]) return
+    let cancelled = false
+    setBgmLoading(true)
+    setBgmError(null)
+    const q = CATEGORY_QUERIES[bgmCategory]
+    searchTracks({
+      genre: q.genre,
+      mood: q.mood,
+      limit: TRACKS_PER_CATEGORY,
+    })
+      .then((tracks) => {
+        if (cancelled) return
+        setBgmTracksByCategory((prev) => ({ ...prev, [bgmCategory]: tracks }))
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.error('[Jamendo] 트랙 검색 실패', err)
+        setBgmError(
+          err instanceof Error ? err.message : '트랙을 불러오지 못했어요.',
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setBgmLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, bgmCategory, bgmTracksByCategory])
 
   // 스티커도 동일하게 ref 동기화
   const stickersRef = useRef<StickerItem[]>([])
@@ -373,6 +472,390 @@ export default function VideoEditor() {
     setVideoLoaded(false)
     setLoadError(null)
   }
+
+  // 파일명 편집 모드 진입 시 — input 자동 포커스 + 전체 선택
+  useEffect(() => {
+    if (editingFileName && fileNameInputRef.current) {
+      fileNameInputRef.current.focus()
+      fileNameInputRef.current.select()
+    }
+  }, [editingFileName])
+
+  // 저장 상태 토스트 자동 해제
+  useEffect(() => {
+    if (saveStatus === 'idle') return
+    const t = setTimeout(() => {
+      setSaveStatus('idle')
+      setSaveMessage(null)
+    }, 2400)
+    return () => clearTimeout(t)
+  }, [saveStatus])
+
+  /**
+   * 변경사항을 BE 에 저장.
+   * - 제목(파일명) 바뀐 경우 → request.title
+   * - 녹화로 합성된 편집본 blob 있는 경우 → videoFile
+   * 둘 다 multipart/form-data 로 PATCH /videos/{id} 한 번에 전송.
+   */
+  const handleSaveChanges = async () => {
+    if (!canSave) return
+    setSavingChanges(true)
+    try {
+      // 텍스트/스티커/BGM 같은 오버레이는 영상에 baked 되어야 BE 에 저장 가능.
+      // 사용자가 녹화를 안 했지만 오버레이가 있으면, 저장 시 자동 합성.
+      let videoBlob: Blob | null = editedVideoBlob
+      let thumbBlob: Blob | null = editedThumbnailBlob
+      const hasOverlays =
+        texts.length > 0 || stickers.length > 0 || !!bgmUrl
+      if (hasOverlays && !videoBlob) {
+        setBakingForSave(true)
+        try {
+          const r = await recordAndGetBlob()
+          videoBlob = r.video
+          thumbBlob = r.thumbnail
+        } finally {
+          setBakingForSave(false)
+        }
+      }
+
+      const trimmedName = fileName.trim()
+      const res = await updateVideo(incomingVideo!.videoId!, {
+        ...(trimmedName ? { request: { title: trimmedName } } : {}),
+        ...(videoBlob ? { videoFile: videoBlob } : {}),
+        ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
+      })
+      console.log('[PATCH /videos/{id}] response:', res)
+      // 저장 후엔 새 편집본은 서버 반영됐으므로 로컬 blob 폐기 + dirty 해제
+      setEditedVideoBlob(null)
+      setEditedThumbnailBlob(null)
+      setIsDirty(false)
+      setSaveStatus('success')
+      setSaveMessage('변경사항이 저장되었어요.')
+    } catch (err) {
+      console.error('[PATCH /videos/{id}] 저장 실패', err)
+      // BE 가 보낸 에러 메시지 노출 (validation 실패 원인 확인용)
+      let detail: string | undefined
+      if (err && typeof err === 'object' && 'response' in err) {
+        const resp = (err as { response?: { data?: { message?: string } } })
+          .response
+        detail = resp?.data?.message
+        console.error('[PATCH /videos/{id}] BE response body:', resp?.data)
+      }
+      setSaveStatus('error')
+      setSaveMessage(detail ? `저장 실패: ${detail}` : '저장에 실패했습니다.')
+    } finally {
+      setSavingChanges(false)
+    }
+  }
+
+  /**
+   * 공유: 변경사항 저장 → 워터마크 합성 → Web Share API.
+   *
+   *  1. isDirty 면 먼저 PATCH 로 저장 (편집본이 BE 에 반영돼야 워터마크 적용 대상이 됨)
+   *  2. POST /watermark-download → 워터마크 합성된 영상의 downloadUrl 수신
+   *  3. downloadUrl 에서 blob 받아 navigator.share files 로 전달
+   *  4. 파일 공유 미지원이면 페이지 URL 공유 → 클립보드 복사 fallback
+   */
+  const handleShare = async () => {
+    if (savingChanges) return
+    void requestNotificationPermissionOnce()
+
+    // 변경사항이 있을 때만 PATCH 호출. 마지막 저장 이후 추가 변경 없으면 BE 호출 스킵.
+    if (incomingVideo?.videoId && isDirty) {
+      setSavingChanges(true)
+      try {
+        // 오버레이 있고 미녹화 시 자동 합성
+        let videoBlob: Blob | null = editedVideoBlob
+        let thumbBlob: Blob | null = editedThumbnailBlob
+        const hasOverlays =
+          texts.length > 0 || stickers.length > 0 || !!bgmUrl
+        if (hasOverlays && !videoBlob) {
+          setBakingForSave(true)
+          try {
+            const r = await recordAndGetBlob()
+            videoBlob = r.video
+            thumbBlob = r.thumbnail
+          } finally {
+            setBakingForSave(false)
+          }
+        }
+
+        const trimmedName = fileName.trim()
+        await updateVideo(incomingVideo.videoId, {
+          ...(trimmedName ? { request: { title: trimmedName } } : {}),
+          ...(videoBlob ? { videoFile: videoBlob } : {}),
+          ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
+        })
+        setEditedVideoBlob(null)
+        setEditedThumbnailBlob(null)
+        setIsDirty(false)
+      } catch (err) {
+        console.error('[PATCH /videos/{id}] 공유 전 저장 실패', err)
+        setSaveStatus('error')
+        setSaveMessage('저장에 실패해 공유를 중단했어요.')
+        setSavingChanges(false)
+        return
+      } finally {
+        setSavingChanges(false)
+      }
+    }
+
+    const shareTitle = `${fileName || 'gem.cafe'} — gem.cafe`
+    const shareText = '편집한 영상을 확인해보세요!'
+    const shareUrl =
+      typeof window !== 'undefined' && incomingVideo?.videoId
+        ? `${window.location.origin}/videos/${incomingVideo.videoId}`
+        : (window?.location?.href ?? '')
+
+    // 데스크톱 / 모바일 분기 — 워터마크 API 호출 전 동기 체크
+    const canShareFiles = supportsFileShare()
+
+    // 워터마크 합성 (로딩 모달 표시)
+    let blob: Blob | null = null
+    let watermarkFileName = ''
+    if (incomingVideo?.videoId) {
+      setWatermarkLoading(true)
+      try {
+        const meta = await requestWatermarkDownload(incomingVideo.videoId)
+        watermarkFileName = meta.fileName
+        if (canShareFiles) {
+          blob = await fetchBlobFromUrl(meta.downloadUrl)
+        }
+        // 처리 끝 — PWA 알림
+        showAppNotification({
+          title: '영상이 준비됐어요',
+          body: '워터마크 처리가 끝나 공유할 수 있어요.',
+          tag: `watermark-${incomingVideo.videoId}`,
+          url: `/videos/${incomingVideo.videoId}`,
+        })
+      } catch (err) {
+        console.error('[VideoEditor] 워터마크 요청 실패', err)
+        setSaveStatus('error')
+        setSaveMessage('워터마크 처리에 실패했습니다.')
+        setWatermarkLoading(false)
+        return
+      } finally {
+        setWatermarkLoading(false)
+      }
+    }
+
+    // 1) 파일 공유 (모바일)
+    if (canShareFiles && blob && typeof navigator.share === 'function') {
+      try {
+        const file = new File([blob], watermarkFileName, {
+          type: blob.type || 'video/mp4',
+        })
+        const filePayload = {
+          files: [file],
+          title: shareTitle,
+          text: shareText,
+        }
+        if (navigator.canShare(filePayload)) {
+          await navigator.share(filePayload)
+          return
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+        console.warn(
+          '[VideoEditor] 워터마크 파일 공유 실패, URL 공유로 fallback',
+          err,
+        )
+      }
+    }
+
+    // 2) URL 공유 (데스크톱)
+    if (typeof navigator.share === 'function' && shareUrl) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        })
+        return
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+        console.warn('[VideoEditor] Web Share 실패, 클립보드 fallback', err)
+      }
+    }
+
+    // 3) 클립보드 복사
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setSaveStatus('success')
+      setSaveMessage('링크가 복사되었어요.')
+    } catch (err) {
+      console.error('[VideoEditor] 클립보드 복사 실패', err)
+      setSaveStatus('error')
+      setSaveMessage('공유에 실패했습니다.')
+    }
+  }
+
+  /**
+   * 다운로드: 변경사항 저장 → 워터마크 합성 → 로컬 파일 저장.
+   *
+   *  - videoId 있을 때만 워터마크 흐름 사용 (BE 에 등록된 영상이 워터마크 대상).
+   *  - 오버레이(텍스트·스티커·BGM) 있고 미녹화 시 자동 합성 후 PATCH.
+   *  - 워터마크 API 응답의 downloadUrl 에서 blob 받아 <a download> 클릭으로 저장.
+   *  - videoId 없는(생짜 업로드) 케이스는 기존 MediaRecorder 녹화 흐름으로 fallback.
+   */
+  const handleDownload = async () => {
+    if (downloading || savingChanges) return
+    void requestNotificationPermissionOnce()
+
+    // videoId 없으면 BE 측 영상이 없으므로 워터마크 불가 — 로컬 녹화로 fallback
+    if (!incomingVideo?.videoId) {
+      if (isRecording) stopRecording()
+      else await startRecording()
+      return
+    }
+
+    setDownloading(true)
+    try {
+      // 1) 저장 — 변경사항 있을 때만. 없으면 워터마크 단계로 바로 진행.
+      if (isDirty) {
+        setSavingChanges(true)
+        try {
+          let videoBlob: Blob | null = editedVideoBlob
+          let thumbBlob: Blob | null = editedThumbnailBlob
+          const hasOverlays =
+            texts.length > 0 || stickers.length > 0 || !!bgmUrl
+          if (hasOverlays && !videoBlob) {
+            setBakingForSave(true)
+            try {
+              const r = await recordAndGetBlob()
+              videoBlob = r.video
+              thumbBlob = r.thumbnail
+            } finally {
+              setBakingForSave(false)
+            }
+          }
+
+          const trimmedName = fileName.trim()
+          await updateVideo(incomingVideo.videoId, {
+            ...(trimmedName ? { request: { title: trimmedName } } : {}),
+            ...(videoBlob ? { videoFile: videoBlob } : {}),
+            ...(thumbBlob ? { thumbnail: thumbBlob } : {}),
+          })
+          setEditedVideoBlob(null)
+          setEditedThumbnailBlob(null)
+          setIsDirty(false)
+        } catch (err) {
+          console.error('[PATCH /videos/{id}] 다운로드 전 저장 실패', err)
+          setSaveStatus('error')
+          setSaveMessage('저장에 실패해 다운로드를 중단했어요.')
+          return
+        } finally {
+          setSavingChanges(false)
+        }
+      }
+
+      // 2) 워터마크 합성 요청 → downloadUrl 수신
+      setWatermarkLoading(true)
+      let meta: { downloadUrl: string; fileName: string }
+      try {
+        meta = await requestWatermarkDownload(incomingVideo.videoId)
+        // 처리 끝 — PWA 알림
+        showAppNotification({
+          title: '영상이 준비됐어요',
+          body: '워터마크 처리가 끝나 다운로드를 시작합니다.',
+          tag: `watermark-${incomingVideo.videoId}`,
+          url: `/videos/${incomingVideo.videoId}`,
+        })
+      } catch (err) {
+        console.error('[VideoEditor] 워터마크 요청 실패', err)
+        setSaveStatus('error')
+        setSaveMessage('워터마크 처리에 실패했습니다.')
+        return
+      } finally {
+        setWatermarkLoading(false)
+      }
+
+      // 3) blob 받아 <a download> 로 저장
+      try {
+        const blob = await fetchBlobFromUrl(meta.downloadUrl)
+        const objUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = objUrl
+        a.download =
+          meta.fileName || `${fileName.trim() || 'gemcafe'}.mp4`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(objUrl)
+        setSaveStatus('success')
+        setSaveMessage('다운로드를 시작했어요.')
+      } catch (err) {
+        console.error('[VideoEditor] 워터마크 영상 fetch 실패', err)
+        setSaveStatus('error')
+        setSaveMessage('다운로드에 실패했습니다.')
+      }
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  /** 파일 공유 지원 환경인지 동기 체크 (대부분 모바일 브라우저만). */
+  const supportsFileShare = (): boolean => {
+    if (typeof navigator === 'undefined') return false
+    if (!('canShare' in navigator)) return false
+    try {
+      const dummy = new File(['x'], 't.mp4', { type: 'video/mp4' })
+      return navigator.canShare({ files: [dummy] })
+    } catch {
+      return false
+    }
+  }
+
+  /** 보호된 URL 에서 blob 받기. /dev/ 경로면 baseURL 우회. */
+  const fetchBlobFromUrl = async (url: string): Promise<Blob> => {
+    const useOriginBase = /^\/dev\//.test(url)
+    const res = await api.get<Blob>(url, {
+      responseType: 'blob',
+      ...(useOriginBase ? { baseURL: '' } : {}),
+    })
+    return res.data
+  }
+
+  // VideoDetailPage 에서 편집하기 진입 시 — 인증 보호 경로의 영상을 blob 으로 받아
+  // 자동 로드해서 업로드 단계 건너뜀.
+  // incomingVideoLoading 으로 업로드 컴포넌트 대신 로딩 스피너 표시.
+  const [incomingVideoLoading, setIncomingVideoLoading] = useState(false)
+  useEffect(() => {
+    const incomingUrl = incomingVideo?.videoUrl
+    if (!incomingUrl) return
+
+    let cancelled = false
+    let created: string | undefined
+    setLoadError(null)
+    setVideoLoaded(false)
+    setIncomingVideoLoading(true)
+
+    const useOriginBase = /^\/dev\//.test(incomingUrl)
+    api
+      .get<Blob>(incomingUrl, {
+        responseType: 'blob',
+        ...(useOriginBase ? { baseURL: '' } : {}),
+      })
+      .then((res) => {
+        if (cancelled) return
+        created = URL.createObjectURL(res.data)
+        setVideoUrl(created)
+      })
+      .catch((err) => {
+        console.error('[VideoEditor] 영상 로드 실패', err)
+        if (!cancelled) setLoadError('영상을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!cancelled) setIncomingVideoLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+      if (created) URL.revokeObjectURL(created)
+    }
+    // location.state 는 mount 시 한 번만 확정값으로 봄
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // videoUrl 변경 시 — JSX 의 <video> 엘리먼트(videoRef) 에 listener 부착
   useEffect(() => {
@@ -458,10 +941,19 @@ export default function VideoEditor() {
     if (v.paused) {
       v.muted = false
       try {
+        // BGM 이 createMediaElementSource 로 Web Audio 그래프에 연결돼있으면
+        // AudioContext 가 'suspended' 일 때 소리 안 남. 사용자 gesture 컨텍스트에서
+        // resume 해줘야 함 (브라우저 autoplay 정책).
+        ensureAudio()
+        if (audioCtxRef.current?.state === 'suspended') {
+          await audioCtxRef.current.resume()
+        }
         await v.play()
         setIsPlaying(true)
         if (bgmAudioRef.current) {
-          await bgmAudioRef.current.play().catch(() => {})
+          await bgmAudioRef.current.play().catch((err) => {
+            console.warn('[BGM] play 실패', err)
+          })
         }
       } catch (err) {
         console.error('재생 실패', err)
@@ -514,7 +1006,7 @@ export default function VideoEditor() {
       url: stickerUrl(char),
       x: 0.5,
       y: 0.5,
-      size: 140, // DESIGN_HEIGHT 기준 px (캔버스 높이의 ~14.5%)
+      size: 24, // DESIGN_HEIGHT 기준 px (캔버스 높이의 ~2.5%) — 기존 140 의 약 1/6
       rotation: 0,
     }
     setStickers((prev) => [...prev, item])
@@ -601,55 +1093,87 @@ export default function VideoEditor() {
       previewAudioRef.current.pause()
       previewAudioRef.current = null
     }
-    setPreviewBgmUrl(null)
+    setPreviewBgmKey(null)
   }
 
-  const togglePreviewBgm = (url: string) => {
-    if (previewBgmUrl === url) {
+  /**
+   * BGM 미리듣기. Jamendo CDN 은 CORS 허용 + hotlink OK 라서 <audio src> 직접 사용 가능.
+   */
+  const togglePreviewBgm = (url: string, key: string) => {
+    if (previewBgmKey === key) {
       stopPreviewBgm()
       return
     }
     stopPreviewBgm()
     const audio = new Audio(url)
-    audio.crossOrigin = 'anonymous'
     audio.volume = 0.6
-    audio.play().catch(() => {})
-    audio.onended = () => setPreviewBgmUrl(null)
+    audio.onended = () => setPreviewBgmKey(null)
+    audio.play().catch((err) => {
+      console.error('[BGM preview] play failed', err)
+      setPreviewBgmKey(null)
+    })
     previewAudioRef.current = audio
-    setPreviewBgmUrl(url)
+    setPreviewBgmKey(key)
   }
 
-  const selectBgm = (url: string) => {
-    ensureAudio()
-    const ctx = audioCtxRef.current!
+  /**
+   * BGM 선택 — 라이브 재생용.
+   *
+   * Audius 콘텐츠 노드 (예: v.monophonic.digital) 가 origin reflect + ACAC:true 조합으로
+   * 응답해서 `crossOrigin='anonymous'` 와 충돌. 그래서 createMediaElementSource 없이
+   * plain audio element 만 사용 — 재생은 default destination 으로 나감 (정상).
+   *
+   * 트레이드오프: 녹화 시 BGM 이 captured stream 에 mix 안 됨. 추후 별도 대응 필요
+   * (예: 녹화 시작 시 fetch 로 mp3 받아 AudioBufferSource + audioDestRef 로 라우팅).
+   */
+  const selectBgm = (track: AudiusTrack) => {
     stopPreviewBgm()
 
+    // 기존 BGM 정지
     if (bgmAudioRef.current) bgmAudioRef.current.pause()
-    if (bgmSourceRef.current) bgmSourceRef.current.disconnect()
-    if (bgmGainRef.current) bgmGainRef.current.disconnect()
+    // 이전에 createMediaElementSource 로 잡혀있던 노드가 있으면 disconnect (정리)
+    if (bgmSourceRef.current) {
+      bgmSourceRef.current.disconnect()
+      bgmSourceRef.current = null
+    }
+    if (bgmGainRef.current) {
+      bgmGainRef.current.disconnect()
+      bgmGainRef.current = null
+    }
 
-    const audio = new Audio(url)
-    audio.crossOrigin = 'anonymous'
+    const audioSrc = getStreamUrl(track.id)
+    const audio = new Audio()
     audio.loop = true
     audio.preload = 'auto'
-
-    const source = ctx.createMediaElementSource(audio)
-    const gain = ctx.createGain()
-    gain.gain.value = bgmVolume
-
-    source.connect(gain)
-    gain.connect(ctx.destination)
-    if (audioDestRef.current) gain.connect(audioDestRef.current)
+    audio.volume = bgmVolume
+    audio.addEventListener('error', () => {
+      const e = audio.error
+      console.error('[BGM] audio load error', {
+        code: e?.code,
+        message: e?.message,
+        src: audioSrc,
+      })
+    })
+    audio.addEventListener('canplay', () => {
+      console.log('[BGM] canplay', audioSrc)
+    })
+    audio.src = audioSrc
 
     bgmAudioRef.current = audio
-    bgmSourceRef.current = source
-    bgmGainRef.current = gain
-    setBgmUrl(url)
+    setBgmUrl(audioSrc)
+    setBgmAttribution({
+      title: track.title,
+      artist: track.user.name,
+      licenseUrl: getTrackPageUrl(track),
+    })
 
     if (isPlaying) audio.play().catch(() => {})
   }
 
   useEffect(() => {
+    // Web Audio 라우팅 안 쓰는 케이스 — audio.volume 으로 직접 조절.
+    // gainRef 가 있으면 그쪽도 동기화 (legacy / 추후 재라우팅 대비).
+    if (bgmAudioRef.current) bgmAudioRef.current.volume = bgmVolume
     if (bgmGainRef.current) bgmGainRef.current.gain.value = bgmVolume
   }, [bgmVolume])
 
@@ -676,18 +1200,62 @@ export default function VideoEditor() {
       }
     }
 
-    compose.width = v.videoWidth || 1080
-    compose.height = v.videoHeight || 1920
+    // 캔버스를 항상 9:16 (1080×1920) YouTube Shorts 규격으로 고정.
+    // 원본 비율과 다르면 letterbox(검은 여백) 로 맞춤 — 영상 잘림 없이 보존.
+    compose.width = 1080
+    compose.height = 1920
     const composeCtx = compose.getContext('2d')
     if (!composeCtx) {
       console.error('compose 2d context 생성 실패')
       return
     }
 
+    /**
+     * 원본 영상을 9:16 캔버스에 letterbox 로 맞춰 그릴 좌표 계산.
+     * - 가로가 더 긴 비율 → 상하 검은 여백 (영상은 캔버스 가로 채움)
+     * - 세로가 더 긴 비율 → 좌우 검은 여백 (영상은 캔버스 세로 채움)
+     */
+    const computeDrawRect = (
+      srcW: number,
+      srcH: number,
+      dstW: number,
+      dstH: number,
+    ) => {
+      if (srcW <= 0 || srcH <= 0) {
+        return { x: 0, y: 0, w: dstW, h: dstH }
+      }
+      const srcRatio = srcW / srcH
+      const dstRatio = dstW / dstH
+      let w = dstW
+      let h = dstH
+      let x = 0
+      let y = 0
+      if (srcRatio > dstRatio) {
+        // 원본이 더 wide — 가로 fit, 상하 여백
+        w = dstW
+        h = dstW / srcRatio
+        y = (dstH - h) / 2
+      } else if (srcRatio < dstRatio) {
+        // 원본이 더 tall — 세로 fit, 좌우 여백
+        h = dstH
+        w = dstH * srcRatio
+        x = (dstW - w) / 2
+      }
+      return { x, y, w, h }
+    }
+
     const composeTick = () => {
-      composeCtx.clearRect(0, 0, compose.width, compose.height)
-      if (v.readyState >= 2) {
-        composeCtx.drawImage(v, 0, 0, compose.width, compose.height)
+      // 검은 배경으로 채워서 letterbox 영역이 검은색이 되도록
+      composeCtx.fillStyle = '#000'
+      composeCtx.fillRect(0, 0, compose.width, compose.height)
+      if (v.readyState >= 2 && v.videoWidth > 0 && v.videoHeight > 0) {
+        const rect = computeDrawRect(
+          v.videoWidth,
+          v.videoHeight,
+          compose.width,
+          compose.height,
+        )
+        composeCtx.drawImage(v, rect.x, rect.y, rect.w, rect.h)
       }
       // 디자인 기준(960) 으로 정규화돼 있어 compose 높이 기준 스케일.
       const scale = compose.height / DESIGN_HEIGHT
@@ -753,6 +1321,39 @@ export default function VideoEditor() {
     videoStream.getVideoTracks().forEach((t) => combined.addTrack(t))
     audioStream?.getAudioTracks().forEach((t) => combined.addTrack(t))
 
+    // BGM 을 녹화 stream 에 추가.
+    //
+    // createMediaElementSource (Web Audio) + crossOrigin='anonymous' 로 routing 하려고 하면
+    // Audius 의 일부 콘텐츠 노드 (origin-reflect + ACAC:true) 가 redirect 체인에서 null origin
+    // 처리 때문에 CORS 거부 → audio 자체가 로드 실패.
+    //
+    // 대안: HTMLMediaElement.captureStream() 로 audio element 의 재생 stream 을 직접 추출 →
+    // 별도 CORS 처리 없이 MediaRecorder 가 그 track 을 녹화. 브라우저에 따라 cross-origin
+    // 미디어에 대해 silent 처리할 수 있으나 (best-effort) 일단 시도.
+    const bgm = bgmAudioRef.current
+    if (bgm) {
+      type AudioWithCapture = HTMLAudioElement & {
+        captureStream?: () => MediaStream
+        mozCaptureStream?: () => MediaStream
+      }
+      const bgmExt = bgm as AudioWithCapture
+      const captureFn = bgmExt.captureStream ?? bgmExt.mozCaptureStream
+      if (captureFn) {
+        try {
+          const bgmStream = captureFn.call(bgm)
+          bgmStream.getAudioTracks().forEach((t) => combined.addTrack(t))
+          console.log('[REC] BGM captureStream track 추가')
+        } catch (err) {
+          console.warn(
+            '[REC] BGM captureStream 실패 — 녹화에 BGM 미포함',
+            err,
+          )
+        }
+      } else {
+        console.warn('[REC] 이 브라우저는 audio.captureStream 미지원')
+      }
+    }
+
     // MP4 우선 시도 → 미지원 브라우저는 webm 으로 fallback.
     // (Chromium 기반 최신 브라우저는 MP4 H.264+AAC 녹화 지원, Firefox 는 webm 만)
     const mimeCandidates = [
@@ -787,14 +1388,43 @@ export default function VideoEditor() {
       const blob = new Blob(chunksRef.current, {
         type: mimeType || 'video/webm',
       })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `gem-cafe-edit-${Date.now()}.${ext}`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // 편집본 blob 저장 — '변경사항 저장' 클릭 시 BE 로 업로드
+      setEditedVideoBlob(blob)
+
+      // 썸네일 캡처 — compose 캔버스의 마지막 프레임을 JPEG 로 추출.
+      // BE 가 PATCH 시 videoFile + thumbnail 함께 요구. canvas.toBlob 은
+      // 비동기라 Promise resolve 를 콜백 안에서 수행.
+      compose.toBlob(
+        (thumb) => {
+          if (thumb) setEditedThumbnailBlob(thumb)
+
+          // 저장 흐름에서 자동 녹화한 경우 — 다운로드 스킵 + Promise resolve
+          if (recordingForSaveRef.current) {
+            recordingResolveRef.current?.({
+              video: blob,
+              thumbnail: thumb,
+            })
+            recordingResolveRef.current = null
+            recordingRejectRef.current = null
+            recordingForSaveRef.current = false
+          }
+        },
+        'image/jpeg',
+        0.85,
+      )
+
+      // 일반 녹화일 때는 다운로드 트리거 (썸네일 캡처 콜백과 별개)
+      if (!recordingForSaveRef.current) {
+        // 일반 녹화 — 사용자 디바이스에 자동 다운로드
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `gem-cafe-edit-${Date.now()}.${ext}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
 
       setIsRecording(false)
       setProgress(0)
@@ -825,6 +1455,39 @@ export default function VideoEditor() {
     bgmAudioRef.current?.pause()
   }
 
+  /**
+   * 저장 흐름 — 텍스트/스티커/BGM 오버레이를 영상에 합성한 blob 을 반환.
+   * MediaRecorder 가 영상 종료 ('ended' 이벤트) 까지 진행되므로 video.duration
+   * 시간 만큼 걸림. 호출자가 로딩 UI 표시 책임.
+   */
+  const recordAndGetBlob = async (): Promise<{
+    video: Blob
+    thumbnail: Blob | null
+  }> => {
+    if (!videoRef.current || !videoLoaded) {
+      throw new Error('영상이 아직 준비되지 않았어요.')
+    }
+    if (isRecording) {
+      throw new Error('이미 녹화가 진행 중이에요.')
+    }
+    return new Promise<{ video: Blob; thumbnail: Blob | null }>(
+      (resolve, reject) => {
+        recordingForSaveRef.current = true
+        recordingResolveRef.current = resolve
+        recordingRejectRef.current = reject
+        // startRecording 내부에서 video.currentTime = 0 + play() 호출.
+        // 영상 끝나면 기존 'ended' 리스너가 recorder.stop() 트리거.
+        // recorder.onstop 에서 썸네일 캡처 콜백을 거쳐 resolve.
+        startRecording().catch((err) => {
+          recordingForSaveRef.current = false
+          recordingResolveRef.current = null
+          recordingRejectRef.current = null
+          reject(err)
+        })
+      },
+    )
+  }
+
   const editorTabs = [
     { key: 'text' as const, label: '텍스트', Icon: Type },
     { key: 'sticker' as const, label: '스티커', Icon: Smile },
@@ -843,20 +1506,81 @@ export default function VideoEditor() {
           <Home className="h-5 w-5" />
         </Link>
         <h1 className="text-base font-bold text-white">영상 편집하기</h1>
-        <button
-          type="button"
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={!videoLoaded}
-          aria-label={isRecording ? '녹화 중지 및 저장' : '저장'}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-brand-400 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isRecording ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <UploadCloud className="h-5 w-5" />
-          )}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* 변경사항 저장 — 파일명 + 편집본 영상 BE 업로드 */}
+          <button
+            type="button"
+            onClick={handleSaveChanges}
+            disabled={!canSave}
+            aria-label="변경사항 저장"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
+          >
+            {savingChanges ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden sm:inline">변경사항 저장</span>
+            <span className="sm:hidden">저장</span>
+          </button>
+          {/* 공유 — 변경사항이 있으면 먼저 저장 후 Web Share API */}
+          <button
+            type="button"
+            onClick={handleShare}
+            disabled={savingChanges}
+            aria-label="공유"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">공유</span>
+          </button>
+          {/* 다운로드 — 워터마크 합성(POST /videos/{id}/watermark-download) 후 로컬 저장 */}
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={!videoLoaded || downloading || savingChanges}
+            aria-label="워터마크 영상 다운로드"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-brand-400 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {downloading || isRecording ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Download className="h-5 w-5" />
+            )}
+          </button>
+        </div>
       </header>
+
+      {/* 저장 결과 토스트 */}
+      {saveStatus !== 'idle' && saveMessage && (
+        <div
+          className={`pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-5 py-3 text-sm font-medium text-white shadow-xl backdrop-blur-md ${
+            saveStatus === 'success' ? 'bg-emerald-600/95' : 'bg-rose-600/95'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {saveStatus === 'success' && <Check className="h-4 w-4" />}
+            {saveMessage}
+          </div>
+        </div>
+      )}
+
+      {/* 풀스크린 로딩 모달 — baking (편집본 합성) 또는 워터마크 처리 중 */}
+      {(bakingForSave || watermarkLoading) && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="rounded-3xl bg-white px-10 py-8 text-center shadow-2xl">
+            <Loader2 className="mx-auto h-10 w-10 animate-spin text-brand-500" />
+            <p className="mt-4 text-base font-bold text-gray-900">
+              {bakingForSave ? '편집본 합성 중' : '워터마크 삽입 중'}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              {bakingForSave
+                ? '영상에 텍스트·스티커를 입히는 중이에요. 영상 길이만큼 걸려요.'
+                : '잠시만 기다려주세요...'}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 숨김 파일 인풋 */}
@@ -892,8 +1616,56 @@ export default function VideoEditor() {
               />
             )}
 
-            {/* 빈 상태 */}
-            {!videoUrl && (
+            {/* 파일명 오버레이 — 영상 위 좌상단. 클릭 시 input 으로 전환되어 편집 가능 */}
+            {videoUrl && (
+              <div className="absolute inset-x-0 top-0 z-20 p-3">
+                {editingFileName ? (
+                  <input
+                    ref={fileNameInputRef}
+                    type="text"
+                    value={fileName}
+                    onChange={(e) => setFileName(e.target.value)}
+                    onBlur={() => setEditingFileName(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === 'Escape') {
+                        e.preventDefault()
+                        setEditingFileName(false)
+                      }
+                    }}
+                    placeholder="파일명을 입력하세요"
+                    className="w-full rounded-lg border border-white/30 bg-black/60 px-3 py-2 text-sm font-medium text-white outline-hidden placeholder:text-white/50 backdrop-blur-sm focus:border-brand-400"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingFileName(true)}
+                    className="group inline-flex max-w-full items-center gap-1.5 rounded-lg bg-black/45 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-black/60"
+                  >
+                    <span className="break-all text-left">
+                      {fileName || '파일명을 입력하세요'}
+                    </span>
+                    <Pencil className="h-3 w-3 shrink-0 opacity-60 transition group-hover:opacity-100" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 빈 상태 — incomingVideoLoading 중에는 로딩 스피너, 아니면 업로드 버튼 */}
+            {!videoUrl && incomingVideoLoading && (
+              <div
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-gray-900 p-6 text-center"
+                aria-busy="true"
+              >
+                <Loader2 className="h-10 w-10 animate-spin text-brand-400" />
+                <p className="mt-4 text-sm font-semibold text-gray-200">
+                  영상을 불러오는 중...
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  잠시만 기다려주세요
+                </p>
+              </div>
+            )}
+            {!videoUrl && !incomingVideoLoading && (
               <button
                 type="button"
                 data-overlay-btn
@@ -999,13 +1771,23 @@ export default function VideoEditor() {
             <div className="p-4 md:p-5">
               {activeTab === 'text' && (
                 <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    placeholder="추가할 문구를 입력하세요"
-                    className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="추가할 문구를 입력하세요"
+                      className="min-w-0 flex-1 rounded-xl border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                    />
+                    {/* 텍스트 객체 명시적 생성 — 입력값 + 현재 폰트/크기/색상으로 추가 */}
+                    <button
+                      type="button"
+                      onClick={addText}
+                      className="shrink-0 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 active:scale-[0.98]"
+                    >
+                      텍스트 생성
+                    </button>
+                  </div>
 
                   <div>
                     <label className="text-xs font-medium text-gray-400">
@@ -1130,20 +1912,12 @@ export default function VideoEditor() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={addText}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
-                    >
-                      <Plus className="h-4 w-4" />
-                      텍스트 추가
-                    </button>
-                    <button
-                      type="button"
                       onClick={() =>
                         selectedTextId && deleteText(selectedTextId)
                       }
                       disabled={!selectedTextId}
                       aria-label="선택 삭제"
-                      className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-sm font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-sm font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1220,33 +1994,60 @@ export default function VideoEditor() {
                     })}
                   </div>
 
-                  {/* 선택된 카테고리의 BGM 리스트 */}
-                  {BGM_LIST.filter((b) => b.category === bgmCategory).map(
-                    (bgm, idx) => {
-                      const isSelected = bgmUrl === bgm.url
-                      const isPreviewing = previewBgmUrl === bgm.url
+                  {/* 선택된 카테고리의 BGM 리스트 — Jamendo 결과 */}
+                  {bgmLoading && !bgmTracksByCategory[bgmCategory] && (
+                    <div className="space-y-2">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-12 animate-pulse rounded-xl bg-gray-800"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {bgmError && !bgmTracksByCategory[bgmCategory] && (
+                    <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-3 text-xs text-rose-300">
+                      <p className="font-medium">{bgmError}</p>
+                      <p className="mt-1 text-rose-300/70">
+                        잠시 후 다시 시도해주세요. 카테고리를 바꿔보는 것도 방법이에요.
+                      </p>
+                    </div>
+                  )}
+
+                  {(bgmTracksByCategory[bgmCategory] ?? []).map(
+                    (track, idx) => {
+                      const key = `${track.id}-${idx}`
+                      const streamUrl = getStreamUrl(track.id)
+                      const isSelected = bgmUrl === streamUrl
+                      const isPreviewing = previewBgmKey === key
                       return (
                         <div
-                          key={`${bgm.title}-${idx}`}
+                          key={key}
                           className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition ${
                             isSelected
                               ? 'border-brand-500 bg-brand-500/15'
                               : 'border-gray-700 bg-gray-800'
                           }`}
                         >
-                          <span
-                            className={`min-w-0 flex-1 truncate text-sm ${
-                              isSelected
-                                ? 'font-bold text-brand-300'
-                                : 'text-gray-200'
-                            }`}
-                          >
-                            {bgm.title}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className={`truncate text-sm ${
+                                isSelected
+                                  ? 'font-bold text-brand-300'
+                                  : 'text-gray-200'
+                              }`}
+                            >
+                              {track.title}
+                            </div>
+                            <div className="truncate text-[11px] text-gray-400">
+                              {track.user.name}
+                            </div>
+                          </div>
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => togglePreviewBgm(bgm.url)}
+                              onClick={() => togglePreviewBgm(streamUrl, key)}
                               aria-label="미리듣기"
                               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition hover:bg-gray-700"
                             >
@@ -1258,7 +2059,7 @@ export default function VideoEditor() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => selectBgm(bgm.url)}
+                              onClick={() => selectBgm(track)}
                               className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
                                 isSelected
                                   ? 'bg-brand-500 text-white'
@@ -1292,6 +2093,27 @@ export default function VideoEditor() {
                         onChange={(e) => setBgmVolume(Number(e.target.value))}
                         className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-700 accent-brand-500"
                       />
+                    </div>
+                  )}
+
+                  {/* CC-BY attribution — Jamendo 라이선스 의무 노출. 작은 글씨로 패널 하단. */}
+                  {bgmAttribution && (
+                    <div className="border-t border-gray-800 pt-3 text-[11px] text-gray-500">
+                      <span className="block">
+                        BGM:{' '}
+                        <span className="text-gray-400">
+                          "{bgmAttribution.title}" by {bgmAttribution.artist}
+                        </span>
+                      </span>
+                      <a
+                        href={bgmAttribution.licenseUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-brand-400 hover:underline"
+                      >
+                        Audius 에서 트랙 보기
+                      </a>{' '}
+                      · via Audius
                     </div>
                   )}
                 </div>

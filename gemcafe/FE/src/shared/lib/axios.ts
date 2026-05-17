@@ -57,10 +57,19 @@ function clearSessionAndRedirect() {
   }
 }
 
-// ───── 요청 인터셉터: accessToken 자동 첨부 ─────
+// ───── 요청 인터셉터: accessToken 자동 첨부 + URL 정규화 ─────
 // 모든 요청에 로그인 시 받은 accessToken을 authorization 헤더로 자동 첨부.
 // 로그인/회원가입 자체 호출 시점에는 토큰이 없으므로 그대로 통과.
+//
+// 추가로 — BE 가 가끔 응답에 `/api/v1/files/...` 처럼 baseURL prefix 까지
+// 포함된 URL 을 내려주는데, 이걸 그대로 axios 에 넘기면 baseURL(`/dev/be/gemcafe/api/v1`)
+// 와 중복돼 `/dev/be/gemcafe/api/v1/api/v1/...` 가 되어 404. 인터셉터에서 자동 strip.
 api.interceptors.request.use((config) => {
+  // /api/v1/... 형태로 들어온 URL 은 baseURL prefix 와 중복되므로 prefix 만 제거
+  if (config.url && config.url.startsWith('/api/v1/')) {
+    config.url = config.url.substring('/api/v1'.length)
+  }
+
   const session = readSession()
   const token = session?.tokens?.accessToken
   if (token) {
@@ -99,24 +108,41 @@ interface RefreshResponseData {
 }
 
 async function tryRefreshToken(): Promise<string | null> {
+  const refreshUrl = `${API_BASE_URL}/auth/refresh`
+  console.log('[refresh] POST', refreshUrl)
   try {
     // 인터셉터 재진입 방지 위해 raw axios 사용. 쿠키는 withCredentials 로 자동 전송.
     const res = await axios.post<{ data?: RefreshResponseData } | RefreshResponseData>(
-      `${API_BASE_URL}/auth/refresh`,
+      refreshUrl,
       undefined,
       { withCredentials: true },
     )
+    console.log('[refresh] response status:', res.status)
     const body = res.data as { data?: RefreshResponseData } & RefreshResponseData
     const data: RefreshResponseData | undefined = body?.data ?? body
-    if (!data?.accessToken) return null
+    if (!data?.accessToken) {
+      console.warn('[refresh] 응답에 accessToken 없음:', body)
+      return null
+    }
 
     writeTokens({
       accessToken: data.accessToken,
       tokenType: data.tokenType ?? 'Bearer',
       expiresIn: data.expiresIn,
     })
+    console.log('[refresh] 새 accessToken 저장 완료')
     return data.accessToken
-  } catch {
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      console.error('[refresh] 실패', {
+        message: err.message,
+        code: err.code,
+        status: err.response?.status,
+        data: err.response?.data,
+      })
+    } else {
+      console.error('[refresh] 알 수 없는 오류', err)
+    }
     return null
   }
 }
@@ -129,12 +155,21 @@ api.interceptors.response.use(
       | undefined
     const status = error.response?.status
 
+    // 401 외 모든 에러는 그냥 reject (refresh 시도 안 함)
     if (!originalRequest || status !== 401) {
+      if (status && status !== 401) {
+        console.log(
+          `[interceptor] ${originalRequest?.url} → status ${status}, refresh 안 함`,
+        )
+      }
       return Promise.reject(error)
     }
 
+    console.log(`[interceptor] 401 ${originalRequest.url} — refresh 시도`)
+
     // 무한 루프 방지: 한 번 재시도한 요청은 더 이상 재시도하지 않음
     if (originalRequest._retry) {
+      console.warn('[interceptor] 이미 재시도된 요청 — 강제 로그아웃')
       clearSessionAndRedirect()
       return Promise.reject(error)
     }
@@ -146,6 +181,7 @@ api.interceptors.response.use(
       url.includes('/auth/refresh') ||
       url.includes('/auth/signup')
     ) {
+      console.log('[interceptor] auth API 자체 401 — refresh 안 함')
       return Promise.reject(error)
     }
 

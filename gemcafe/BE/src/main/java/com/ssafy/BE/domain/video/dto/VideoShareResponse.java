@@ -4,5 +4,6 @@ public record VideoShareResponse(
         Integer videoId,
         String videoUrl,
         String thumbnailUrl,
-        String title
+        String title,
+        String originFileName
 ) {}
