@@ -60,7 +60,7 @@ CAMERA_DIRECTIVES = {
     "cut_in_half": (
         "Camera starts framed on the full cake slice in vertical 9:16 composition, "
         "then slowly and continuously pushes in to an extreme macro close-up on the "
-        "split area where the knife meets the cake. Knife enters from behind the cake "
+        "split area where the fork meets the cake. Fork enters from behind the cake "
         "with the handle extending away from the camera into the background."
     ),
     "cream_scoop": (
@@ -142,9 +142,8 @@ NEGATIVE_PER_SIMULATION = {
     ),
     "cut_in_half": (
         "hands, fingers, human body parts, faces, people, text, watermark, logo, "
-        "subtitles, captions, distorted knife, bent knife, deformed knife, multiple knives, "
-        "knife changing shape, serrated bread knife, jagged blade, fork, fork tines, "
-        "cake moving on its own, cake rotating, cake bouncing, "
+        "subtitles, captions, distorted fork, bent fork, deformed fork, multiple forks, "
+        "fork changing shape, cake moving on its own, cake rotating, cake bouncing, "
         "shaky camera, handheld camera shake, jittery motion, abrupt camera cuts, "
         "sudden zoom jumps, flickering, color shifting, blurry artifacts, low quality, "
         "oversaturated colors, cartoon style, illustration, 3D render look, "
@@ -308,7 +307,7 @@ CAMERA_OVERRIDES = {
         "then slowly and continuously pushes in to a macro close-up on the splitting "
         "cross-section. Focus settles on the freshly exposed ganache layer — glossy "
         "reflective bands catching rim light, with thick viscous trails clinging to "
-        "the knife where the cake parts."
+        "the fork where the cake parts."
     ),
     ("fork_bite", "whipped_cream"): (
         "Steady camera at a slight high angle. Focus tracks the LIFTED PIECE on "
