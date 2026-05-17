@@ -741,32 +741,22 @@ SIMULATIONS = {
                 "base":    "; the {value} layers part cleanly along the break",
             },
         },
+        # 2단계 — 그 양손이 케이크를 윗부분만 가른 마지막 프레임 (책 펼치듯).
+        # start_frame 의 양손 그립 유지 + 윗부분만 4-6cm 벌어짐 (밑은 붙어있음).
+        # 케이크-specific 표현 일반화 + cross-section 묘사에 마커 사용 (lift_slice
+        # 위치 1과 동일 패턴 — 시트/크림 둘 다 있으면 풍부히, 단일층이면 깔끔).
         "instruction_template": (
-            "Edit the input image for a 9:16 vertical short-form video end frame, "
-            "showing the cake slice now split into two halves by two human hands "
-            "wearing black food-safe nitrile gloves.\n\n"
-            "Both gloved hands grip the slice from its two pointed ends — the left "
-            "hand from the left tip, the right hand from the right tip — with "
-            "fingers wrapped around the bottom and sides of each half for a secure "
-            "grip. The hands have just pulled the two halves apart, leaving a clear "
-            "gap of roughly 4 to 6 centimeters of empty air between the freshly "
-            "exposed inner faces.\n\n"
-            "Each half retains its original triangular shape on the outside, with "
-            "all external surfaces (top, sides, bottom) intact. The break runs "
-            "cleanly down the middle of the slice, perpendicular to its long edge, "
-            "revealing two flat inner cross-sections that face each other across "
-            "the gap.\n\n"
-            "The {focus} is clearly visible and emphasized as the most prominent "
-            "feature on both freshly exposed inner faces{base}{topping}{interior_structure}{texture}. The break "
-            "is sharp and clean — no stretching strands, no stringing, no dripping "
-            "material connecting the two halves through the gap. The space between "
-            "the halves is empty air.\n\n"
-            "Preserve the cake's pixel-level appearance otherwise: same toppings on "
-            "the surface, same cream pattern on external surfaces, same colors. "
-            "The plate stays in place below. Background, lighting, and camera "
-            "framing remain identical to the input.\n\n"
-            "Photorealistic dessert close-up aesthetic, shallow depth of field "
-            "focused on the exposed inner cross-sections."
+            "A whole round cake is held in midair by two black latex gloved "
+            "hands — no table, no surface, only a light neutral background. "
+            "The cake has been split open from the top down: the upper "
+            "portion is pulled apart left and right with a clear gap of 4 "
+            "to 6 centimeters, exposing the cross-section{?base: of the "
+            "{base}}{?cream: with the {cream}}. The bottom edge of the cake "
+            "is still connected and has not yet separated — only the top is "
+            "open, like a book cracked open at the spine. Left hand holds "
+            "the left half, right hand holds the right half, both still "
+            "gripping the sides. Camera angle: top-down bird's-eye view. "
+            "Both halves remain upright and suspended in midair."
         ),
         "video_template": (
             "Two black-gloved hands enter from the left and right edges of the "
