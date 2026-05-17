@@ -369,7 +369,7 @@ SIMULATIONS = {
             "steel dessert spoon with a rounded oval-shaped bowl. The right hand has just "
             "finished dragging the spoon downward along the dessert's exposed flat cut "
             "face (the wide {focus} surface facing the camera), scooping out a long "
-            "vertical channel from near the top burnt edge all the way down toward the "
+            "vertical channel from near the top outer edge all the way down toward the "
             "bottom of the cut face.\n\n"
 
             "The spoon is now positioned near the BOTTOM of the cut face, having ended "
@@ -384,7 +384,7 @@ SIMULATIONS = {
 
             "The channel covers roughly the middle 50 to 60 percent of the cut face "
             "width, with clear margins of the original untouched cut face remaining on "
-            "BOTH the left side near the burnt crust AND the right side.\n\n"
+            "BOTH the left side near the outer edge AND the right side.\n\n"
 
             "A generous heap of {focus}, freshly scooped out from the entire length of "
             "the channel, sits piled on top of the spoon's bowl, mounded above the rim "
@@ -392,7 +392,7 @@ SIMULATIONS = {
 
             "The dessert remains whole and intact otherwise: no chunks have broken off "
             "the dessert as a whole, no pieces have fallen, the dessert is NOT crumbling "
-            "apart structurally. The dark burnt crust on the left side remains intact.\n\n"
+            "apart structurally. The outer crust or edge on the left side remains intact.\n\n"
 
             "Both hands are now visible in the frame — the left hand still supporting "
             "the dessert exactly as before, the right hand operating the spoon. Do not "
