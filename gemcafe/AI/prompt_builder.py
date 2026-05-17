@@ -758,17 +758,48 @@ SIMULATIONS = {
             "gripping the sides. Camera angle: top-down bird's-eye view. "
             "Both halves remain upright and suspended in midair."
         ),
+        # 영상 — 양손이 홀케이크를 6초간 책 펼치듯 천천히 가르기.
+        # 케이크-specific texture 묘사는 {texture} 슬롯이 케이크별 baseline +
+        # element_textures 로 자동 박힘 (바스크는 dense custard not stretchy,
+        # 생크림은 billowy no stringing, 등 — 각 케이크의 안전장치 자동 적용).
         "video_template": (
-            "Two black-gloved hands enter from the left and right edges of the "
-            "frame, grip the slice firmly from both pointed ends, and in a single "
-            "smooth, continuous motion pull the slice apart toward the edges of "
-            "the frame. The slice splits cleanly down the middle, the two halves "
-            "separating into the air with a clear gap opening between them, "
-            "revealing two flat inner cross-sections that face each other — the "
-            "{focus} is emphasized as the dominant feature on both exposed faces"
-            "{base}{interior_structure}{texture}. The break stays clean throughout the motion, with no "
-            "stretching strands or stringing across the gap. Static camera, "
-            "smooth steady motion, ASMR-style food cinematography."
+            "A pair of hands wearing matte black nitrile gloves slowly "
+            "pull apart a whole round cake into two equal halves over 6 "
+            "continuous seconds. The motion is one smooth, gradual, "
+            "unbroken movement from start to finish — never sudden, never "
+            "instantaneous.\n\n"
+
+            "Timing breakdown: From 0 to 1 second, both hands begin pulling "
+            "outward very gently, and a thin hairline gap appears at the "
+            "center of the cake. From 1 to 3 seconds, the gap widens "
+            "steadily and continuously as the hands separate further, "
+            "revealing the inner cross-section. From 3 to 5 seconds, the "
+            "two halves continue separating until they are clearly apart "
+            "with a 5cm gap between them. The separation speed must be "
+            "perfectly constant and slow throughout — at no point does the "
+            "cake \"snap\" or break suddenly.\n\n"
+
+            "Texture and material: The cake yields slowly and reluctantly "
+            "under the pull according to its actual material properties"
+            "{texture}. The exposed inner cross-section reveals the cake's "
+            "actual color, texture, and density as shown in the input "
+            "image. The break line is organic and natural to the cake's "
+            "specific consistency. Nothing falls from the cake during the "
+            "entire motion.\n\n"
+
+            "Camera: locked perfectly still on a straight-on frontal view "
+            "at cake's eye level. No camera movement, no zoom. Background "
+            "and lighting remain identical throughout — consistent dark "
+            "neutral backdrop, consistent soft frontal lighting.\n\n"
+
+            "The hands move in perfectly synchronized symmetrical motion, "
+            "both wrists rotating outward at the same rate. Both halves "
+            "remain firmly gripped and stable throughout, no wobbling, no "
+            "dropping.\n\n"
+
+            "ASMR-style slow food cinematography. Audio: only the soft "
+            "tearing sound of the cake separating, and the faint creak of "
+            "nitrile gloves stretching. No music, no other sounds."
         ),
     },
     # ─────────────────────────────────────────────────────────────────

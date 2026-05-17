@@ -82,10 +82,11 @@ CAMERA_DIRECTIVES = {
         "and the slice move."
     ),
     "hand_split": (
-        "Static camera at slight high angle, vertical 9:16 composition centered on "
-        "the slice. As the two halves separate, the camera holds steady and lets "
-        "the gap widen into frame symmetry. Macro close-up on the freshly exposed "
-        "inner faces of both halves once they are pulled apart."
+        "Camera locked perfectly still on a straight-on frontal view at the "
+        "cake's eye level. No camera movement, no zoom, no pan, no tilt. The "
+        "whole cake fills the center of the frame; the gap between the two "
+        "halves widens into frame symmetry as the hands separate. Background "
+        "and lighting remain identical throughout."
     ),
     "default": "Static camera, macro close-up, eye level.",
 }
@@ -178,11 +179,9 @@ NEGATIVE_PER_SIMULATION = {
     ),
     "hand_split": (
         "bare hands, hands without gloves, white gloves, gloves of any color "
-        "other than black, third hand, more than two hands, stretching cream "
-        "strands, stringing dairy, sticky filling pulling between the halves, "
-        "dripping material across the gap, morphing cake halves, deformed slice "
-        "halves, crumbs floating in the gap, plate sliding, shaking camera, "
-        "abrupt zoom"
+        "other than black, third hand, more than two hands, morphing cake "
+        "halves, deformed cake halves, crumbs floating in the gap, plate "
+        "sliding, shaking camera, abrupt zoom"
     ),
 }
 
