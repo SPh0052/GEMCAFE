@@ -64,7 +64,8 @@ public class CakeKeyframeService {
                 request.focus(),
                 request.backgroundCode(),
                 request.hint(),
-                seed
+                seed,
+                session.getAnalysisJson()
         );
 
         session.updateChoices(request.simulationCode(), request.backgroundCode(), request.focus(), request.hint());
