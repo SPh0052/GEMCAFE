@@ -198,8 +198,9 @@ MOOD_LIGHTING = {
         "warm wooden surface, soft warm afternoon lighting, cozy atmosphere"
     ),
     "cafe_interior": (
-        "softly blurred cafe background with bokeh, warm ambient lighting, "
-        "intimate setting"
+        "clean minimalist cafe interior, plain neutral wall softly out of focus "
+        "in the background, soft natural daylight from a side window, simple "
+        "uncluttered wooden surface, no string lights no decorations no clutter"
     ),
     "minimalist_white": (
         "pure white seamless background, soft diffused lighting, "
