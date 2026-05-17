@@ -263,7 +263,7 @@ SIMULATIONS = {
         },
         "instruction_template": (
             "Edit this image to show the fork now embedded inside the cake, having just "
-            "cut into it.\n\n"
+            "pressed into it.\n\n"
             "The fork enters the frame from behind the cake, with the handle extending "
             "away from the camera into the background. The fork tines push forward through "
             "the cake toward the camera, so the cut opens up facing the camera, exposing "
@@ -284,8 +284,8 @@ SIMULATIONS = {
             "and freshness."
         ),
         "video_template": (
-            "A silver fork enters the frame from behind the cake and slowly cuts "
-            "downward through the top of the cake, slicing it open from top to bottom. "
+            "A silver fork enters the frame from behind the cake and slowly presses "
+            "downward through the top of the cake, parting it open from top to bottom. "
             "As the fork descends, the cake's internal layers are gently pushed apart "
             "along the fork's path, gradually revealing the cake's internal texture — "
             "the {focus} clearly emphasized as the most prominent and detailed feature "
