@@ -25,6 +25,7 @@ export interface CakeAnalysis {
   key_feature?: string
   is_warm?: boolean
   is_layered?: boolean
+  element_textures?: Record<string, unknown>
   /** 사용자에게 태그로 보여줄 강조 포인트 후보 목록. */
   suggested_focus?: string[]
   /** 추가 필드 호환용. */

@@ -29,14 +29,16 @@ export const SIMULATIONS: SimulationItem[] = [
   { key: 'hand_half', label_kr: '손으로 반 가르기', image: ASSET('divine.png') },
   { key: 'cream_scoop', label_kr: '한 스푼 떠내기', image: ASSET('spoons.png') },
   { key: 'smash', label_kr: '뭉개기', image: ASSET('smash.png') },
+  { key: 'lift_slice', label_kr: '한 조각 쏙 들어올리기' },
+  { key: 'hand_split', label_kr: '손으로 반 가르기' },
   { key: 'topping_fall', label_kr: '위에서 떨어트리기', image: ASSET('drop.png') },
   { key: 'glazed_effect', label_kr: '글레이즈드 효과', image: ASSET('glaze.png') },
 ]
 
 /** Available simulation keys by analysis category. */
 const CATEGORY_SIMULATIONS: Record<FocusCategory, string[]> = {
-  base: ['spoon', 'fork_bite', 'cut_in_half'],
-  creams: ['hand_half', 'cream_scoop', 'smash'],
+  base: ['spoon', 'fork_bite', 'cut_in_half', 'lift_slice'],
+  creams: ['hand_half', 'cream_scoop', 'smash', 'hand_split'],
   toppings: ['topping_fall'],
   coating: ['glazed_effect'],
 }
@@ -89,6 +91,7 @@ const KEYWORD_LABELS: Record<string, string> = {
   nuts: '견과류',
   fruit: '과일',
   mint: '민트',
+  mousse: '무스',
   edible_flower: '식용 꽃',
   glazed: '글레이즈드',
   chocolate_coating: '초콜릿 코팅',
@@ -132,6 +135,8 @@ export function normalizeSimulationCode(code: string | null | undefined): string
   const map: Record<string, string> = {
     // legacy -> current
     topping_drop: 'topping_fall',
+    strawberry_fall: 'topping_fall',
+    strawberry_cascade: 'topping_fall',
   }
   return map[code] ?? code
 }
