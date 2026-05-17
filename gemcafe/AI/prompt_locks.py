@@ -76,12 +76,10 @@ CAMERA_DIRECTIVES = {
         "surface as the pieces fall and settle naturally."
     ),
     "lift_slice": (
-        "Static camera at slightly low eye-level, vertical 9:16 composition. The "
-        "frame holds the whole cake in the lower portion with ample headroom above. "
-        "Camera tilts very subtly upward as the slice rises, keeping the gap between "
-        "the lifted slice and the whole cake below clearly visible. Shallow depth "
-        "of field focuses on the cut faces of the lifted slice; the cake body below "
-        "stays in noticeably softer focus."
+        "Locked-off camera. Slightly low eye-level, gently tilted downward "
+        "toward the cake. No pan, no zoom, no dolly — the camera stays "
+        "absolutely still throughout the entire shot. Only the cake server "
+        "and the slice move."
     ),
     "hand_split": (
         "Static camera at slight high angle, vertical 9:16 composition centered on "
@@ -170,12 +168,13 @@ NEGATIVE_PER_SIMULATION = {
     ),
     "lift_slice": (
         "bare hands, fingers, person, second tool, fork, knife, deformed cake "
-        "server, bent cake server, multiple servers, slice tilting mid-lift, "
-        "slice wobbling, slice collapsing, crumbs falling from the slice, "
-        "dripping cream during the lift, whole cake sliding, whole cake "
-        "rotating, shaky camera, abrupt zoom, sudden cuts, missing wedge gap "
-        "where the slice was, stretched filling between the slice and the cake "
-        "(unless the cake's filling is explicitly a flowing molten substance)"
+        "server, bent cake server, multiple servers, slice tilting sideways, "
+        "slice tilting backward away from camera, slice wobbling, slice "
+        "shaking, slice collapsing, crumbs falling from the slice, dripping "
+        "cream during the lift, whole cake sliding, whole cake rotating, "
+        "shaky camera, abrupt zoom, sudden cuts, missing wedge gap where the "
+        "slice was, stretched filling between the slice and the cake (unless "
+        "the cake's filling is explicitly a flowing molten substance)"
     ),
     "hand_split": (
         "bare hands, hands without gloves, white gloves, gloves of any color "
@@ -225,7 +224,7 @@ DURATION_SETTINGS = {
     "smash":              "4s",
     "fork_bite":          "6s",
     "cut_in_half":        "6s",
-    "lift_slice":         "4s",
+    "lift_slice":         "8s",
     "cream_scoop":        "6s",
     "hand_split":         "6s",
     "topping_fall":       "6s",
