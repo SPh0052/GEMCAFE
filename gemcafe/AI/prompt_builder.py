@@ -793,6 +793,86 @@ class _SafeDict(dict):
         return ""
 
 
+# =====================================================================
+# 인라인 마커 — {?slot: phrase ... {slot} ... } 패턴 처리
+# =====================================================================
+# 사용자가 instruction_template 한 곳에서 옵셔널 phrase 를 직관적으로 표현할 수
+# 있도록 하는 syntax. 별도 slot_phrases dict 정의 없이 템플릿 안에 직접 박을 수 있음.
+#
+# 동작:
+#   "the fork presses{?cream: through the {cream}}, squishing"
+#   - analysis 에 cream 있으면 → "the fork presses through the whipped cream, squishing"
+#   - analysis 에 cream 없으면 → "the fork presses, squishing"   (블록 통째 빠짐)
+#
+# 슬롯 종류: ?base / ?cream / ?topping
+#   - 분석 결과 (analysis.base[0], analysis.creams[0], analysis.toppings[0]) 첫 요소를
+#     focus_phrase() 로 자연어 변환해서 사용.
+#   - 마커 블록 내부의 {base} / {cream} / {topping} 도 같은 자연어 값으로 치환.
+#
+# 공백/콤마 자동 정리:
+#   - 마커 블록 제거 시 주변에 남는 어색한 공백·콤마·이중공백 자동 trim.
+#   - 사용자가 마커 안 공백/콤마 위치 신경 안 써도 됨.
+#
+# 안전성:
+#   - 마커가 없는 템플릿엔 영향 0 (regex match 안 되면 통과).
+#   - 마커 처리는 format_map() 직전 단계 — 응답에 노출되는 prompt 는 항상 클린한
+#     영어 (raw 마커 syntax 노출 위험 없음).
+import re as _re
+
+_MARKER_PATTERN = _re.compile(
+    r'\{\?(\w+):((?:[^{}]|\{[^{}]*\})*)\}'
+)
+
+
+def _build_marker_values(analysis: Optional[dict]) -> dict[str, str]:
+    """analysis → 인라인 마커용 단순 단어 값 dict {base, cream, topping}.
+
+    각 값은 focus_phrase() 통과시켜 자연어로 변환된 단어 ("whipped cream" 등).
+    해당 요소가 분석에 없으면 키 자체가 빈 문자열 → 마커 블록 통째 omit.
+    """
+    if analysis is None:
+        return {}
+    import prompt_locks
+    by_role = prompt_locks.collect_elements_by_role(analysis)
+    values: dict[str, str] = {}
+    for slot_key in ("base", "cream", "topping"):
+        elements = by_role.get(slot_key, [])
+        if elements:
+            values[slot_key] = focus_phrase(elements[0])
+    return values
+
+
+def _process_inline_markers(template: str, marker_values: dict[str, str]) -> str:
+    """{?slot: ... {slot} ... } 마커 처리 + 주변 공백/콤마 정리.
+
+    - 슬롯 값이 비어있으면 블록 통째 제거
+    - 차있으면 블록 내용을 펼치고 안의 {slot} 자리에 값 치환
+    - 마커 블록 내부의 다른 placeholder (예: {focus}) 는 그대로 유지 → 이후
+      format_map() 단계에서 채워짐.
+
+    이 함수는 마커 syntax 만 처리하고, 기존 wrapping 슬롯 ({base}/{cream}/{topping}
+    via slot_phrases) 이나 {focus} 등은 손대지 않음.
+    """
+    def replace(match: _re.Match) -> str:
+        slot = match.group(1)
+        body = match.group(2)
+        value = marker_values.get(slot, "")
+        if not value:
+            return ""  # 블록 통째 제거
+        # 블록 안의 {slot} 단순 치환 (e.g. "{cream}" → "whipped cream")
+        return body.replace(f"{{{slot}}}", value)
+
+    result = _MARKER_PATTERN.sub(replace, template)
+
+    # 공백/콤마 자동 정리 — 마커 블록 제거 후 주변 잔여 정리
+    result = _re.sub(r'\s+,', ',', result)      # " ," → ","
+    result = _re.sub(r',\s*,', ',', result)      # ",," → ","
+    result = _re.sub(r'\s+\.', '.', result)      # " ." → "."
+    result = _re.sub(r'\s+;', ';', result)       # " ;" → ";"
+    result = _re.sub(r'[ \t]{2,}', ' ', result)  # 더블 공백 → 단일 (개행은 유지)
+    return result
+
+
 def _resolve_slot_phrases(
     sim: dict,
     analysis: Optional[dict],
@@ -1079,12 +1159,16 @@ def build_prompts(
     fmt_inst = _SafeDict(focus=focus_text, **slot_inst)
     fmt_vid = _SafeDict(focus=focus_text, **slot_vid)
 
-    instruction = sim["instruction_template"].format_map(fmt_inst)
-    video = sim["video_template"].format_map(fmt_vid)
+    # 인라인 마커 ({?base|cream|topping:...}) 처리 — format_map 직전 단계.
+    # 마커 없는 템플릿엔 영향 0. 마커 있으면 그 블록을 펼치거나 통째 제거.
+    marker_values = _build_marker_values(analysis)
+
+    instruction = _process_inline_markers(sim["instruction_template"], marker_values).format_map(fmt_inst)
+    video = _process_inline_markers(sim["video_template"], marker_values).format_map(fmt_vid)
     start_frame = None
     if sim.get("start_frame_template"):
         # start_frame 도 instruction 과 동일 wrapper 사용 (별도 슬롯 필요 시 향후 분리)
-        start_frame = sim["start_frame_template"].format_map(fmt_inst)
+        start_frame = _process_inline_markers(sim["start_frame_template"], marker_values).format_map(fmt_inst)
 
     # analysis 가 있으면 케이크 구조 컨텍스트 (역할별 base/cream/topping/coating + 시각 식별)
     # 를 instruction 앞에 prepend. 모델이 "어떤 재료가 어느 자리에 있는지" 명확히 인식해서
