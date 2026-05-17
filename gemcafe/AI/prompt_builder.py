@@ -210,7 +210,12 @@ SIMULATIONS = {
             "cake's shape, {?topping: the whole {topping} on top, }all surface garnishes "
             "and decorations, the liner or base (if any), the surface the cake rests on, "
             "the camera angle, the lighting, the background, and the overall composition "
-            "must remain identical."
+            "must remain identical. "
+            "Faithfully reflect whatever is actually inside the cake — do NOT invent "
+            "layers, fillings, or textures not visible in the original image. "
+            "Photorealistic, shallow depth of field with sharp focus on the lifted piece "
+            "and the fork tines holding it; the cake body below in noticeably softer "
+            "focus as supporting context."
         ),
         "video_template": (
             "A silver dessert fork enters from the upper-right and presses straight down "
