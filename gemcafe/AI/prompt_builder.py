@@ -480,8 +480,8 @@ SIMULATIONS = {
             "look proportional and convincing.\n\n"
 
             "PRESERVE EXACTLY from the input slice:\n"
-            "- Sponge layers: their count, colors, and thicknesses\n"
-            "- Cream filling pattern between layers: thickness, color, texture\n"
+            "- Base layers (if present): their count, colors, and thicknesses\n"
+            "- Filling pattern between layers (if present): thickness, color, texture\n"
             "- Toppings on top: type, color, arrangement, and size\n"
             "- Side coating and frosting style\n"
             "- Overall design language, color palette, and decorative finish\n\n"
