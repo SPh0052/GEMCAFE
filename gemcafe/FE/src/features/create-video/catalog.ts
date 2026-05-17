@@ -89,6 +89,7 @@ const KEYWORD_LABELS: Record<string, string> = {
   mascarpone: '마스카포네',
   mascarpone_cream: '마스카포네 크림',
   cream_cheese: '크림치즈',
+  cream: '크림',
   strawberry: '딸기',
   fresh_strawberries: '신선한 딸기',
   blueberry: '블루베리',
