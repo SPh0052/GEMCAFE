@@ -678,13 +678,60 @@ SIMULATIONS = {
     "hand_split": {
         "label_kr": "손으로 반 가르기",
         "category": "cream",   # 가르며 단면의 크림을 노출 — cream 역할 강조
-        # 양손(검은 장갑)이 슬라이스 양 끝을 잡고 깔끔하게 두 조각으로 가름.
+        # 양손(검은 장갑)이 홀케이크를 잡고 있다가 반으로 깔끔하게 가름.
         # whipped/ganache/mascarpone/baked_cheese 는 모두 ductile 아니므로 stretching
         # 없이 깨끗한 단절. molten_chocolate 은 stretching 시그니처라 디자인 충돌 → 제외.
+        # 2단계 I2I 체인 (cream_scoop / lift_slice 와 동일 패턴):
+        #   start_frame_template — input 케이크를 양손이 들고 있는 첫 프레임
+        #   instruction_template — 그 양손이 케이크를 가른 마지막 프레임
         "applicable_focus": [
             "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        # 1단계 — input 케이크 → 양손이 케이크를 들고 있는 첫 프레임
+        # 케이크-specific 색/표면/사이즈는 input 이미지가 시각 정보 제공 (보존).
+        # prompt 는 "양손이 어떻게 잡고 있는지" 구조/동작에만 집중.
+        "start_frame_template": (
+            "Transform the cake in the input image into a complete whole "
+            "round cake, held up in the air between two hands. The whole "
+            "cake preserves the exact visual identity of the input: the "
+            "cake's actual top surface as shown in the input image, the "
+            "cake's actual body color and texture as shown in the input, "
+            "same texture and density. The cake is a short cylinder, "
+            "approximately matching the proportions and thickness of the "
+            "input cake.\n\n"
+
+            "How the cake is held: Two hands wearing matte black nitrile "
+            "gloves cup and cradle the cake from both sides, holding it up "
+            "vertically in the air like presenting a large coin to the "
+            "camera. Each hand grips the cylindrical edge of the cake by "
+            "pinching its thickness: the four fingers (index, middle, ring, "
+            "pinky) wrap around to the back side of the cake (hidden from "
+            "camera), while the thumb presses against the front face but "
+            "only at the very outer rim of the side — the thumb pad rests "
+            "on the cylindrical edge itself, providing inward support "
+            "pressure, NOT laying flat on top of the front face. Both hands "
+            "and forearms enter the frame from the BOTTOM edge of the "
+            "image, rising upward to grip the cake from its left and right "
+            "sides. The wrists and forearms extend downward out of the "
+            "bottom of the frame, not sideways. The arms come up from "
+            "below like someone is holding the cake up to show the "
+            "camera.\n\n"
+
+            "What the camera sees: The flat top face of the cake directly "
+            "faces the camera, filling about 75% of the frame as a large "
+            "centered circle. The cake's cylindrical body (its thickness) "
+            "is only visible as a thin cake-body rim around the "
+            "circumference of the top face. The camera is perpendicular to "
+            "this top face — not looking down at the cake from above, not "
+            "looking up from below, but straight on at eye level with the "
+            "face of the cake.\n\n"
+
+            "Plain dark neutral background, out of focus. No table or "
+            "surface visible. Soft directional lighting from the front, "
+            "highlighting the natural texture of the cake's top surface. "
+            "Photorealistic, high-end food photography style."
+        ),
         "slot_phrases": {
             "instruction": {
                 "base":    "; the {value} body of the slice breaks cleanly along the split, exposing the layered baked structure on both halves",
