@@ -451,7 +451,13 @@ SIMULATIONS = {
             "- Base layers (if present): their count, colors, and thicknesses\n"
             "- Filling pattern between layers (if present): thickness, color, texture\n"
             "- Toppings on top: type, color, arrangement, and size\n"
-            "- Side coating and frosting style\n"
+            "- Side coating and frosting style — if the side is not clearly "
+            "visible in the input image, infer the side material from the top "
+            "surface coating or the outermost layer of the cross-section and "
+            "apply that same material continuously around the full side. Do NOT "
+            "default to plain sponge or bare cake body. For example, if the top "
+            "shows a dark-baked cheesecake finish, the side must also be "
+            "dark-baked, not pale yellow chiffon.\n"
             "- Overall design language, color palette, and decorative finish\n\n"
 
             "EXTEND the design naturally around the full cake:\n"
@@ -668,6 +674,13 @@ SIMULATIONS = {
             "same texture and density. The cake is a short cylinder, "
             "approximately matching the proportions and thickness of the "
             "input cake.\n\n"
+
+            "If the input image does not clearly show the cake's side, infer "
+            "the side coating from the top surface finish and apply the same "
+            "material continuously around the cylindrical edge. Do NOT default "
+            "to plain sponge or bare cake body. For example, if the top shows "
+            "a dark-baked cheesecake finish, the side must also be dark-baked, "
+            "not pale yellow chiffon.\n\n"
 
             "How the cake is held: Two hands wearing matte black nitrile "
             "gloves cup and cradle the cake from both sides, holding it up "
