@@ -463,29 +463,74 @@ SIMULATIONS = {
                 "cream":   "; the {value} layers stay neatly stacked through the lift, no smearing or shifting",
             },
         },
-        # 1단계 — 입력 슬라이스 이미지로부터 홀케이크를 상상·재구성한 시작 프레임
+        # 1단계 — 입력 슬라이스 이미지로부터 홀케이크를 상상·재구성한 시작 프레임.
+        # 슬라이스는 wedge 형태로 자리에 그대로 (pre-cut line 만 미세하게) — 다음
+        # 프레임에서 케이크 서버로 들어올려질 수 있도록 들기 직전 상태로 셋팅.
+        # 카메라 프레이밍은 후속 lift 액션을 위해 cake 위쪽에 headroom 확보 +
+        # 우하단을 비워둠 (서버가 들어올 자리).
         "start_frame_template": (
-            "Edit the provided image of a single triangular cake slice. The slice has "
-            "two flat cut faces created when it was originally cut from a whole round "
-            "cake. Reconstruct the COMPLETE original round whole cake from which this "
-            "slice was cut, placing the slice back into its original position within "
-            "the whole cake so that the two cut faces of the slice are perfectly flush "
-            "against the matching cut faces of the rest of the cake.\n\n"
-            "The resulting whole cake must be:\n"
-            "- A round 360-degree whole cake when viewed from above\n"
-            "- Built by extending the slice's exact top decoration, side coating, "
-            "cream pattern, base, colors, and textures consistently around the entire "
-            "perimeter — the rest of the cake looks identical in style and materials "
-            "to the input slice, just continued around the full circumference\n"
-            "- The original slice is fully integrated into the whole cake with NO "
-            "visible gap, NO visible cut line, NO visible seam between the slice and "
-            "the rest — it reads as one continuous unbroken cake\n"
-            "- Sitting on the same plate or surface style as the original input "
-            "image, with the plate scaled up appropriately to fit the whole cake\n\n"
-            "Preserve the input image's background, lighting direction and quality, "
-            "color temperature, camera height and distance, and overall photographic "
-            "style. Photorealistic, high-detail food photography, shallow depth of "
-            "field focused on the whole cake."
+            "From the input dessert slice image, reconstruct the COMPLETE WHOLE "
+            "ROUND CAKE from which this slice was originally cut. The slice "
+            "must be shown back in its original position within the whole cake "
+            "— one wedge seamlessly fitted with the rest, as if the cake has "
+            "been pre-cut but not yet served.\n\n"
+
+            "Infer the number of slices naturally from the wedge angle of the "
+            "input slice (do not force a specific count). The whole cake should "
+            "look proportional and convincing.\n\n"
+
+            "PRESERVE EXACTLY from the input slice:\n"
+            "- Sponge layers: their count, colors, and thicknesses\n"
+            "- Cream filling pattern between layers: thickness, color, texture\n"
+            "- Toppings on top: type, color, arrangement, and size\n"
+            "- Side coating and frosting style\n"
+            "- Overall design language, color palette, and decorative finish\n\n"
+
+            "EXTEND the design naturally around the full cake:\n"
+            "- Top decoration repeats in radial symmetry around the circle\n"
+            "- Side coating wraps continuously around the full circumference\n"
+            "- Internal layers extend uniformly through the entire cake\n\n"
+
+            "PRE-CUT LINE:\n"
+            "The whole cake shows ONE faint, clean cut line on its top surface, "
+            "marking where one wedge has been pre-cut from the cake. The cut "
+            "line is barely visible — just a thin, subtle separation line. "
+            "The wedge itself remains perfectly in place, seated flush with "
+            "the rest of the cake, with no visible gap or displacement. From "
+            "a casual glance the cake looks whole, but on close inspection "
+            "one wedge is clearly ready to be lifted.\n\n"
+
+            "The whole cake sits on a clean white round ceramic plate.\n\n"
+
+            "Camera: slightly low eye-level angle, gently tilted downward "
+            "toward the cake — the camera looks at the cake from roughly the "
+            "same height as the cake's top, with a slight downward tilt that "
+            "keeps BOTH the top surface AND a significant portion of the "
+            "cake's side wall clearly visible. This is NOT a top-down shot; "
+            "the side of the cake must be clearly seen.\n\n"
+
+            "Frame the shot as if the camera is positioned farther back from "
+            "the cake, so that the cake appears modestly sized within the "
+            "image — occupying roughly the lower 60% of the frame vertically, "
+            "centered horizontally. The upper 40% of the frame above the cake "
+            "must remain empty space, providing generous headroom for an "
+            "object to be lifted high above the cake later.\n\n"
+
+            "Also keep the lower-right corner of the frame clear and "
+            "uncluttered (this space will be used in the next frame — keep "
+            "it empty).\n\n"
+
+            "Soft, even studio lighting from the upper-left, casting a gentle "
+            "natural shadow to the lower-right side of the cake.\n\n"
+
+            "Strictly NO utensils, NO hands, NO cake server, NO fork, NO knife "
+            "anywhere in the frame.\n\n"
+
+            "Style: photorealistic, high-end commercial food photography, crisp "
+            "focus on the cake, fine detail on cream texture and toppings.\n\n"
+
+            "Output: a single still image of the whole cake with one wedge "
+            "pre-cut but seated in place, ready to be lifted."
         ),
         # 2단계 — 그 홀케이크에서 슬라이스가 케이크 서버로 떠올려진 마지막 프레임
         "instruction_template": (
