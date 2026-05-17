@@ -38,7 +38,8 @@ public class AiKeyframeClient {
     }
 
     public Map<String, Object> generate(Path imagePath, String simulation, String focus,
-                                        String background, String hint, Integer seed) {
+                                        String background, String hint, Integer seed,
+                                        String analysisJson) {
         log.info("[AI-KEYFRAME] request start image={} simulation={} focus={} background={} seed={}",
                 imagePath.getFileName(), simulation, focus, background, seed);
 
@@ -49,6 +50,7 @@ public class AiKeyframeClient {
         if (background != null) body.add("background", background);
         if (hint != null) body.add("hint", hint);
         if (seed != null) body.add("seed", seed.toString());
+        if (analysisJson != null) body.add("analysis_json", analysisJson);
 
         try {
             Map<String, Object> response = restClient.post()
