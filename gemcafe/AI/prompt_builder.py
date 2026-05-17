@@ -678,13 +678,60 @@ SIMULATIONS = {
     "hand_split": {
         "label_kr": "손으로 반 가르기",
         "category": "cream",   # 가르며 단면의 크림을 노출 — cream 역할 강조
-        # 양손(검은 장갑)이 슬라이스 양 끝을 잡고 깔끔하게 두 조각으로 가름.
+        # 양손(검은 장갑)이 홀케이크를 잡고 있다가 반으로 깔끔하게 가름.
         # whipped/ganache/mascarpone/baked_cheese 는 모두 ductile 아니므로 stretching
         # 없이 깨끗한 단절. molten_chocolate 은 stretching 시그니처라 디자인 충돌 → 제외.
+        # 2단계 I2I 체인 (cream_scoop / lift_slice 와 동일 패턴):
+        #   start_frame_template — input 케이크를 양손이 들고 있는 첫 프레임
+        #   instruction_template — 그 양손이 케이크를 가른 마지막 프레임
         "applicable_focus": [
             "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        # 1단계 — input 케이크 → 양손이 케이크를 들고 있는 첫 프레임
+        # 케이크-specific 색/표면/사이즈는 input 이미지가 시각 정보 제공 (보존).
+        # prompt 는 "양손이 어떻게 잡고 있는지" 구조/동작에만 집중.
+        "start_frame_template": (
+            "Transform the cake in the input image into a complete whole "
+            "round cake, held up in the air between two hands. The whole "
+            "cake preserves the exact visual identity of the input: the "
+            "cake's actual top surface as shown in the input image, the "
+            "cake's actual body color and texture as shown in the input, "
+            "same texture and density. The cake is a short cylinder, "
+            "approximately matching the proportions and thickness of the "
+            "input cake.\n\n"
+
+            "How the cake is held: Two hands wearing matte black nitrile "
+            "gloves cup and cradle the cake from both sides, holding it up "
+            "vertically in the air like presenting a large coin to the "
+            "camera. Each hand grips the cylindrical edge of the cake by "
+            "pinching its thickness: the four fingers (index, middle, ring, "
+            "pinky) wrap around to the back side of the cake (hidden from "
+            "camera), while the thumb presses against the front face but "
+            "only at the very outer rim of the side — the thumb pad rests "
+            "on the cylindrical edge itself, providing inward support "
+            "pressure, NOT laying flat on top of the front face. Both hands "
+            "and forearms enter the frame from the BOTTOM edge of the "
+            "image, rising upward to grip the cake from its left and right "
+            "sides. The wrists and forearms extend downward out of the "
+            "bottom of the frame, not sideways. The arms come up from "
+            "below like someone is holding the cake up to show the "
+            "camera.\n\n"
+
+            "What the camera sees: The flat top face of the cake directly "
+            "faces the camera, filling about 75% of the frame as a large "
+            "centered circle. The cake's cylindrical body (its thickness) "
+            "is only visible as a thin cake-body rim around the "
+            "circumference of the top face. The camera is perpendicular to "
+            "this top face — not looking down at the cake from above, not "
+            "looking up from below, but straight on at eye level with the "
+            "face of the cake.\n\n"
+
+            "Plain dark neutral background, out of focus. No table or "
+            "surface visible. Soft directional lighting from the front, "
+            "highlighting the natural texture of the cake's top surface. "
+            "Photorealistic, high-end food photography style."
+        ),
         "slot_phrases": {
             "instruction": {
                 "base":    "; the {value} body of the slice breaks cleanly along the split, exposing the layered baked structure on both halves",
@@ -694,44 +741,65 @@ SIMULATIONS = {
                 "base":    "; the {value} layers part cleanly along the break",
             },
         },
+        # 2단계 — 그 양손이 케이크를 윗부분만 가른 마지막 프레임 (책 펼치듯).
+        # start_frame 의 양손 그립 유지 + 윗부분만 4-6cm 벌어짐 (밑은 붙어있음).
+        # 케이크-specific 표현 일반화 + cross-section 묘사에 마커 사용 (lift_slice
+        # 위치 1과 동일 패턴 — 시트/크림 둘 다 있으면 풍부히, 단일층이면 깔끔).
         "instruction_template": (
-            "Edit the input image for a 9:16 vertical short-form video end frame, "
-            "showing the cake slice now split into two halves by two human hands "
-            "wearing black food-safe nitrile gloves.\n\n"
-            "Both gloved hands grip the slice from its two pointed ends — the left "
-            "hand from the left tip, the right hand from the right tip — with "
-            "fingers wrapped around the bottom and sides of each half for a secure "
-            "grip. The hands have just pulled the two halves apart, leaving a clear "
-            "gap of roughly 4 to 6 centimeters of empty air between the freshly "
-            "exposed inner faces.\n\n"
-            "Each half retains its original triangular shape on the outside, with "
-            "all external surfaces (top, sides, bottom) intact. The break runs "
-            "cleanly down the middle of the slice, perpendicular to its long edge, "
-            "revealing two flat inner cross-sections that face each other across "
-            "the gap.\n\n"
-            "The {focus} is clearly visible and emphasized as the most prominent "
-            "feature on both freshly exposed inner faces{base}{topping}{interior_structure}{texture}. The break "
-            "is sharp and clean — no stretching strands, no stringing, no dripping "
-            "material connecting the two halves through the gap. The space between "
-            "the halves is empty air.\n\n"
-            "Preserve the cake's pixel-level appearance otherwise: same toppings on "
-            "the surface, same cream pattern on external surfaces, same colors. "
-            "The plate stays in place below. Background, lighting, and camera "
-            "framing remain identical to the input.\n\n"
-            "Photorealistic dessert close-up aesthetic, shallow depth of field "
-            "focused on the exposed inner cross-sections."
+            "A whole round cake is held in midair by two black latex gloved "
+            "hands — no table, no surface, only a light neutral background. "
+            "The cake has been split open from the top down: the upper "
+            "portion is pulled apart left and right with a clear gap of 4 "
+            "to 6 centimeters, exposing the cross-section{?base: of the "
+            "{base}}{?cream: with the {cream}}. The bottom edge of the cake "
+            "is still connected and has not yet separated — only the top is "
+            "open, like a book cracked open at the spine. Left hand holds "
+            "the left half, right hand holds the right half, both still "
+            "gripping the sides. Camera angle: top-down bird's-eye view. "
+            "Both halves remain upright and suspended in midair."
         ),
+        # 영상 — 양손이 홀케이크를 6초간 책 펼치듯 천천히 가르기.
+        # 케이크-specific texture 묘사는 {texture} 슬롯이 케이크별 baseline +
+        # element_textures 로 자동 박힘 (바스크는 dense custard not stretchy,
+        # 생크림은 billowy no stringing, 등 — 각 케이크의 안전장치 자동 적용).
         "video_template": (
-            "Two black-gloved hands enter from the left and right edges of the "
-            "frame, grip the slice firmly from both pointed ends, and in a single "
-            "smooth, continuous motion pull the slice apart toward the edges of "
-            "the frame. The slice splits cleanly down the middle, the two halves "
-            "separating into the air with a clear gap opening between them, "
-            "revealing two flat inner cross-sections that face each other — the "
-            "{focus} is emphasized as the dominant feature on both exposed faces"
-            "{base}{interior_structure}{texture}. The break stays clean throughout the motion, with no "
-            "stretching strands or stringing across the gap. Static camera, "
-            "smooth steady motion, ASMR-style food cinematography."
+            "A pair of hands wearing matte black nitrile gloves slowly "
+            "pull apart a whole round cake into two equal halves over 6 "
+            "continuous seconds. The motion is one smooth, gradual, "
+            "unbroken movement from start to finish — never sudden, never "
+            "instantaneous.\n\n"
+
+            "Timing breakdown: From 0 to 1.5 seconds, both hands begin "
+            "pulling outward very gently, and a thin hairline gap appears "
+            "at the center of the cake. From 1.5 to 4 seconds, the gap "
+            "widens steadily and continuously as the hands separate "
+            "further, revealing the inner cross-section. From 4 to 6 "
+            "seconds, the two halves continue separating until they are "
+            "clearly apart with a 5cm gap between them. The separation "
+            "speed must be perfectly constant and slow throughout — at no "
+            "point does the cake \"snap\" or break suddenly.\n\n"
+
+            "Texture and material: The cake yields slowly and reluctantly "
+            "under the pull according to its actual material properties"
+            "{texture}. The exposed inner cross-section reveals the cake's "
+            "actual color, texture, and density as shown in the input "
+            "image. The break line is organic and natural to the cake's "
+            "specific consistency. Nothing falls from the cake during the "
+            "entire motion.\n\n"
+
+            "Camera: locked perfectly still on a straight-on frontal view "
+            "at cake's eye level. No camera movement, no zoom. Background "
+            "and lighting remain identical throughout — consistent dark "
+            "neutral backdrop, consistent soft frontal lighting.\n\n"
+
+            "The hands move in perfectly synchronized symmetrical motion, "
+            "both wrists rotating outward at the same rate. Both halves "
+            "remain firmly gripped and stable throughout, no wobbling, no "
+            "dropping.\n\n"
+
+            "ASMR-style slow food cinematography. Audio: only the soft "
+            "tearing sound of the cake separating, and the faint creak of "
+            "nitrile gloves stretching. No music, no other sounds."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
