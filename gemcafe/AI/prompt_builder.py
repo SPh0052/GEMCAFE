@@ -326,31 +326,24 @@ SIMULATIONS = {
 
             "A single human left hand wearing a black food-safe nitrile glove enters the "
             "frame from the lower-left and supports the dessert. CRITICAL: The dessert is "
-            "rotated and held so that one of the two side cut faces (the ones exposing the "
-            "{focus}) rests against the open palm of the gloved hand. The cut face touching "
-            "the palm is HIDDEN from the camera, pressed against the glove.\n\n"
+            "rotated and laid on its SIDE so that one of the two side cut faces (the ones "
+            "exposing the {focus}) rests flat against the open palm of the gloved hand. "
+            "The cut face touching the palm is HIDDEN from the camera, pressed against "
+            "the glove.\n\n"
 
             "The OTHER side cut face — also exposing the {focus} — now faces toward the "
             "camera, presented roughly head-on. This camera-facing cut face shows the "
             "dessert's full {focus}, fills the center of the composition, and is the main "
             "visual focus.\n\n"
 
-            "IMPORTANT — dessert tilt: The dessert is NOT held perfectly vertical. Instead, "
-            "it is tilted slightly counter-clockwise (rotated about 8 to 12 degrees from "
-            "vertical) — the top portion of the dessert leans slightly to the upper-right, "
-            "and the bottom portion is slightly to the lower-left. This natural tilt "
-            "reflects how a human left hand and wrist naturally angle when supporting an "
-            "object from below. The tilt is subtle and natural, NOT dramatic or extreme — "
-            "the dessert should still look stable and securely held, not falling.\n\n"
-
-            "The top surface (with the dark burnt crust) is now oriented to one side "
-            "(either left or right edge of the frame, not facing up). The bottom surface "
-            "is oriented to the opposite side. NEITHER the top surface NOR the bottom "
-            "surface is touching the palm. The palm ONLY touches a side cut face.\n\n"
+            "The top surface (the outer layer or coating, if any) is now oriented to one "
+            "side (either left or right edge of the frame, not facing up). The bottom "
+            "surface is oriented to the opposite side. NEITHER the top surface NOR the "
+            "bottom surface is touching the palm. The palm ONLY touches a side cut face.\n\n"
 
             "Only ONE hand is visible in the frame — the left hand supporting the dessert. "
             "Do NOT add a second hand. Do NOT let the palm touch the bottom of the "
-            "dessert. Do NOT let the palm touch the top burnt crust.\n\n"
+            "dessert. Do NOT let the palm touch the top outer surface of the dessert.\n\n"
 
             "The dessert is held roughly at the same height and position within the frame "
             "as it originally was, so the background and surface below remain visible "
@@ -376,7 +369,7 @@ SIMULATIONS = {
             "steel dessert spoon with a rounded oval-shaped bowl. The right hand has just "
             "finished dragging the spoon downward along the dessert's exposed flat cut "
             "face (the wide {focus} surface facing the camera), scooping out a long "
-            "vertical channel from near the top burnt edge all the way down toward the "
+            "vertical channel from near the top outer edge all the way down toward the "
             "bottom of the cut face.\n\n"
 
             "The spoon is now positioned near the BOTTOM of the cut face, having ended "
@@ -391,7 +384,7 @@ SIMULATIONS = {
 
             "The channel covers roughly the middle 50 to 60 percent of the cut face "
             "width, with clear margins of the original untouched cut face remaining on "
-            "BOTH the left side near the burnt crust AND the right side.\n\n"
+            "BOTH the left side near the outer edge AND the right side.\n\n"
 
             "A generous heap of {focus}, freshly scooped out from the entire length of "
             "the channel, sits piled on top of the spoon's bowl, mounded above the rim "
@@ -399,7 +392,7 @@ SIMULATIONS = {
 
             "The dessert remains whole and intact otherwise: no chunks have broken off "
             "the dessert as a whole, no pieces have fallen, the dessert is NOT crumbling "
-            "apart structurally. The dark burnt crust on the left side remains intact.\n\n"
+            "apart structurally. The outer crust or edge on the left side remains intact.\n\n"
 
             "Both hands are now visible in the frame — the left hand still supporting "
             "the dessert exactly as before, the right hand operating the spoon. Do not "
