@@ -224,7 +224,7 @@ Now analyze the provided image. Output ONLY valid JSON in the same schema, no ot
 # GMS 게이트웨이가 일정 픽셀 수 / 비표준 JPEG 인코딩을 multimodal 요청에서 거부하는
 # 케이스가 관찰됨 (804x1042 실패 / 400x533 성공). 어떤 이미지가 와도 안전하게
 # 통과하도록 분석 전 표준 JPEG 으로 정규화한다.
-MAX_LONG_EDGE_PX = 384   # 긴 변 1024px 로 제한 (≈1M pixels 이하 보장)
+MAX_LONG_EDGE_PX = 1024   # 긴 변 1024px 로 제한 (≈1M pixels 이하 보장)
 
 
 def _normalize_image_for_gemini(image_path: str) -> tuple[bytes, str]:
@@ -298,6 +298,9 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
             contents=[content_payload],
             config=genai_types.GenerateContentConfig(
                 temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
+                # JSON-only 출력 강제 — ```json ... ``` 펜스와 부가 설명 제거,
+                # 출력 토큰 절약 + 파싱 안정성↑ (모델 내부 추론 품질엔 영향 없음)
+                response_mime_type="application/json",
             ),
         )
     except Exception as e:
