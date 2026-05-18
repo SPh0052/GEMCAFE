@@ -100,19 +100,6 @@ export default function SocialUploadModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, step, onClose])
 
-  if (!isOpen) return null
-
-  const togglePlatform = (p: SocialPlatform) => {
-    setPlatforms((prev) =>
-      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
-    )
-  }
-
-  const canSubmit =
-    title.trim().length > 0 &&
-    title.trim().length <= 100 &&
-    platforms.length > 0
-
   // 진행 중인 SSE 구독 — 모달 닫힘/언마운트 시 정리
   const jobStreamsRef = useRef<EventSource[]>([])
 
@@ -131,6 +118,19 @@ export default function SocialUploadModal({
       jobStreamsRef.current = []
     }
   }, [])
+
+  if (!isOpen) return null
+
+  const togglePlatform = (p: SocialPlatform) => {
+    setPlatforms((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
+    )
+  }
+
+  const canSubmit =
+    title.trim().length > 0 &&
+    title.trim().length <= 100 &&
+    platforms.length > 0
 
   const handleSubmit = async () => {
     if (!canSubmit) return

@@ -60,7 +60,7 @@ CAMERA_DIRECTIVES = {
     "cut_in_half": (
         "Camera starts framed on the full cake slice in vertical 9:16 composition, "
         "then slowly and continuously pushes in to an extreme macro close-up on the "
-        "split area where the knife meets the cake. Knife enters from behind the cake "
+        "split area where the fork meets the cake. Fork enters from behind the cake "
         "with the handle extending away from the camera into the background."
     ),
     "cream_scoop": (
@@ -76,18 +76,17 @@ CAMERA_DIRECTIVES = {
         "surface as the pieces fall and settle naturally."
     ),
     "lift_slice": (
-        "Static camera at slightly low eye-level, vertical 9:16 composition. The "
-        "frame holds the whole cake in the lower portion with ample headroom above. "
-        "Camera tilts very subtly upward as the slice rises, keeping the gap between "
-        "the lifted slice and the whole cake below clearly visible. Shallow depth "
-        "of field focuses on the cut faces of the lifted slice; the cake body below "
-        "stays in noticeably softer focus."
+        "Locked-off camera. Slightly low eye-level, gently tilted downward "
+        "toward the cake. No pan, no zoom, no dolly — the camera stays "
+        "absolutely still throughout the entire shot. Only the cake server "
+        "and the slice move."
     ),
     "hand_split": (
-        "Static camera at slight high angle, vertical 9:16 composition centered on "
-        "the slice. As the two halves separate, the camera holds steady and lets "
-        "the gap widen into frame symmetry. Macro close-up on the freshly exposed "
-        "inner faces of both halves once they are pulled apart."
+        "Camera locked perfectly still on a straight-on frontal view at the "
+        "cake's eye level. No camera movement, no zoom, no pan, no tilt. The "
+        "whole cake fills the center of the frame; the gap between the two "
+        "halves widens into frame symmetry as the hands separate. Background "
+        "and lighting remain identical throughout."
     ),
     "default": "Static camera, macro close-up, eye level.",
 }
@@ -98,7 +97,8 @@ CAMERA_DIRECTIVES = {
 # =====================================================================
 TECHNICAL_BASELINE = (
     "Slow motion playback, shallow depth of field, soft cinematic lighting, "
-    "4K photorealistic, professional food photography aesthetic, ASMR style"
+    "4K photorealistic, professional food photography aesthetic, ASMR style, "
+    "end on a 1-second static hold after the action completes"
 )
 
 
@@ -143,9 +143,8 @@ NEGATIVE_PER_SIMULATION = {
     ),
     "cut_in_half": (
         "hands, fingers, human body parts, faces, people, text, watermark, logo, "
-        "subtitles, captions, distorted knife, bent knife, deformed knife, multiple knives, "
-        "knife changing shape, serrated bread knife, jagged blade, fork, fork tines, "
-        "cake moving on its own, cake rotating, cake bouncing, "
+        "subtitles, captions, distorted fork, bent fork, deformed fork, multiple forks, "
+        "fork changing shape, cake moving on its own, cake rotating, cake bouncing, "
         "shaky camera, handheld camera shake, jittery motion, abrupt camera cuts, "
         "sudden zoom jumps, flickering, color shifting, blurry artifacts, low quality, "
         "oversaturated colors, cartoon style, illustration, 3D render look, "
@@ -170,20 +169,19 @@ NEGATIVE_PER_SIMULATION = {
     ),
     "lift_slice": (
         "bare hands, fingers, person, second tool, fork, knife, deformed cake "
-        "server, bent cake server, multiple servers, slice tilting mid-lift, "
-        "slice wobbling, slice collapsing, crumbs falling from the slice, "
-        "dripping cream during the lift, whole cake sliding, whole cake "
-        "rotating, shaky camera, abrupt zoom, sudden cuts, missing wedge gap "
-        "where the slice was, stretched filling between the slice and the cake "
-        "(unless the cake's filling is explicitly a flowing molten substance)"
+        "server, bent cake server, multiple servers, slice tilting sideways, "
+        "slice tilting backward away from camera, slice wobbling, slice "
+        "shaking, slice collapsing, crumbs falling from the slice, dripping "
+        "cream during the lift, whole cake sliding, whole cake rotating, "
+        "shaky camera, abrupt zoom, sudden cuts, missing wedge gap where the "
+        "slice was, stretched filling between the slice and the cake (unless "
+        "the cake's filling is explicitly a flowing molten substance)"
     ),
     "hand_split": (
         "bare hands, hands without gloves, white gloves, gloves of any color "
-        "other than black, third hand, more than two hands, stretching cream "
-        "strands, stringing dairy, sticky filling pulling between the halves, "
-        "dripping material across the gap, morphing cake halves, deformed slice "
-        "halves, crumbs floating in the gap, plate sliding, shaking camera, "
-        "abrupt zoom"
+        "other than black, third hand, more than two hands, morphing cake "
+        "halves, deformed cake halves, crumbs floating in the gap, plate "
+        "sliding, shaking camera, abrupt zoom"
     ),
 }
 
@@ -200,8 +198,9 @@ MOOD_LIGHTING = {
         "warm wooden surface, soft warm afternoon lighting, cozy atmosphere"
     ),
     "cafe_interior": (
-        "softly blurred cafe background with bokeh, warm ambient lighting, "
-        "intimate setting"
+        "clean minimalist cafe interior, plain neutral wall softly out of focus "
+        "in the background, soft natural daylight from a side window, simple "
+        "uncluttered wooden surface, no string lights no decorations no clutter"
     ),
     "minimalist_white": (
         "pure white seamless background, soft diffused lighting, "
@@ -225,7 +224,7 @@ DURATION_SETTINGS = {
     "smash":              "4s",
     "fork_bite":          "6s",
     "cut_in_half":        "6s",
-    "lift_slice":         "4s",
+    "lift_slice":         "8s",
     "cream_scoop":        "6s",
     "hand_split":         "6s",
     "topping_fall":       "6s",
@@ -310,7 +309,7 @@ CAMERA_OVERRIDES = {
         "then slowly and continuously pushes in to a macro close-up on the splitting "
         "cross-section. Focus settles on the freshly exposed ganache layer — glossy "
         "reflective bands catching rim light, with thick viscous trails clinging to "
-        "the knife where the cake parts."
+        "the fork where the cake parts."
     ),
     ("fork_bite", "whipped_cream"): (
         "Steady camera at a slight high angle. Focus tracks the LIFTED PIECE on "
@@ -953,6 +952,17 @@ def collect_elements_by_role(analysis: dict) -> dict[str, list[str]]:
         out["coating"] = [normalize_element(str(coating))]
     else:
         out["coating"] = []
+
+    # cross-role dedupe — analyze.py 의 _augment_creamy_bases() 와 짝.
+    # 그쪽이 FE 카테고리 호환을 위해 creamy base (baked_cheese / mousse) 를
+    # base 와 creams 양쪽에 출력하는데, 미러 키는 ELEMENT_ALIASES 로 base 와
+    # 동일한 정식 키로 정규화되므로 위쪽 루프 결과 두 역할에 같은 키가 들어감.
+    # 여기서 base 우선으로 cream 에서 제거해 내부 슬롯 빌드에서 같은 요소가
+    # {?base:...}{?cream:...} 양쪽에 박혀 중복 묘사 되는 것을 막는다.
+    # (의미적으로 본체가 base 이므로 base 우선.)
+    base_set = set(out.get("base", []))
+    if base_set:
+        out["cream"] = [e for e in out.get("cream", []) if e not in base_set]
     return out
 
 

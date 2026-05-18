@@ -222,19 +222,24 @@ Now analyze the provided image. Output ONLY valid JSON in the same schema, no ot
 # 핵심 함수
 # =====================================================================
 # GMS 게이트웨이가 일정 픽셀 수 / 비표준 JPEG 인코딩을 multimodal 요청에서 거부하는
-# 케이스가 관찰됨 (804x1042 실패 / 400x533 성공). 어떤 이미지가 와도 안전하게
-# 통과하도록 분석 전 표준 JPEG 으로 정규화한다.
-MAX_LONG_EDGE_PX = 384   # 긴 변 1024px 로 제한 (≈1M pixels 이하 보장)
+# 케이스가 관찰됨 (804x1042 실패 / 400x533 성공). 거부 동작이 비결정적이라
+# 같은 이미지도 시점에 따라 통과/실패가 갈림 → 큰 사이즈부터 시도해 실패 시
+# 자동으로 더 작은 사이즈로 재시도하는 fallback 체인을 둔다.
+#   - 1024px: 인식 품질 가장 좋음 (정상 케이스)
+#   - 768px:  중간 단계 (1024 거부 시 첫 재시도)
+#   - 512px:  안전선 (400x533 성공 기록 기반, 거의 항상 통과)
+FALLBACK_LONG_EDGE_PX = [1024, 768, 512]
+MAX_LONG_EDGE_PX = FALLBACK_LONG_EDGE_PX[0]   # 기본 / 디스플레이용
 
 
-def _normalize_image_for_gemini(image_path: str) -> tuple[bytes, str]:
+def _normalize_image_for_gemini(image_path: str, max_edge: int = MAX_LONG_EDGE_PX) -> tuple[bytes, str]:
     """
     입력 이미지를 GMS / Gemini multimodal 친화적 표준 JPEG 로 재인코딩.
 
     적용 변환:
       - EXIF orientation 적용 후 metadata 제거 (회전 정보가 파서 깨뜨릴 위험 차단)
       - 비RGB 색공간 (CMYK / RGBA / palette) 을 RGB 로 변환
-      - 긴 변을 MAX_LONG_EDGE_PX 이하로 리사이즈 (LANCZOS 필터)
+      - 긴 변을 max_edge 이하로 리사이즈 (LANCZOS 필터)
       - JPEG quality=90 + optimize 로 재인코딩 (인코더 quirk 정규화)
 
     Returns: (jpeg_bytes, "image/jpeg")
@@ -245,8 +250,8 @@ def _normalize_image_for_gemini(image_path: str) -> tuple[bytes, str]:
         img = img.convert("RGB")
 
     long_edge = max(img.size)
-    if long_edge > MAX_LONG_EDGE_PX:
-        ratio = MAX_LONG_EDGE_PX / long_edge
+    if long_edge > max_edge:
+        ratio = max_edge / long_edge
         new_size = (round(img.size[0] * ratio), round(img.size[1] * ratio))
         img = img.resize(new_size, Image.LANCZOS)
 
@@ -276,39 +281,61 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
       4) 응답 텍스트에서 JSON 추출
     """
     print(f"[1/1] Gemini 2.5 Pro 이미지 분석 중... ({GEMINI_VISION_MODEL})")
-    # 입력 이미지를 정규화 (긴 변 1024px / 표준 JPEG / metadata 제거) — GMS 거부 회피
-    image_bytes, mime_type = _normalize_image_for_gemini(image_path)
-    print(f"      image: {len(image_bytes):,} bytes ({mime_type}, normalized ≤{MAX_LONG_EDGE_PX}px)")
     print(f"      prompt: {len(prompt):,} chars")
 
-    # 명시적 Content + Part 구조로 직렬화. GMS 게이트웨이가 SDK 의 자동 변환
-    # ([Part, str] → Content) 결과를 제대로 못 forward 하는 경우 대비.
-    content_payload = genai_types.Content(
-        role="user",
-        parts=[
-            genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            genai_types.Part.from_text(text=prompt),
-        ],
-    )
-
     client = _get_client()
-    try:
-        response = client.models.generate_content(
-            model=GEMINI_VISION_MODEL,
-            contents=[content_payload],
-            config=genai_types.GenerateContentConfig(
-                temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
-            ),
+
+    # GMS 게이트웨이가 큰 사이즈를 비결정적으로 거부하는 경우 대비
+    # 1024 → 768 → 512 순으로 fallback 재시도.
+    response = None
+    image_bytes: bytes = b""
+    mime_type = "image/jpeg"
+    used_edge = FALLBACK_LONG_EDGE_PX[0]
+    last_error: Exception | None = None
+
+    for attempt_idx, max_edge in enumerate(FALLBACK_LONG_EDGE_PX, start=1):
+        image_bytes, mime_type = _normalize_image_for_gemini(image_path, max_edge=max_edge)
+        attempt_label = f"      [시도 {attempt_idx}/{len(FALLBACK_LONG_EDGE_PX)}] ≤{max_edge}px"
+        print(f"{attempt_label}: {len(image_bytes):,} bytes ({mime_type})")
+
+        # 명시적 Content + Part 구조로 직렬화. GMS 게이트웨이가 SDK 의 자동 변환
+        # ([Part, str] → Content) 결과를 제대로 못 forward 하는 경우 대비.
+        content_payload = genai_types.Content(
+            role="user",
+            parts=[
+                genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                genai_types.Part.from_text(text=prompt),
+            ],
         )
-    except Exception as e:
-        # GMS 게이트웨이/Gemini API 에러 디버깅 정보 출력
-        print(f"\n[ERROR] Gemini API 호출 실패")
-        print(f"        model: {GEMINI_VISION_MODEL}")
-        print(f"        image_size: {len(image_bytes):,} bytes")
-        print(f"        mime_type:  {mime_type}")
-        print(f"        error type: {type(e).__name__}")
-        print(f"        error:      {e}")
-        raise
+
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_VISION_MODEL,
+                contents=[content_payload],
+                config=genai_types.GenerateContentConfig(
+                    temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
+                    # JSON-only 출력 강제 — ```json ... ``` 펜스와 부가 설명 제거,
+                    # 출력 토큰 절약 + 파싱 안정성↑ (모델 내부 추론 품질엔 영향 없음)
+                    response_mime_type="application/json",
+                ),
+            )
+            used_edge = max_edge
+            break  # 성공
+        except Exception as e:
+            last_error = e
+            print(f"        → 실패 ({type(e).__name__}): {str(e)[:200]}")
+            if attempt_idx < len(FALLBACK_LONG_EDGE_PX):
+                print(f"        → 더 작은 사이즈로 재시도")
+                continue
+            # 마지막 시도까지 실패 시 디버깅 정보 출력 후 에러 전파
+            print(f"\n[ERROR] Gemini API 호출 모든 fallback 실패")
+            print(f"        model: {GEMINI_VISION_MODEL}")
+            print(f"        tried sizes: {FALLBACK_LONG_EDGE_PX}")
+            print(f"        last error type: {type(e).__name__}")
+            print(f"        last error:      {e}")
+            raise
+
+    assert response is not None  # 위에서 break 했으면 보장됨
 
     text = (response.text or "").strip()
     if not text:
@@ -321,12 +348,19 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
     # 응답에서 JSON 부분만 추출 (모델이 ```json ... ``` 같은 펜스 붙일 수 있음)
     parsed = extract_json(text)
 
+    # 후처리: 물성이 크림 같은 base 요소(바스크 등)를 creams 에도 미러링
+    # → FE 카테고리 필터(creams 비어있는지)를 통과시켜 cream_scoop / smash / hand_split
+    #   같은 cream 시뮬레이션이 사용자에게 노출되도록 함.
+    # FE/BE/Infra 무수정으로 해결하기 위한 AI 측 후처리.
+    parsed = _augment_creamy_bases(parsed)
+
     # full_response: SDK 가 돌려주는 객체는 JSON 직렬화가 까다로워 디버그용 dict 로 정리
     full_response = {
         "model": GEMINI_VISION_MODEL,
         "image_path": image_path,
         "image_mime_type": mime_type,
         "image_size_bytes": len(image_bytes),
+        "image_max_long_edge_px": used_edge,
         "raw_text": text,
         "usage_metadata": (
             response.usage_metadata.model_dump()
@@ -336,6 +370,57 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
         ),
     }
     return parsed, text, full_response
+
+
+# 물성이 크림 같은 base 요소 → creams 에 미러링할 때 사용할 키 매핑.
+# 의미적으로 base이지만 (반죽 자체가 본체) 식감이 크림처럼 부드러워 cream 시뮬레이션
+# 적용이 자연스러운 케이크들. 미러 키는 FE KEYWORD_LABELS 와 AI ELEMENT_ALIASES
+# 양쪽에 이미 등록된 정식 키만 사용 — 추가 코드 없이 라벨/정규화가 정상 작동.
+#   - baked_cheese → creamy_interior  (FE 라벨 "크리미한 내부", AI alias → baked_cheese)
+#   - mousse       → mousse           (FE 라벨 "무스", base/creams 양쪽 자연스러움)
+#
+# ⚠️ 외부 의존성:
+#   1) FE: gemcafe/FE/src/features/create-video/catalog.ts 의 KEYWORD_LABELS
+#      에 미러 키(creamy_interior, mousse)가 등록되어 있어야 사용자 화면에 한국어
+#      라벨이 표시됨. 라벨이 사라지면 영문 폴백 ("Creamy Interior") 으로 표시.
+#   2) AI: prompt_locks.py 의 ELEMENT_ALIASES 에 미러 키가 정식 base 키로 정규화
+#      되도록 등록되어 있어야 슬롯 빌드·텍스처 매핑이 정확히 동작
+#      (creamy_interior → baked_cheese).
+# 위 두 곳을 변경할 때 이 매핑도 함께 검토 필요.
+_CREAMY_BASE_MIRROR_TO_CREAMS = {
+    "baked_cheese":  "creamy_interior",
+    "mousse":        "mousse",
+}
+
+
+def _augment_creamy_bases(analysis: dict) -> dict:
+    """
+    분석 결과 후처리 — 물성이 크림 같은 base 요소를 creams 배열에도 추가.
+
+    바스크/뉴욕/수플레 치즈케이크나 무스 케이크는 반죽 자체가 본체이므로 의미적으로는
+    base 이지만, 텍스처가 크림처럼 부드러워 cream_scoop / smash / hand_split 같은
+    cream 시뮬레이션을 사용자가 선택할 수 있어야 한다.
+
+    FE 카테고리 필터는 analysis.creams 배열이 비어있으면 cream 시뮬레이션을 숨기므로,
+    여기서 미러 키를 creams 에 추가해 필터를 통과시킨다. 미러 키는 ELEMENT_ALIASES 로
+    base 요소와 같은 정식 키(예: baked_cheese)로 정규화되므로 내부 prompt 빌드와 텍스처
+    매핑은 정확히 base 와 동일하게 동작한다.
+    """
+    if not isinstance(analysis, dict):
+        return analysis
+    base = analysis.get("base") or []
+    creams = analysis.get("creams") or []
+    if not isinstance(base, list) or not isinstance(creams, list):
+        return analysis
+
+    creams_set = set(creams)
+    for b in base:
+        mirror = _CREAMY_BASE_MIRROR_TO_CREAMS.get(b)
+        if mirror and mirror not in creams_set:
+            creams.append(mirror)
+            creams_set.add(mirror)
+    analysis["creams"] = creams
+    return analysis
 
 
 def extract_json(text: str) -> dict:

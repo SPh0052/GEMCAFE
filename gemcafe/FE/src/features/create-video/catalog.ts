@@ -23,24 +23,21 @@ export interface BackgroundItem {
 export type FocusCategory = 'base' | 'creams' | 'toppings' | 'coating'
 
 export const SIMULATIONS: SimulationItem[] = [
-  { key: 'spoon', label_kr: '한 조각 쏙 들어올리기', image: ASSET('flow.png') },
+  { key: 'lift_slice', label_kr: '한 조각 쏙 들어올리기', image: ASSET('flow.png') },
   { key: 'fork_bite', label_kr: '포크로 한입 뜨기', image: ASSET('chop.png') },
   { key: 'cut_in_half', label_kr: '칼로 단면 가르기', image: ASSET('knife.png') },
-  { key: 'hand_half', label_kr: '손으로 반 가르기', image: ASSET('divine.png') },
   { key: 'cream_scoop', label_kr: '한 스푼 떠내기', image: ASSET('spoons.png') },
   { key: 'smash', label_kr: '뭉개기', image: ASSET('smash.png') },
-  { key: 'lift_slice', label_kr: '한 조각 쏙 들어올리기' },
-  { key: 'hand_split', label_kr: '손으로 반 가르기' },
+  { key: 'hand_split', label_kr: '손으로 반 가르기', image: ASSET('divine.png') },
   { key: 'topping_fall', label_kr: '위에서 떨어트리기', image: ASSET('drop.png') },
-  { key: 'glazed_effect', label_kr: '글레이즈드 효과', image: ASSET('glaze.png') },
 ]
 
 /** Available simulation keys by analysis category. */
 const CATEGORY_SIMULATIONS: Record<FocusCategory, string[]> = {
-  base: ['spoon', 'fork_bite', 'cut_in_half', 'lift_slice'],
-  creams: ['hand_half', 'cream_scoop', 'smash', 'hand_split'],
+  base: ['fork_bite', 'cut_in_half', 'lift_slice'],
+  creams: ['cream_scoop', 'smash', 'hand_split'],
   toppings: ['topping_fall'],
-  coating: ['glazed_effect'],
+  coating: [],
 }
 
 export function simulationsForCategory(
