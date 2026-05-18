@@ -952,6 +952,15 @@ def collect_elements_by_role(analysis: dict) -> dict[str, list[str]]:
         out["coating"] = [normalize_element(str(coating))]
     else:
         out["coating"] = []
+
+    # cross-role dedupe — analyze.py 가 FE 카테고리 호환을 위해 creamy base
+    # (baked_cheese / mousse) 를 base 와 creams 양쪽에 출력하는 경우, 정규화 후
+    # 두 역할에 같은 정식 키가 들어갈 수 있음. 내부 슬롯 빌드에서 같은 요소가
+    # {?base:...}{?cream:...} 양쪽에 박혀 중복 묘사 되는 것을 막기 위해
+    # base 우선으로 cream 에서 제거. (의미적으로 본체가 base 이므로 base 우선.)
+    base_set = set(out.get("base", []))
+    if base_set:
+        out["cream"] = [e for e in out.get("cream", []) if e not in base_set]
     return out
 
 
