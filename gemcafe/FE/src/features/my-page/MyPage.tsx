@@ -8,6 +8,7 @@ import {
   Shield,
   Sparkles,
 } from 'lucide-react'
+import { AuthedImage } from '@/shared/components/AuthedMedia'
 import { useAuthStore } from '@/shared/stores/useAuthStore'
 import { getMe, logout as logoutApi } from '@/features/auth/api'
 
@@ -84,7 +85,7 @@ export default function MyPage() {
           <div className="relative">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-brand-50 to-orange-100/60 shadow-inner ring-1 ring-brand-100">
               {user.picture ? (
-                <img
+                <AuthedImage
                   src={user.picture}
                   alt=""
                   className="h-full w-full rounded-2xl object-cover"
