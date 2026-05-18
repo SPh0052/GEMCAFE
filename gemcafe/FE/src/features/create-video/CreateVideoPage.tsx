@@ -425,7 +425,9 @@ export default function CreateVideoPage() {
           ) : (
             <>
               <Camera className="h-8 w-8 text-gray-400" />
-              <span className="text-sm">여기를 눌러 메뉴 사진을 추가하세요</span>
+              <span className="text-sm">
+                조각케이크 사진을 올려주세요. 단면·옆면·윗면이 모두 보이는 각도가 좋아요.
+              </span>
             </>
           )}
         </button>

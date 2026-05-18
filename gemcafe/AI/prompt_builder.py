@@ -188,77 +188,56 @@ SIMULATIONS = {
             },
         },
         "instruction_template": (
-            "Edit the input image to add a 'fork lifting a piece of cake' moment "
-            "for a 9:16 vertical short-form video end frame.\n\n"
-
-            "PRESERVE FROM INPUT (highest priority):\n"
-            "- Keep the cake body's position, shape, internal layers/fillings, toppings, "
-            "cream pattern, plate or liner, colors, and surface texture EXACTLY as in "
-            "the input image (pixel-level fidelity)\n"
-            "- Keep the background, bokeh, lighting, and color temperature IDENTICAL "
-            "to the input\n"
-            "- Keep the 9:16 aspect ratio and overall composition unchanged\n"
-            "- Do NOT regenerate any existing element\n\n"
-
-            "ADD ONLY THIS — fork lifting a cake piece:\n"
-            "- A stainless steel dessert fork enters from the UPPER-RIGHT area of the "
-            "frame, angled diagonally with handle pointing toward the upper-right corner\n"
-            "- The fork tines hold a bite-sized piece of cake, LIFTED into the air "
-            "above the cake body\n"
-            "- Position of the lifted piece: in the UPPER half of the frame, clearly "
-            "separated from the cake body below with a visible air gap between them "
-            "(no visual overlap)\n"
-            "- The lifted piece shows a CLEAN CROSS-SECTION revealing the cake's "
-            "actual internal structure — layers, fillings, and inclusions that truly "
-            "exist inside the cake in the input image. The {focus} is clearly visible "
-            "and emphasized as the most prominent feature on the exposed cross-section"
-            "{cream}{topping}{interior_structure}{texture}. "
-            "Faithfully reflect whatever is actually inside the cake; do NOT invent "
-            "layers, fillings, or textures that are not visible in the original\n"
-            "- On the cake body below, in an area that AVOIDS any prominent whole "
-            "topping (such as a whole fruit or a decorative piece sitting on top), a "
-            "matching bite-sized wedge-shaped indentation is visible where the piece "
-            "was taken from, exposing the same cross-section, with the {focus} also "
-            "clearly visible inside the cavity\n"
-            "- A few small crumbs may be falling between the lifted piece and the "
-            "cake body\n"
-            "- Between the lifted piece and the cake body there should be ONLY clean "
-            "air — do not draw any stretched filling, dripping cream, honey-like "
-            "strand, melted strand, or flowing material connecting them, unless the "
-            "cake's actual filling is explicitly a flowing molten substance (e.g. "
-            "molten chocolate lava). For all other fillings (whipped cream, mascarpone, "
-            "cream cheese, ganache, custard, etc.) the connection between the bite and "
-            "the cake must be cleanly broken with no visible string or strand\n\n"
-
-            "CONSTRAINTS:\n"
-            "- The lifted piece and the cake body MUST NOT visually overlap\n"
-            "- The fork and the cake body MUST NOT visually overlap (except through "
-            "the lifted piece)\n"
-            "- Cross-section on both the lifted piece and the remaining cake body must "
-            "be visually consistent (same internal structure)\n"
-            "- All toppings and decorations on the cake's surface (except in the small "
-            "indentation area) remain intact and undisturbed\n"
-            "- The plate or liner, camera angle, lighting, background, and overall "
-            "composition must remain identical to the input\n"
-            "- Photorealistic, shallow depth of field with SHARP FOCUS on the LIFTED "
-            "PIECE and the fork tines holding it; the cake body below in noticeably "
-            "softer focus as supporting context (the lifted piece is the unambiguous "
-            "subject of the frame)"
+            "Edit the input image. "
+            "Add a silver dessert fork lifted to the upper right of the cake, clearly "
+            "separated from the cake with empty space between them so the fork and the "
+            "cake do not overlap in the frame. "
+            "A single bite of cake is impaled on the fork tines, sitting just above the "
+            "base of the fork head — the bite was lifted by pressing the fork tines down "
+            "through the entire height of the cake from top to bottom, so the tines "
+            "pierce through the bite vertically and the bite rests against the base of "
+            "the tines. "
+            "The bite contains every layer stacked together — all sponge, fillings, and "
+            "inclusions exactly as they exist in the input image{interior_structure}. "
+            "On the cake, in an area that does not pass through "
+            "{?topping: the whole {topping} on top or }any prominent decoration on the "
+            "cake's surface, remove a matching bite-sized piece that goes all the way "
+            "through the cake from top to bottom, leaving a clean cavity that exposes "
+            "the same full inner cross-section as the lifted bite. "
+            "The cavity is shaped naturally as if a fork just scooped that piece out, "
+            "with soft slightly irregular edges, not a rectangular slot. "
+            "Keep everything else exactly the same as the input image: the rest of the "
+            "cake's shape, {?topping: the whole {topping} on top, }all surface garnishes "
+            "and decorations, the liner or base (if any), the surface the cake rests on, "
+            "the camera angle, the lighting, the background, and the overall composition "
+            "must remain identical. "
+            "Faithfully reflect whatever is actually inside the cake — do NOT invent "
+            "layers, fillings, or textures not visible in the original image. "
+            "Photorealistic, shallow depth of field with sharp focus on the lifted piece "
+            "and the fork tines holding it; the cake body below in noticeably softer "
+            "focus as supporting context."
         ),
         "video_template": (
-            "A silver dessert fork enters the frame from the upper right and slowly descends "
-            "toward the cake. The fork tines press straight down into the top of the cake, "
-            "sinking through every layer of the cake all the way to the base. The fork then "
-            "lifts smoothly back up, scooping out a single full-height bite that stays "
-            "impaled on the tines, revealing the cake's actual inner cross-section on the "
-            "cut faces, with the {focus} clearly visible and emphasized as the most "
-            "prominent feature on the exposed cross-section{cream}{interior_structure}{texture}. As the fork rises, it settles "
-            "in the upper right area of the frame, clearly separated from the cake with "
-            "empty space between them. The cake stays in place on whatever surface or liner "
-            "it sits on throughout the motion; any toppings or decorations on the cake's "
-            "surface that are not in the direct path of the fork remain intact and "
-            "undisturbed. Shallow depth of field, clean photorealistic dessert advertising "
-            "aesthetic, smooth and graceful motion, no abrupt cuts."
+            "A silver dessert fork enters from the upper-right and presses straight down "
+            "into the front-right vertical face of the cake. "
+            "The fork pushes downward all the way through the cake's full height from top "
+            "to bottom, passing through every layer until the fork tines reach the base. "
+            "The fork must travel the full vertical distance of the cake, not just the "
+            "top portion. "
+            "As the fork glides down, the cake yields naturally to the tines{texture}. "
+            "Once the fork has reached the bottom of the cake, it pulls the full-height "
+            "piece — containing all the layers top to bottom — straight upward to the "
+            "right in one continuous smooth motion. "
+            "The piece on the fork remains intact and structurally stable, holding its "
+            "rectangular shape with all layers clearly visible from top to bottom, with "
+            "the {focus} clearly visible and emphasized as the most prominent feature on "
+            "the exposed cut faces{cream}{interior_structure}. "
+            "The motion is one single continuous smooth pull: enter, push down through "
+            "the full height, lift the full piece, settle into the upper-right position. "
+            "No reversal, no second movement. "
+            "The rest of the cake stays motionless on the liner or base (if any), "
+            "{?topping: the whole {topping} on top stays still, }all surface garnishes "
+            "and decorations stay still, the lighting stays consistent."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
@@ -283,24 +262,20 @@ SIMULATIONS = {
             },
         },
         "instruction_template": (
-            "Edit this image for a 9:16 vertical short-form video end frame, showing a "
-            "cake knife now embedded inside the cake, having just cut into it.\n\n"
-            "The knife enters the frame from behind the cake, with the handle extending "
-            "away from the camera into the background. The knife blade pushes forward "
-            "through the cake toward the camera, so the cut opens up facing the camera, "
-            "exposing the cross-section directly to the viewer.\n\n"
-            "The knife is sunk into the cake, with its blade buried deep below the surface "
+            "Edit this image to show the fork now embedded inside the cake, having just "
+            "pressed into it.\n\n"
+            "The fork enters the frame from behind the cake, with the handle extending "
+            "away from the camera into the background. The fork tines push forward through "
+            "the cake toward the camera, so the cut opens up facing the camera, exposing "
+            "the cross-section directly to the viewer.\n\n"
+            "The fork is sunk into the cake, with its tines buried deep below the surface "
             "where it entered. A clear, continuous gap has formed in the cake exactly along "
-            "the blade — the crack starts where the blade meets the cake's surface, runs in "
-            "the same direction the blade is pointing, and ends at the buried tip of the "
-            "blade. The knife is physically inside this gap, not floating beside it.\n\n"
-            "The cake is in a partially cut state. The upper portion, where the blade has "
-            "already passed, is split open into two halves. The lower portion remains as a "
-            "single solid piece of cake — continuous, unbroken, with internal structure "
-            "fully connected across the middle.\n\n"
-            "The gap runs in the exact same direction the blade traveled, and extends only "
-            "as far down as the blade has cut.\n\n"
-            "The cake's internal layers are pushed apart on both sides of the blade, "
+            "the fork's body — the crack starts where the fork meets the cake's surface, "
+            "runs in the same direction the fork is pointing, and ends at the buried tips "
+            "of the tines. The fork is physically inside this gap, not floating beside it. "
+            "The gap exists only from the top of the cake down to where the fork currently "
+            "is; below that point, the cake remains solid and uncut.\n\n"
+            "The cake's internal layers are pushed apart on both sides of the fork, "
             "revealing the internal texture in sharp detail, with the {focus} clearly "
             "emphasized as the most prominent and detailed feature on the exposed "
             "cross-section{cream}{topping}{interior_structure}{texture}.\n\n"
@@ -309,16 +284,16 @@ SIMULATIONS = {
             "and freshness."
         ),
         "video_template": (
-            "A polished cake knife enters the frame from behind the cake and slowly cuts "
-            "downward through the top of the cake, slicing it open from top to bottom. As "
-            "the blade descends, the cake's internal layers are gently pushed apart along "
-            "the blade's path, gradually revealing the cake's internal texture — exposed "
-            "with vivid color and natural texture, with the {focus} clearly emphasized as "
-            "the most prominent and detailed texture on the exposed cross-section{cream}{interior_structure}{texture}.\n\n"
-            "The knife moves at a steady, deliberate pace — slow enough to savor each "
-            "moment of the cut, like an ASMR food video. The cake's internal structure "
-            "softly parts along the blade, and tiny details of the moist interior become "
-            "visible as the camera moves closer.\n\n"
+            "A silver fork enters the frame from behind the cake and slowly presses "
+            "downward through the top of the cake, parting it open from top to bottom. "
+            "As the fork descends, the cake's internal layers are gently pushed apart "
+            "along the fork's path, gradually revealing the cake's internal texture — "
+            "the {focus} clearly emphasized as the most prominent and detailed feature "
+            "on the exposed cross-section{cream}{interior_structure}{texture}.\n\n"
+            "The fork moves at a steady, deliberate pace — slow enough to savor each "
+            "moment of the cut, like an ASMR food video. The cake's layers part "
+            "naturally, and tiny details of the moist interior become visible as the "
+            "camera moves closer.\n\n"
             "Soft, natural daylight. Shallow depth of field that deepens as the camera "
             "moves in. Photorealistic food cinematography, ultra-detailed texture, "
             "ASMR-style food video aesthetic, emphasis on tactile texture, moisture, and "
@@ -347,31 +322,24 @@ SIMULATIONS = {
 
             "A single human left hand wearing a black food-safe nitrile glove enters the "
             "frame from the lower-left and supports the dessert. CRITICAL: The dessert is "
-            "rotated and held so that one of the two side cut faces (the ones exposing the "
-            "{focus}) rests against the open palm of the gloved hand. The cut face touching "
-            "the palm is HIDDEN from the camera, pressed against the glove.\n\n"
+            "rotated and laid on its SIDE so that one of the two side cut faces (the ones "
+            "exposing the {focus}) rests flat against the open palm of the gloved hand. "
+            "The cut face touching the palm is HIDDEN from the camera, pressed against "
+            "the glove.\n\n"
 
             "The OTHER side cut face — also exposing the {focus} — now faces toward the "
             "camera, presented roughly head-on. This camera-facing cut face shows the "
             "dessert's full {focus}, fills the center of the composition, and is the main "
             "visual focus.\n\n"
 
-            "IMPORTANT — dessert tilt: The dessert is NOT held perfectly vertical. Instead, "
-            "it is tilted slightly counter-clockwise (rotated about 8 to 12 degrees from "
-            "vertical) — the top portion of the dessert leans slightly to the upper-right, "
-            "and the bottom portion is slightly to the lower-left. This natural tilt "
-            "reflects how a human left hand and wrist naturally angle when supporting an "
-            "object from below. The tilt is subtle and natural, NOT dramatic or extreme — "
-            "the dessert should still look stable and securely held, not falling.\n\n"
-
-            "The top surface (with the dark burnt crust) is now oriented to one side "
-            "(either left or right edge of the frame, not facing up). The bottom surface "
-            "is oriented to the opposite side. NEITHER the top surface NOR the bottom "
-            "surface is touching the palm. The palm ONLY touches a side cut face.\n\n"
+            "The top surface (the outer layer or coating, if any) is now oriented to one "
+            "side (either left or right edge of the frame, not facing up). The bottom "
+            "surface is oriented to the opposite side. NEITHER the top surface NOR the "
+            "bottom surface is touching the palm. The palm ONLY touches a side cut face.\n\n"
 
             "Only ONE hand is visible in the frame — the left hand supporting the dessert. "
             "Do NOT add a second hand. Do NOT let the palm touch the bottom of the "
-            "dessert. Do NOT let the palm touch the top burnt crust.\n\n"
+            "dessert. Do NOT let the palm touch the top outer surface of the dessert.\n\n"
 
             "The dessert is held roughly at the same height and position within the frame "
             "as it originally was, so the background and surface below remain visible "
@@ -397,7 +365,7 @@ SIMULATIONS = {
             "steel dessert spoon with a rounded oval-shaped bowl. The right hand has just "
             "finished dragging the spoon downward along the dessert's exposed flat cut "
             "face (the wide {focus} surface facing the camera), scooping out a long "
-            "vertical channel from near the top burnt edge all the way down toward the "
+            "vertical channel from near the top outer edge all the way down toward the "
             "bottom of the cut face.\n\n"
 
             "The spoon is now positioned near the BOTTOM of the cut face, having ended "
@@ -412,7 +380,7 @@ SIMULATIONS = {
 
             "The channel covers roughly the middle 50 to 60 percent of the cut face "
             "width, with clear margins of the original untouched cut face remaining on "
-            "BOTH the left side near the burnt crust AND the right side.\n\n"
+            "BOTH the left side near the outer edge AND the right side.\n\n"
 
             "A generous heap of {focus}, freshly scooped out from the entire length of "
             "the channel, sits piled on top of the spoon's bowl, mounded above the rim "
@@ -420,7 +388,7 @@ SIMULATIONS = {
 
             "The dessert remains whole and intact otherwise: no chunks have broken off "
             "the dessert as a whole, no pieces have fallen, the dessert is NOT crumbling "
-            "apart structurally. The dark burnt crust on the left side remains intact.\n\n"
+            "apart structurally. The outer crust or edge on the left side remains intact.\n\n"
 
             "Both hands are now visible in the frame — the left hand still supporting "
             "the dessert exactly as before, the right hand operating the spoon. Do not "
@@ -463,83 +431,288 @@ SIMULATIONS = {
                 "cream":   "; the {value} layers stay neatly stacked through the lift, no smearing or shifting",
             },
         },
-        # 1단계 — 입력 슬라이스 이미지로부터 홀케이크를 상상·재구성한 시작 프레임
+        # 1단계 — 입력 슬라이스 이미지로부터 홀케이크를 상상·재구성한 시작 프레임.
+        # 슬라이스는 wedge 형태로 자리에 그대로 (pre-cut line 만 미세하게) — 다음
+        # 프레임에서 케이크 서버로 들어올려질 수 있도록 들기 직전 상태로 셋팅.
+        # 카메라 프레이밍은 후속 lift 액션을 위해 cake 위쪽에 headroom 확보 +
+        # 우하단을 비워둠 (서버가 들어올 자리).
         "start_frame_template": (
-            "Edit the provided image of a single triangular cake slice. The slice has "
-            "two flat cut faces created when it was originally cut from a whole round "
-            "cake. Reconstruct the COMPLETE original round whole cake from which this "
-            "slice was cut, placing the slice back into its original position within "
-            "the whole cake so that the two cut faces of the slice are perfectly flush "
-            "against the matching cut faces of the rest of the cake.\n\n"
-            "The resulting whole cake must be:\n"
-            "- A round 360-degree whole cake when viewed from above\n"
-            "- Built by extending the slice's exact top decoration, side coating, "
-            "cream pattern, base, colors, and textures consistently around the entire "
-            "perimeter — the rest of the cake looks identical in style and materials "
-            "to the input slice, just continued around the full circumference\n"
-            "- The original slice is fully integrated into the whole cake with NO "
-            "visible gap, NO visible cut line, NO visible seam between the slice and "
-            "the rest — it reads as one continuous unbroken cake\n"
-            "- Sitting on the same plate or surface style as the original input "
-            "image, with the plate scaled up appropriately to fit the whole cake\n\n"
-            "Preserve the input image's background, lighting direction and quality, "
-            "color temperature, camera height and distance, and overall photographic "
-            "style. Photorealistic, high-detail food photography, shallow depth of "
-            "field focused on the whole cake."
+            "From the input dessert slice image, reconstruct the COMPLETE WHOLE "
+            "ROUND CAKE from which this slice was originally cut. The slice "
+            "must be shown back in its original position within the whole cake "
+            "— one wedge seamlessly fitted with the rest, as if the cake has "
+            "been pre-cut but not yet served.\n\n"
+
+            "Infer the number of slices naturally from the wedge angle of the "
+            "input slice (do not force a specific count). The whole cake should "
+            "look proportional and convincing.\n\n"
+
+            "PRESERVE EXACTLY from the input slice:\n"
+            "- Base layers (if present): their count, colors, and thicknesses\n"
+            "- Filling pattern between layers (if present): thickness, color, texture\n"
+            "- Toppings on top: type, color, arrangement, and size\n"
+            "- Side coating and frosting style — if the side is not clearly "
+            "visible in the input image, infer the side material from the top "
+            "surface coating or the outermost layer of the cross-section and "
+            "apply that same material continuously around the full side. Do NOT "
+            "default to plain sponge or bare cake body. For example, if the top "
+            "shows a dark-baked cheesecake finish, the side must also be "
+            "dark-baked, not pale yellow chiffon.\n"
+            "- Overall design language, color palette, and decorative finish\n\n"
+
+            "EXTEND the design naturally around the full cake:\n"
+            "- Top decoration repeats in radial symmetry around the circle\n"
+            "- Side coating wraps continuously around the full circumference\n"
+            "- Internal layers extend uniformly through the entire cake\n\n"
+
+            "PRE-CUT LINE:\n"
+            "The whole cake shows ONE faint, clean cut line on its top surface, "
+            "marking where one wedge has been pre-cut from the cake. The cut "
+            "line is barely visible — just a thin, subtle separation line. "
+            "The wedge itself remains perfectly in place, seated flush with "
+            "the rest of the cake, with no visible gap or displacement. From "
+            "a casual glance the cake looks whole, but on close inspection "
+            "one wedge is clearly ready to be lifted.\n\n"
+
+            "The whole cake sits on a clean white round ceramic plate.\n\n"
+
+            "Camera: slightly low eye-level angle, gently tilted downward "
+            "toward the cake — the camera looks at the cake from roughly the "
+            "same height as the cake's top, with a slight downward tilt that "
+            "keeps BOTH the top surface AND a significant portion of the "
+            "cake's side wall clearly visible. This is NOT a top-down shot; "
+            "the side of the cake must be clearly seen.\n\n"
+
+            "Frame the shot as if the camera is positioned farther back from "
+            "the cake, so that the cake appears modestly sized within the "
+            "image — occupying roughly the lower 60% of the frame vertically, "
+            "centered horizontally. The upper 40% of the frame above the cake "
+            "must remain empty space, providing generous headroom for an "
+            "object to be lifted high above the cake later.\n\n"
+
+            "Also keep the lower-right corner of the frame clear and "
+            "uncluttered (this space will be used in the next frame — keep "
+            "it empty).\n\n"
+
+            "Soft, even studio lighting from the upper-left, casting a gentle "
+            "natural shadow to the lower-right side of the cake.\n\n"
+
+            "Strictly NO utensils, NO hands, NO cake server, NO fork, NO knife "
+            "anywhere in the frame.\n\n"
+
+            "Style: photorealistic, high-end commercial food photography, crisp "
+            "focus on the cake, fine detail on cream texture and toppings.\n\n"
+
+            "Output: a single still image of the whole cake with one wedge "
+            "pre-cut but seated in place, ready to be lifted."
         ),
-        # 2단계 — 그 홀케이크에서 슬라이스가 케이크 서버로 떠올려진 마지막 프레임
+        # 2단계 — 그 홀케이크(pre-cut wedge 포함)에서 슬라이스가 케이크 서버로
+        # 떠올려진 마지막 프레임. start_frame 의 pre-cut line 을 그대로 wedge gap
+        # 으로 매칭. 카메라/조명/플레이트 모두 input 이미지 보존.
         "instruction_template": (
-            "Edit the provided image of a whole round cake for a 9:16 vertical "
-            "short-form video end frame, showing a single triangular slice now lifted "
-            "cleanly off the whole cake by a polished stainless steel cake server.\n\n"
-            "The slice being lifted is one wedge of the whole cake — about 1/8 to "
-            "1/6 of the full 360-degree cake. The cake server enters from the "
-            "lower-right of the frame at a shallow angle, with the flat triangular "
-            "blade fully inserted beneath the slice, supporting it from below. The "
-            "handle extends out of the frame toward the lower-right corner.\n\n"
-            "The slice is lifted gently into the upper-center of the frame, with a "
-            "clear air gap of roughly 3 to 5 centimeters between the bottom of the "
-            "slice and the surface of the whole cake below. The slice stays level "
-            "and intact, holding its full triangular shape with no tilt, no "
-            "collapse, no crumbs falling.\n\n"
-            "Both cut faces of the lifted slice — the two triangular sides where it "
-            "was separated from the whole cake — are clearly visible in profile, "
-            "exposing the {focus} as the dominant feature of the cross-section"
-            "{cream}{topping}{interior_structure}{texture}. The internal structure reads as crisp and freshly cut.\n\n"
-            "The whole cake below shows a corresponding wedge-shaped gap where the "
-            "slice used to sit. The exposed inner faces of the remaining whole cake "
-            "match the lifted slice's cut faces exactly — same internal structure, "
-            "same materials, same colors.\n\n"
-            "Preserve the cake's pixel-level appearance otherwise: same top "
-            "decoration, same side coating, same cream pattern around the remaining "
-            "rim, same plate, same background and lighting. Photorealistic dessert "
-            "advertising aesthetic, shallow depth of field focused on the lifted "
-            "slice, the cake body softly out of focus below."
+            "Edit the input whole cake image to show the pre-cut wedge slice "
+            "LIFTED UP and away from the cake by a stainless steel cake server.\n\n"
+
+            "THE LIFTED SLICE:\n\n"
+            "- The slice that gets lifted is exactly the wedge that was "
+            "pre-cut in the input image — its position, size, and angle "
+            "must match the existing cut line in the input exactly\n"
+            "- Held on the flat triangular blade of a stainless steel cake "
+            "server\n"
+            "- Lifted high above the plate with clear, generous empty space "
+            "between the bottom of the slice and the plate surface — the "
+            "slice should appear distinctly elevated, with the bottom of "
+            "the slice positioned roughly at the same height as the top "
+            "surface of the remaining cake (so the lifted slice sits "
+            "visually \"above\" the cake, not \"beside\" it)\n"
+            "- Tilted slightly so the server's handle side is a bit lower "
+            "than the pointed tip side — this angle clearly reveals both "
+            "cut faces of the slice, with{?base: the {base},}{?cream: the "
+            "{cream},} and internal structure fully visible in cross-section\n"
+            "- The slice's internal structure (as shown in the input image) "
+            "is IDENTICAL to the original\n\n"
+
+            "THE REMAINING CAKE:\n\n"
+            "- Stays in place on the same white round ceramic plate, in the "
+            "same position as in the input image\n"
+            "- A clean wedge-shaped empty gap is now visible where the slice "
+            "was lifted from — this gap follows the exact pre-cut line that "
+            "was shown in the input image, matching the lifted slice's size "
+            "and angle exactly\n"
+            "- The inner walls of the gap show clean cross-sections{?base: "
+            "of the {base}}{?cream: with the {cream} between them}, "
+            "identical in structure to the lifted slice's cut faces\n"
+            "- All other parts of the cake remain intact and untouched\n\n"
+
+            "THE CAKE SERVER:\n\n"
+            "- Stainless steel, polished finish with soft reflections\n"
+            "- Entering from the lower-right side of the frame, with the "
+            "handle extending out toward the lower-right edge of the frame\n"
+            "- The blade is fully under the lifted slice, supporting it from "
+            "below\n\n"
+
+            "PRESERVE FROM THE INPUT IMAGE (must remain unchanged):\n\n"
+            "- The exact same camera angle and framing as the input image\n"
+            "- The exact same lighting direction and shadow direction\n"
+            "- The same white round ceramic plate, in the same position\n"
+            "- The same background\n"
+            "- The cake's overall position within the frame\n\n"
+
+            "Strictly NO hands, NO fork, NO knife, NO additional utensils "
+            "anywhere in the frame — only the stainless steel cake server.\n\n"
+
+            "Style: photorealistic, high-end commercial food photography, crisp "
+            "focus on the lifted slice with both cut faces sharp and detailed, "
+            "the remaining cake softly in focus.\n\n"
+
+            "Output: a single still image of the slice held high in the air "
+            "on the cake server, with the source cake (matching wedge gap "
+            "along the original pre-cut line) behind it on the plate."
         ),
         "video_template": (
-            "A polished stainless steel cake server slides in smoothly from the "
-            "lower-right of the frame, slips its flat triangular blade beneath one "
-            "wedge of the whole cake, and lifts the slice cleanly off in one "
-            "continuous, deliberate motion. The slice rises gently into the "
-            "upper-center of the frame, staying level the whole way up, with both "
-            "cut faces of the slice clearly visible — the {focus} is emphasized as "
-            "the dominant cross-section{cream}{interior_structure}{texture}. The slice settles in mid-air with a "
-            "small air gap above the whole cake, which now shows a clean wedge-shaped "
-            "gap where the slice used to be. Static camera throughout, no panning, "
-            "no zooming, smooth ASMR-style food cinematography."
+            "[Scene]\n"
+            "A complete whole round cake sits on a clean white round ceramic "
+            "plate. The cake has one wedge pre-cut on top, seated flush with "
+            "the rest of the cake. A stainless steel cake server enters from "
+            "the lower-right side of the frame, slides cleanly under the "
+            "pre-cut wedge along the existing cut line, and lifts that single "
+            "slice high up and away from the cake, revealing a clean "
+            "wedge-shaped empty gap in the source cake.\n\n"
+
+            "[Motion]\n"
+            "The cake server moves in from the lower-right corner with "
+            "smooth, deliberate intent. As it slides under the pre-cut "
+            "wedge, the slice separates cleanly from the cake along the "
+            "pre-existing cut line — no crumbling, no sticking, no new "
+            "tearing. The slice is then lifted vertically upward, rising "
+            "high above the plate until the bottom of the slice reaches "
+            "roughly the same height as the top surface of the remaining "
+            "cake. As it rises, the slice tilts gently forward toward the "
+            "camera: the outer wide curved edge of the wedge lifts slightly "
+            "higher than the pointed tip, naturally presenting both cut "
+            "faces of the slice to the camera.\n\n"
+
+            "[Pacing]\n"
+            "A single continuous shot, 8 seconds total.\n"
+            "- 0.0s – 2.5s: cake server enters smoothly from the lower-right "
+            "corner and slides under the pre-cut wedge along the existing "
+            "cut line\n"
+            "- 2.5s – 5.5s: the slice lifts slowly and steadily upward, "
+            "tilting forward into its final pose with the wide curved end "
+            "up and the pointed tip down\n"
+            "- 5.5s – 8.0s: the slice is held steady in mid-air at its "
+            "highest point, both cut faces fully and cleanly visible to "
+            "the camera, the server stable — a polished hold for the final "
+            "reveal\n\n"
+
+            "[Camera]\n"
+            "Locked-off camera. Slightly low eye-level, gently tilted "
+            "downward toward the cake. No pan, no zoom, no dolly — the "
+            "camera stays absolutely still throughout the entire shot. "
+            "Only the cake server and the slice move.\n\n"
+
+            "[Lighting]\n"
+            "Soft, even studio lighting from the upper-left, casting a "
+            "gentle natural shadow to the lower-right. Lighting stays "
+            "constant throughout — no flicker, no shifts. The lifted slice "
+            "catches a soft highlight on its top surface as it rises.\n\n"
+
+            "[Style]\n"
+            "Photorealistic, high-end commercial food photography in "
+            "motion. Crisp focus on the slice and server, with the "
+            "remaining cake softly in focus. Fine detail on the cake's "
+            "surface texture and the internal cross-section visible on "
+            "the cut faces.\n\n"
+
+            "[Mood and Sound]\n"
+            "Calm, refined, premium dessert advertisement atmosphere. No "
+            "background music. Subtle natural sound design only: the faint "
+            "soft contact of the steel server meeting the cake, the quiet "
+            "clean separation of the slice from the rest of the cake, "
+            "gentle ambient room tone. No voice, no narration.\n\n"
+
+            "[Constraints]\n"
+            "- No hands, no human figures, no additional utensils (no "
+            "fork, no knife) anywhere in the frame\n"
+            "- The remaining cake stays completely still on the plate; "
+            "only the lifted slice and the cake server move\n"
+            "- The remaining cake's shape, size, position, and surface "
+            "must NOT change during the shot, except for the wedge-shaped "
+            "gap appearing exactly where the pre-cut wedge was located\n"
+            "- The pre-cut line in the starting frame is the ONLY "
+            "separation line — no new cuts or lines appear elsewhere on "
+            "the cake\n"
+            "- The slice's design (surface texture, internal cross-section) "
+            "remains consistent throughout the shot — no morphing, no "
+            "shape changes, no color shifts\n"
+            "- No camera movement of any kind"
         ),
     },
     # ─────────────────────────────────────────────────────────────────
     "hand_split": {
         "label_kr": "손으로 반 가르기",
         "category": "cream",   # 가르며 단면의 크림을 노출 — cream 역할 강조
-        # 양손(검은 장갑)이 슬라이스 양 끝을 잡고 깔끔하게 두 조각으로 가름.
+        # 양손(검은 장갑)이 홀케이크를 잡고 있다가 반으로 깔끔하게 가름.
         # whipped/ganache/mascarpone/baked_cheese 는 모두 ductile 아니므로 stretching
         # 없이 깨끗한 단절. molten_chocolate 은 stretching 시그니처라 디자인 충돌 → 제외.
+        # 2단계 I2I 체인 (cream_scoop / lift_slice 와 동일 패턴):
+        #   start_frame_template — input 케이크를 양손이 들고 있는 첫 프레임
+        #   instruction_template — 그 양손이 케이크를 가른 마지막 프레임
         "applicable_focus": [
             "whipped_cream", "ganache", "mascarpone_cream", "baked_cheese",
         ],
         "frame_strategy": "i2i_is_end",
+        # 1단계 — input 케이크 → 양손이 케이크를 들고 있는 첫 프레임
+        # 케이크-specific 색/표면/사이즈는 input 이미지가 시각 정보 제공 (보존).
+        # prompt 는 "양손이 어떻게 잡고 있는지" 구조/동작에만 집중.
+        "start_frame_template": (
+            "Transform the cake in the input image into a complete whole "
+            "round cake, held up in the air between two hands. The whole "
+            "cake preserves the exact visual identity of the input: the "
+            "cake's actual top surface as shown in the input image, the "
+            "cake's actual body color and texture as shown in the input, "
+            "same texture and density. The cake is a short cylinder, "
+            "approximately matching the proportions and thickness of the "
+            "input cake.\n\n"
+
+            "If the input image does not clearly show the cake's side, infer "
+            "the side coating from the top surface finish and apply the same "
+            "material continuously around the cylindrical edge. Do NOT default "
+            "to plain sponge or bare cake body. For example, if the top shows "
+            "a dark-baked cheesecake finish, the side must also be dark-baked, "
+            "not pale yellow chiffon.\n\n"
+
+            "How the cake is held: Two hands wearing matte black nitrile "
+            "gloves cup and cradle the cake from both sides, holding it up "
+            "vertically in the air like presenting a large coin to the "
+            "camera. Each hand grips the cylindrical edge of the cake by "
+            "pinching its thickness: the four fingers (index, middle, ring, "
+            "pinky) wrap around to the back side of the cake (hidden from "
+            "camera), while the thumb presses against the front face but "
+            "only at the very outer rim of the side — the thumb pad rests "
+            "on the cylindrical edge itself, providing inward support "
+            "pressure, NOT laying flat on top of the front face. Both hands "
+            "and forearms enter the frame from the BOTTOM edge of the "
+            "image, rising upward to grip the cake from its left and right "
+            "sides. The wrists and forearms extend downward out of the "
+            "bottom of the frame, not sideways. The arms come up from "
+            "below like someone is holding the cake up to show the "
+            "camera.\n\n"
+
+            "What the camera sees: The flat top face of the cake directly "
+            "faces the camera, filling about 75% of the frame as a large "
+            "centered circle. The cake's cylindrical body (its thickness) "
+            "is only visible as a thin cake-body rim around the "
+            "circumference of the top face. The camera is perpendicular to "
+            "this top face — not looking down at the cake from above, not "
+            "looking up from below, but straight on at eye level with the "
+            "face of the cake.\n\n"
+
+            "Plain dark neutral background, out of focus. No table or "
+            "surface visible. Soft directional lighting from the front, "
+            "highlighting the natural texture of the cake's top surface. "
+            "Photorealistic, high-end food photography style."
+        ),
         "slot_phrases": {
             "instruction": {
                 "base":    "; the {value} body of the slice breaks cleanly along the split, exposing the layered baked structure on both halves",
@@ -549,44 +722,68 @@ SIMULATIONS = {
                 "base":    "; the {value} layers part cleanly along the break",
             },
         },
+        # 2단계 — 그 양손이 케이크를 윗부분만 가른 마지막 프레임 (책 펼치듯).
+        # start_frame 의 양손 그립 유지 + 윗부분만 4-6cm 벌어짐 (밑은 붙어있음).
+        # 케이크-specific 표현 일반화 + cross-section 묘사에 마커 사용 (lift_slice
+        # 위치 1과 동일 패턴 — 시트/크림 둘 다 있으면 풍부히, 단일층이면 깔끔).
         "instruction_template": (
-            "Edit the input image for a 9:16 vertical short-form video end frame, "
-            "showing the cake slice now split into two halves by two human hands "
-            "wearing black food-safe nitrile gloves.\n\n"
-            "Both gloved hands grip the slice from its two pointed ends — the left "
-            "hand from the left tip, the right hand from the right tip — with "
-            "fingers wrapped around the bottom and sides of each half for a secure "
-            "grip. The hands have just pulled the two halves apart, leaving a clear "
-            "gap of roughly 4 to 6 centimeters of empty air between the freshly "
-            "exposed inner faces.\n\n"
-            "Each half retains its original triangular shape on the outside, with "
-            "all external surfaces (top, sides, bottom) intact. The break runs "
-            "cleanly down the middle of the slice, perpendicular to its long edge, "
-            "revealing two flat inner cross-sections that face each other across "
-            "the gap.\n\n"
-            "The {focus} is clearly visible and emphasized as the most prominent "
-            "feature on both freshly exposed inner faces{base}{topping}{interior_structure}{texture}. The break "
-            "is sharp and clean — no stretching strands, no stringing, no dripping "
-            "material connecting the two halves through the gap. The space between "
-            "the halves is empty air.\n\n"
-            "Preserve the cake's pixel-level appearance otherwise: same toppings on "
-            "the surface, same cream pattern on external surfaces, same colors. "
-            "The plate stays in place below. Background, lighting, and camera "
-            "framing remain identical to the input.\n\n"
-            "Photorealistic dessert close-up aesthetic, shallow depth of field "
-            "focused on the exposed inner cross-sections."
+            "A whole round cake is held in midair by two black latex gloved "
+            "hands — no table, no surface, only a light neutral background. "
+            "The cake has been split open from the top down: the upper "
+            "portion is pulled apart left and right with a clear gap of 4 "
+            "to 6 centimeters, exposing the cross-section{?base: of the "
+            "{base}}{?cream: with the {cream}}. The bottom edge of the cake "
+            "is still connected and has not yet separated — only the top is "
+            "open, like a book cracked open at the spine. Left hand holds "
+            "the left half, right hand holds the right half, both still "
+            "gripping the sides. Camera angle: top-down bird's-eye view. "
+            "Both halves remain upright and suspended in midair."
         ),
+        # 영상 — 양손이 홀케이크를 6초간 책 펼치듯 천천히 가르기.
+        # 케이크-specific texture 묘사는 {texture} 슬롯이 케이크별 baseline +
+        # element_textures 로 자동 박힘 (바스크는 dense custard not stretchy,
+        # 생크림은 billowy no stringing, 등 — 각 케이크의 안전장치 자동 적용).
         "video_template": (
-            "Two black-gloved hands enter from the left and right edges of the "
-            "frame, grip the slice firmly from both pointed ends, and in a single "
-            "smooth, continuous motion pull the slice apart toward the edges of "
-            "the frame. The slice splits cleanly down the middle, the two halves "
-            "separating into the air with a clear gap opening between them, "
-            "revealing two flat inner cross-sections that face each other — the "
-            "{focus} is emphasized as the dominant feature on both exposed faces"
-            "{base}{interior_structure}{texture}. The break stays clean throughout the motion, with no "
-            "stretching strands or stringing across the gap. Static camera, "
-            "smooth steady motion, ASMR-style food cinematography."
+            "A pair of hands wearing matte black nitrile gloves slowly "
+            "pull apart a whole round cake into two equal halves over 6 "
+            "continuous seconds. The motion is one smooth, gradual, "
+            "unbroken movement from start to finish — never sudden, never "
+            "instantaneous.\n\n"
+
+            "Timing breakdown: From 0 to 1.5 seconds, both hands begin "
+            "pulling outward very gently, and a thin hairline gap appears "
+            "at the center of the cake. From 1.5 to 4 seconds, the gap "
+            "widens steadily and continuously as the hands separate "
+            "further, revealing the inner cross-section. From 4 to 5 "
+            "seconds, the two halves reach their final position clearly "
+            "apart with a 5cm gap between them. From 5 to 6 seconds, "
+            "both hands hold perfectly still — the final cross-section "
+            "fully revealed, a clean static hold for the last second. "
+            "The separation speed must be perfectly constant and slow "
+            "throughout — at no point does the cake \"snap\" or break "
+            "suddenly.\n\n"
+
+            "Texture and material: The cake yields slowly and reluctantly "
+            "under the pull according to its actual material properties"
+            "{texture}. The exposed inner cross-section reveals the cake's "
+            "actual color, texture, and density as shown in the input "
+            "image. The break line is organic and natural to the cake's "
+            "specific consistency. Nothing falls from the cake during the "
+            "entire motion.\n\n"
+
+            "Camera: locked perfectly still on a straight-on frontal view "
+            "at cake's eye level. No camera movement, no zoom. Background "
+            "and lighting remain identical throughout — consistent dark "
+            "neutral backdrop, consistent soft frontal lighting.\n\n"
+
+            "The hands move in perfectly synchronized symmetrical motion, "
+            "both wrists rotating outward at the same rate. Both halves "
+            "remain firmly gripped and stable throughout, no wobbling, no "
+            "dropping.\n\n"
+
+            "ASMR-style slow food cinematography. Audio: only the soft "
+            "tearing sound of the cake separating, and the faint creak of "
+            "nitrile gloves stretching. No music, no other sounds."
         ),
     },
     # ─────────────────────────────────────────────────────────────────
@@ -712,6 +909,86 @@ class _SafeDict(dict):
 
     def __missing__(self, key: str) -> str:
         return ""
+
+
+# =====================================================================
+# 인라인 마커 — {?slot: phrase ... {slot} ... } 패턴 처리
+# =====================================================================
+# 사용자가 instruction_template 한 곳에서 옵셔널 phrase 를 직관적으로 표현할 수
+# 있도록 하는 syntax. 별도 slot_phrases dict 정의 없이 템플릿 안에 직접 박을 수 있음.
+#
+# 동작:
+#   "the fork presses{?cream: through the {cream}}, squishing"
+#   - analysis 에 cream 있으면 → "the fork presses through the whipped cream, squishing"
+#   - analysis 에 cream 없으면 → "the fork presses, squishing"   (블록 통째 빠짐)
+#
+# 슬롯 종류: ?base / ?cream / ?topping
+#   - 분석 결과 (analysis.base[0], analysis.creams[0], analysis.toppings[0]) 첫 요소를
+#     focus_phrase() 로 자연어 변환해서 사용.
+#   - 마커 블록 내부의 {base} / {cream} / {topping} 도 같은 자연어 값으로 치환.
+#
+# 공백/콤마 자동 정리:
+#   - 마커 블록 제거 시 주변에 남는 어색한 공백·콤마·이중공백 자동 trim.
+#   - 사용자가 마커 안 공백/콤마 위치 신경 안 써도 됨.
+#
+# 안전성:
+#   - 마커가 없는 템플릿엔 영향 0 (regex match 안 되면 통과).
+#   - 마커 처리는 format_map() 직전 단계 — 응답에 노출되는 prompt 는 항상 클린한
+#     영어 (raw 마커 syntax 노출 위험 없음).
+import re as _re
+
+_MARKER_PATTERN = _re.compile(
+    r'\{\?(\w+):((?:[^{}]|\{[^{}]*\})*)\}'
+)
+
+
+def _build_marker_values(analysis: Optional[dict]) -> dict[str, str]:
+    """analysis → 인라인 마커용 단순 단어 값 dict {base, cream, topping}.
+
+    각 값은 focus_phrase() 통과시켜 자연어로 변환된 단어 ("whipped cream" 등).
+    해당 요소가 분석에 없으면 키 자체가 빈 문자열 → 마커 블록 통째 omit.
+    """
+    if analysis is None:
+        return {}
+    import prompt_locks
+    by_role = prompt_locks.collect_elements_by_role(analysis)
+    values: dict[str, str] = {}
+    for slot_key in ("base", "cream", "topping"):
+        elements = by_role.get(slot_key, [])
+        if elements:
+            values[slot_key] = focus_phrase(elements[0])
+    return values
+
+
+def _process_inline_markers(template: str, marker_values: dict[str, str]) -> str:
+    """{?slot: ... {slot} ... } 마커 처리 + 주변 공백/콤마 정리.
+
+    - 슬롯 값이 비어있으면 블록 통째 제거
+    - 차있으면 블록 내용을 펼치고 안의 {slot} 자리에 값 치환
+    - 마커 블록 내부의 다른 placeholder (예: {focus}) 는 그대로 유지 → 이후
+      format_map() 단계에서 채워짐.
+
+    이 함수는 마커 syntax 만 처리하고, 기존 wrapping 슬롯 ({base}/{cream}/{topping}
+    via slot_phrases) 이나 {focus} 등은 손대지 않음.
+    """
+    def replace(match: _re.Match) -> str:
+        slot = match.group(1)
+        body = match.group(2)
+        value = marker_values.get(slot, "")
+        if not value:
+            return ""  # 블록 통째 제거
+        # 블록 안의 {slot} 단순 치환 (e.g. "{cream}" → "whipped cream")
+        return body.replace(f"{{{slot}}}", value)
+
+    result = _MARKER_PATTERN.sub(replace, template)
+
+    # 공백/콤마 자동 정리 — 마커 블록 제거 후 주변 잔여 정리
+    result = _re.sub(r'\s+,', ',', result)      # " ," → ","
+    result = _re.sub(r',\s*,', ',', result)      # ",," → ","
+    result = _re.sub(r'\s+\.', '.', result)      # " ." → "."
+    result = _re.sub(r'\s+;', ';', result)       # " ;" → ";"
+    result = _re.sub(r'[ \t]{2,}', ' ', result)  # 더블 공백 → 단일 (개행은 유지)
+    return result
 
 
 def _resolve_slot_phrases(
@@ -1000,12 +1277,16 @@ def build_prompts(
     fmt_inst = _SafeDict(focus=focus_text, **slot_inst)
     fmt_vid = _SafeDict(focus=focus_text, **slot_vid)
 
-    instruction = sim["instruction_template"].format_map(fmt_inst)
-    video = sim["video_template"].format_map(fmt_vid)
+    # 인라인 마커 ({?base|cream|topping:...}) 처리 — format_map 직전 단계.
+    # 마커 없는 템플릿엔 영향 0. 마커 있으면 그 블록을 펼치거나 통째 제거.
+    marker_values = _build_marker_values(analysis)
+
+    instruction = _process_inline_markers(sim["instruction_template"], marker_values).format_map(fmt_inst)
+    video = _process_inline_markers(sim["video_template"], marker_values).format_map(fmt_vid)
     start_frame = None
     if sim.get("start_frame_template"):
         # start_frame 도 instruction 과 동일 wrapper 사용 (별도 슬롯 필요 시 향후 분리)
-        start_frame = sim["start_frame_template"].format_map(fmt_inst)
+        start_frame = _process_inline_markers(sim["start_frame_template"], marker_values).format_map(fmt_inst)
 
     # analysis 가 있으면 케이크 구조 컨텍스트 (역할별 base/cream/topping/coating + 시각 식별)
     # 를 instruction 앞에 prepend. 모델이 "어떤 재료가 어느 자리에 있는지" 명확히 인식해서
