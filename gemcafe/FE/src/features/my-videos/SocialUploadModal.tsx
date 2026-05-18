@@ -100,6 +100,9 @@ export default function SocialUploadModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, step, onClose])
 
+  // 진행 중인 SSE 구독 — 모달 닫힘/언마운트 시 정리
+  const jobStreamsRef = useRef<EventSource[]>([])
+
   if (!isOpen) return null
 
   const togglePlatform = (p: SocialPlatform) => {
@@ -112,9 +115,6 @@ export default function SocialUploadModal({
     title.trim().length > 0 &&
     title.trim().length <= 100 &&
     platforms.length > 0
-
-  // 진행 중인 SSE 구독 — 모달 닫힘/언마운트 시 정리
-  const jobStreamsRef = useRef<EventSource[]>([])
 
   // 모달 닫힐 때 진행 중인 SSE 구독 모두 정리
   useEffect(() => {
