@@ -222,19 +222,24 @@ Now analyze the provided image. Output ONLY valid JSON in the same schema, no ot
 # 핵심 함수
 # =====================================================================
 # GMS 게이트웨이가 일정 픽셀 수 / 비표준 JPEG 인코딩을 multimodal 요청에서 거부하는
-# 케이스가 관찰됨 (804x1042 실패 / 400x533 성공). 어떤 이미지가 와도 안전하게
-# 통과하도록 분석 전 표준 JPEG 으로 정규화한다.
-MAX_LONG_EDGE_PX = 1024   # 긴 변 1024px 로 제한 (≈1M pixels 이하 보장)
+# 케이스가 관찰됨 (804x1042 실패 / 400x533 성공). 거부 동작이 비결정적이라
+# 같은 이미지도 시점에 따라 통과/실패가 갈림 → 큰 사이즈부터 시도해 실패 시
+# 자동으로 더 작은 사이즈로 재시도하는 fallback 체인을 둔다.
+#   - 1024px: 인식 품질 가장 좋음 (정상 케이스)
+#   - 768px:  중간 단계 (1024 거부 시 첫 재시도)
+#   - 512px:  안전선 (400x533 성공 기록 기반, 거의 항상 통과)
+FALLBACK_LONG_EDGE_PX = [1024, 768, 512]
+MAX_LONG_EDGE_PX = FALLBACK_LONG_EDGE_PX[0]   # 기본 / 디스플레이용
 
 
-def _normalize_image_for_gemini(image_path: str) -> tuple[bytes, str]:
+def _normalize_image_for_gemini(image_path: str, max_edge: int = MAX_LONG_EDGE_PX) -> tuple[bytes, str]:
     """
     입력 이미지를 GMS / Gemini multimodal 친화적 표준 JPEG 로 재인코딩.
 
     적용 변환:
       - EXIF orientation 적용 후 metadata 제거 (회전 정보가 파서 깨뜨릴 위험 차단)
       - 비RGB 색공간 (CMYK / RGBA / palette) 을 RGB 로 변환
-      - 긴 변을 MAX_LONG_EDGE_PX 이하로 리사이즈 (LANCZOS 필터)
+      - 긴 변을 max_edge 이하로 리사이즈 (LANCZOS 필터)
       - JPEG quality=90 + optimize 로 재인코딩 (인코더 quirk 정규화)
 
     Returns: (jpeg_bytes, "image/jpeg")
@@ -245,8 +250,8 @@ def _normalize_image_for_gemini(image_path: str) -> tuple[bytes, str]:
         img = img.convert("RGB")
 
     long_edge = max(img.size)
-    if long_edge > MAX_LONG_EDGE_PX:
-        ratio = MAX_LONG_EDGE_PX / long_edge
+    if long_edge > max_edge:
+        ratio = max_edge / long_edge
         new_size = (round(img.size[0] * ratio), round(img.size[1] * ratio))
         img = img.resize(new_size, Image.LANCZOS)
 
@@ -276,42 +281,61 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
       4) 응답 텍스트에서 JSON 추출
     """
     print(f"[1/1] Gemini 2.5 Pro 이미지 분석 중... ({GEMINI_VISION_MODEL})")
-    # 입력 이미지를 정규화 (긴 변 1024px / 표준 JPEG / metadata 제거) — GMS 거부 회피
-    image_bytes, mime_type = _normalize_image_for_gemini(image_path)
-    print(f"      image: {len(image_bytes):,} bytes ({mime_type}, normalized ≤{MAX_LONG_EDGE_PX}px)")
     print(f"      prompt: {len(prompt):,} chars")
 
-    # 명시적 Content + Part 구조로 직렬화. GMS 게이트웨이가 SDK 의 자동 변환
-    # ([Part, str] → Content) 결과를 제대로 못 forward 하는 경우 대비.
-    content_payload = genai_types.Content(
-        role="user",
-        parts=[
-            genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            genai_types.Part.from_text(text=prompt),
-        ],
-    )
-
     client = _get_client()
-    try:
-        response = client.models.generate_content(
-            model=GEMINI_VISION_MODEL,
-            contents=[content_payload],
-            config=genai_types.GenerateContentConfig(
-                temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
-                # JSON-only 출력 강제 — ```json ... ``` 펜스와 부가 설명 제거,
-                # 출력 토큰 절약 + 파싱 안정성↑ (모델 내부 추론 품질엔 영향 없음)
-                response_mime_type="application/json",
-            ),
+
+    # GMS 게이트웨이가 큰 사이즈를 비결정적으로 거부하는 경우 대비
+    # 1024 → 768 → 512 순으로 fallback 재시도.
+    response = None
+    image_bytes: bytes = b""
+    mime_type = "image/jpeg"
+    used_edge = FALLBACK_LONG_EDGE_PX[0]
+    last_error: Exception | None = None
+
+    for attempt_idx, max_edge in enumerate(FALLBACK_LONG_EDGE_PX, start=1):
+        image_bytes, mime_type = _normalize_image_for_gemini(image_path, max_edge=max_edge)
+        attempt_label = f"      [시도 {attempt_idx}/{len(FALLBACK_LONG_EDGE_PX)}] ≤{max_edge}px"
+        print(f"{attempt_label}: {len(image_bytes):,} bytes ({mime_type})")
+
+        # 명시적 Content + Part 구조로 직렬화. GMS 게이트웨이가 SDK 의 자동 변환
+        # ([Part, str] → Content) 결과를 제대로 못 forward 하는 경우 대비.
+        content_payload = genai_types.Content(
+            role="user",
+            parts=[
+                genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                genai_types.Part.from_text(text=prompt),
+            ],
         )
-    except Exception as e:
-        # GMS 게이트웨이/Gemini API 에러 디버깅 정보 출력
-        print(f"\n[ERROR] Gemini API 호출 실패")
-        print(f"        model: {GEMINI_VISION_MODEL}")
-        print(f"        image_size: {len(image_bytes):,} bytes")
-        print(f"        mime_type:  {mime_type}")
-        print(f"        error type: {type(e).__name__}")
-        print(f"        error:      {e}")
-        raise
+
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_VISION_MODEL,
+                contents=[content_payload],
+                config=genai_types.GenerateContentConfig(
+                    temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
+                    # JSON-only 출력 강제 — ```json ... ``` 펜스와 부가 설명 제거,
+                    # 출력 토큰 절약 + 파싱 안정성↑ (모델 내부 추론 품질엔 영향 없음)
+                    response_mime_type="application/json",
+                ),
+            )
+            used_edge = max_edge
+            break  # 성공
+        except Exception as e:
+            last_error = e
+            print(f"        → 실패 ({type(e).__name__}): {str(e)[:200]}")
+            if attempt_idx < len(FALLBACK_LONG_EDGE_PX):
+                print(f"        → 더 작은 사이즈로 재시도")
+                continue
+            # 마지막 시도까지 실패 시 디버깅 정보 출력 후 에러 전파
+            print(f"\n[ERROR] Gemini API 호출 모든 fallback 실패")
+            print(f"        model: {GEMINI_VISION_MODEL}")
+            print(f"        tried sizes: {FALLBACK_LONG_EDGE_PX}")
+            print(f"        last error type: {type(e).__name__}")
+            print(f"        last error:      {e}")
+            raise
+
+    assert response is not None  # 위에서 break 했으면 보장됨
 
     text = (response.text or "").strip()
     if not text:
@@ -330,6 +354,7 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
         "image_path": image_path,
         "image_mime_type": mime_type,
         "image_size_bytes": len(image_bytes),
+        "image_max_long_edge_px": used_edge,
         "raw_text": text,
         "usage_metadata": (
             response.usage_metadata.model_dump()
