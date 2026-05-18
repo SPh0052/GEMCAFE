@@ -348,6 +348,12 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
     # 응답에서 JSON 부분만 추출 (모델이 ```json ... ``` 같은 펜스 붙일 수 있음)
     parsed = extract_json(text)
 
+    # 후처리: 물성이 크림 같은 base 요소(바스크 등)를 creams 에도 미러링
+    # → FE 카테고리 필터(creams 비어있는지)를 통과시켜 cream_scoop / smash / hand_split
+    #   같은 cream 시뮬레이션이 사용자에게 노출되도록 함.
+    # FE/BE/Infra 무수정으로 해결하기 위한 AI 측 후처리.
+    parsed = _augment_creamy_bases(parsed)
+
     # full_response: SDK 가 돌려주는 객체는 JSON 직렬화가 까다로워 디버그용 dict 로 정리
     full_response = {
         "model": GEMINI_VISION_MODEL,
@@ -364,6 +370,57 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
         ),
     }
     return parsed, text, full_response
+
+
+# 물성이 크림 같은 base 요소 → creams 에 미러링할 때 사용할 키 매핑.
+# 의미적으로 base이지만 (반죽 자체가 본체) 식감이 크림처럼 부드러워 cream 시뮬레이션
+# 적용이 자연스러운 케이크들. 미러 키는 FE KEYWORD_LABELS 와 AI ELEMENT_ALIASES
+# 양쪽에 이미 등록된 정식 키만 사용 — 추가 코드 없이 라벨/정규화가 정상 작동.
+#   - baked_cheese → creamy_interior  (FE 라벨 "크리미한 내부", AI alias → baked_cheese)
+#   - mousse       → mousse           (FE 라벨 "무스", base/creams 양쪽 자연스러움)
+#
+# ⚠️ 외부 의존성:
+#   1) FE: gemcafe/FE/src/features/create-video/catalog.ts 의 KEYWORD_LABELS
+#      에 미러 키(creamy_interior, mousse)가 등록되어 있어야 사용자 화면에 한국어
+#      라벨이 표시됨. 라벨이 사라지면 영문 폴백 ("Creamy Interior") 으로 표시.
+#   2) AI: prompt_locks.py 의 ELEMENT_ALIASES 에 미러 키가 정식 base 키로 정규화
+#      되도록 등록되어 있어야 슬롯 빌드·텍스처 매핑이 정확히 동작
+#      (creamy_interior → baked_cheese).
+# 위 두 곳을 변경할 때 이 매핑도 함께 검토 필요.
+_CREAMY_BASE_MIRROR_TO_CREAMS = {
+    "baked_cheese":  "creamy_interior",
+    "mousse":        "mousse",
+}
+
+
+def _augment_creamy_bases(analysis: dict) -> dict:
+    """
+    분석 결과 후처리 — 물성이 크림 같은 base 요소를 creams 배열에도 추가.
+
+    바스크/뉴욕/수플레 치즈케이크나 무스 케이크는 반죽 자체가 본체이므로 의미적으로는
+    base 이지만, 텍스처가 크림처럼 부드러워 cream_scoop / smash / hand_split 같은
+    cream 시뮬레이션을 사용자가 선택할 수 있어야 한다.
+
+    FE 카테고리 필터는 analysis.creams 배열이 비어있으면 cream 시뮬레이션을 숨기므로,
+    여기서 미러 키를 creams 에 추가해 필터를 통과시킨다. 미러 키는 ELEMENT_ALIASES 로
+    base 요소와 같은 정식 키(예: baked_cheese)로 정규화되므로 내부 prompt 빌드와 텍스처
+    매핑은 정확히 base 와 동일하게 동작한다.
+    """
+    if not isinstance(analysis, dict):
+        return analysis
+    base = analysis.get("base") or []
+    creams = analysis.get("creams") or []
+    if not isinstance(base, list) or not isinstance(creams, list):
+        return analysis
+
+    creams_set = set(creams)
+    for b in base:
+        mirror = _CREAMY_BASE_MIRROR_TO_CREAMS.get(b)
+        if mirror and mirror not in creams_set:
+            creams.append(mirror)
+            creams_set.add(mirror)
+    analysis["creams"] = creams
+    return analysis
 
 
 def extract_json(text: str) -> dict:
