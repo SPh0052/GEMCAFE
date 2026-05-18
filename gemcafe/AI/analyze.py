@@ -378,6 +378,15 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
 # 양쪽에 이미 등록된 정식 키만 사용 — 추가 코드 없이 라벨/정규화가 정상 작동.
 #   - baked_cheese → creamy_interior  (FE 라벨 "크리미한 내부", AI alias → baked_cheese)
 #   - mousse       → mousse           (FE 라벨 "무스", base/creams 양쪽 자연스러움)
+#
+# ⚠️ 외부 의존성:
+#   1) FE: gemcafe/FE/src/features/create-video/catalog.ts 의 KEYWORD_LABELS
+#      에 미러 키(creamy_interior, mousse)가 등록되어 있어야 사용자 화면에 한국어
+#      라벨이 표시됨. 라벨이 사라지면 영문 폴백 ("Creamy Interior") 으로 표시.
+#   2) AI: prompt_locks.py 의 ELEMENT_ALIASES 에 미러 키가 정식 base 키로 정규화
+#      되도록 등록되어 있어야 슬롯 빌드·텍스처 매핑이 정확히 동작
+#      (creamy_interior → baked_cheese).
+# 위 두 곳을 변경할 때 이 매핑도 함께 검토 필요.
 _CREAMY_BASE_MIRROR_TO_CREAMS = {
     "baked_cheese":  "creamy_interior",
     "mousse":        "mousse",
