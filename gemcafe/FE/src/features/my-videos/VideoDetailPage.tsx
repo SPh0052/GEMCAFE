@@ -245,22 +245,29 @@ export default function VideoDetailPage() {
    * 즉시 통과. await 없이 바로 호출 (file 은 캐시에서 동기적으로 꺼냄).
    */
   const handleShareConfirm = () => {
-    if (!cachedWatermarkFile) return
+    if (!detail) return
+    const shareUrl = `${window.location.origin}/videos/${detail.videoId}`
     const payload: ShareData = {
-      files: [cachedWatermarkFile],
       title: shareTitle,
       text: shareText,
+      url: shareUrl,
     }
-    if (
-      typeof navigator.canShare === 'function' &&
-      !navigator.canShare(payload)
-    ) {
-      setToast(
-        '이 기기에서는 영상 파일 공유를 지원하지 않아요. 우상단 ↓ 버튼으로 다운로드 후 직접 공유해주세요.',
-      )
-      setShareModalOpen(false)
-      return
+
+    let canShareFile = false
+    if (cachedWatermarkFile && typeof navigator.canShare === 'function') {
+      try {
+        canShareFile = navigator.canShare({ files: [cachedWatermarkFile] })
+      } catch {
+        canShareFile = false
+      }
     }
+
+    if (cachedWatermarkFile && canShareFile) {
+      payload.files = [cachedWatermarkFile]
+    } else if (cachedWatermarkFile && !canShareFile) {
+      setToast('영상 파일 공유를 지원하지 않는 브라우저입니다. 링크로 공유합니다.')
+    }
+
     navigator
       .share(payload)
       .then(() => {
