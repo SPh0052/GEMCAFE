@@ -114,39 +114,7 @@ Example 4 (a Basque-style baked cheesecake — runny custard interior):
 "suggested_focus": ["baked_cheese", "caramelized_top", "creamy_interior"]
 }
 
-Example 5 (a Basque-style baked cheesecake — dense terrine style):
-{
-"cake_type": "basque_cheesecake",
-"base": ["baked_cheese"],
-"creams": [],
-"toppings": [],
-"coating": "none",
-"key_feature": "caramelized burnt top with firm dense fudgy interior",
-"is_warm": false,
-"is_layered": false,
-"element_textures": {
-  "baked_cheese": "firm dense fudgy interior, terrine-like, holds clean knife-cut edges"
-},
-"suggested_focus": ["baked_cheese", "caramelized_top", "dense_interior"]
-}
-
-Example 6 (a Basque-style baked cheesecake — intermediate style, smooth and moist pudding-like center):
-{
-"cake_type": "basque_cheesecake",
-"base": ["baked_cheese"],
-"creams": [],
-"toppings": [],
-"coating": "none",
-"key_feature": "caramelized burnt top with a smooth, dense yet creamy interior holding shape",
-"is_warm": false,
-"is_layered": false,
-"element_textures": {
-  "baked_cheese": "smooth, dense, and tightly packed creamy interior, holding clean cut edges with high moisture"
-},
-"suggested_focus": ["creamy_interior", "caramelized_top", "moist_texture"]
-}
-
-Example 7 (a decorated layered cake with firm piped whipped cream — stabilized style, NOT freshly billowy):
+Example 5 (a decorated layered cake with firm piped whipped cream — stabilized style, NOT freshly billowy):
 {
 "cake_type": "layered_cream",
 "base": ["vanilla_sponge"],
@@ -230,6 +198,20 @@ Rules:
   molten chocolate strings, etc.).
 
 If you genuinely cannot judge texture variation, output element_textures: {}.
+
+=== CRITICAL — DO NOT COPY EXAMPLES ===
+
+The example outputs above are FORMAT references, not answer keys. Two different
+basque cheesecake photos must produce DIFFERENT element_textures phrases.
+Even if the input image visually resembles an example, you MUST:
+  - Describe what YOU actually observe in the provided image (not the example)
+  - Use the 5 axes and visual cues above as your observation framework
+  - Compose a NEW phrase using vocabulary from the axes — do NOT verbatim
+    re-use phrases like "softly oozing creamy half-baked interior" unless
+    the image truly shows that exact state.
+
+If you find yourself about to copy an example's element_textures phrase,
+stop and re-examine the actual pixels. Same cake type ≠ same texture.
 
 Now analyze the provided image. Output ONLY valid JSON in the same schema, no other text."""
 
@@ -329,7 +311,11 @@ def analyze_with_gemini(image_path: str, prompt: str) -> tuple[dict, str, dict]:
                 model=GEMINI_VISION_MODEL,
                 contents=[content_payload],
                 config=genai_types.GenerateContentConfig(
-                    temperature=0.2,   # 일관된 JSON 분석을 위해 낮게
+                    # 0.2 는 결정성이 너무 강해 few-shot 예시 문구를 그대로 베끼는
+                    # 경향이 있어 0.4 로 상향. 정형 필드(cake_type/base/creams 등)
+                    # 는 schema 강제로 안정성 유지되고, element_textures 만 인스턴스
+                    # 별로 자연스럽게 변형되도록 함.
+                    temperature=0.4,
                     # JSON-only 출력 강제 — ```json ... ``` 펜스와 부가 설명 제거,
                     # 출력 토큰 절약 + 파싱 안정성↑ (모델 내부 추론 품질엔 영향 없음)
                     response_mime_type="application/json",
