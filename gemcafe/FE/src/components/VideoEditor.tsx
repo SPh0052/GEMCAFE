@@ -702,8 +702,9 @@ export default function VideoEditor() {
     if (downloading || savingChanges) return
     void requestNotificationPermissionOnce()
 
-    // videoId 없으면 워터마크 적용 불가 — 다운로드 차단
+    // videoId 없으면 워터마크 적용 불가 — 진행 중인 녹화 중단 후 차단
     if (!incomingVideo?.videoId) {
+      if (isRecording) stopRecording()
       setSaveStatus('error')
       setSaveMessage('영상 상세 페이지에서 다시 시도해주세요.')
       return
@@ -1366,8 +1367,6 @@ export default function VideoEditor() {
     ]
     const mimeType =
       mimeCandidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? ''
-    const isMp4 = mimeType.includes('mp4')
-    const ext = isMp4 ? 'mp4' : 'webm'
     console.log('[VideoEditor] 녹화 mimeType:', mimeType || '(default)')
 
     const recorder = new MediaRecorder(
