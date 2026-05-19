@@ -130,7 +130,23 @@ Example 5 (a Basque-style baked cheesecake — dense terrine style):
 "suggested_focus": ["baked_cheese", "caramelized_top", "dense_interior"]
 }
 
-Example 6 (a decorated layered cake with firm piped whipped cream — stabilized style, NOT freshly billowy):
+Example 6 (a Basque-style baked cheesecake — intermediate style, smooth and moist pudding-like center):
+{
+"cake_type": "basque_cheesecake",
+"base": ["baked_cheese"],
+"creams": [],
+"toppings": [],
+"coating": "none",
+"key_feature": "caramelized burnt top with a smooth, dense yet creamy interior holding shape",
+"is_warm": false,
+"is_layered": false,
+"element_textures": {
+  "baked_cheese": "smooth, dense, and tightly packed creamy interior, holding clean cut edges with high moisture"
+},
+"suggested_focus": ["creamy_interior", "caramelized_top", "moist_texture"]
+}
+
+Example 7 (a decorated layered cake with firm piped whipped cream — stabilized style, NOT freshly billowy):
 {
 "cake_type": "layered_cream",
 "base": ["vanilla_sponge"],
