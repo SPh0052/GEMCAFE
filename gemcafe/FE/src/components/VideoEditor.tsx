@@ -702,10 +702,10 @@ export default function VideoEditor() {
     if (downloading || savingChanges) return
     void requestNotificationPermissionOnce()
 
-    // videoId 없으면 BE 측 영상이 없으므로 워터마크 불가 — 로컬 녹화로 fallback
+    // videoId 없으면 워터마크 적용 불가 — 다운로드 차단
     if (!incomingVideo?.videoId) {
-      if (isRecording) stopRecording()
-      else await startRecording()
+      setSaveStatus('error')
+      setSaveMessage('영상 상세 페이지에서 다시 시도해주세요.')
       return
     }
 
@@ -1412,19 +1412,6 @@ export default function VideoEditor() {
         'image/jpeg',
         0.85,
       )
-
-      // 일반 녹화일 때는 다운로드 트리거 (썸네일 캡처 콜백과 별개)
-      if (!recordingForSaveRef.current) {
-        // 일반 녹화 — 사용자 디바이스에 자동 다운로드
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `gem-cafe-edit-${Date.now()}.${ext}`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }
 
       setIsRecording(false)
       setProgress(0)
