@@ -131,9 +131,30 @@ def embed_video_file(
     chunk_size = _adaptive_chunk_size(width, height)
     workers = _calc_workers()
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    out = cv2.VideoWriter(str(dest_path), fourcc, fps_input, (width, height))
+
+    # mp4v 대신 ffmpeg libx264 CRF 18 사용.
+    # mp4v 양자화가 DCT 워터마크 신호를 손상시켜 검증 실패하는 문제 해결.
+    ffmpeg_cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-f", "rawvideo",
+        "-pixel_format", "bgr24",
+        "-video_size", f"{width}x{height}",
+        "-framerate", str(fps_input),
+        "-i", "pipe:0",
+        "-c:v", "libx264",
+        "-crf", "18",
+        "-preset", "fast",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        str(dest_path),
+    ]
+    ffmpeg_proc = subprocess.Popen(
+        ffmpeg_cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
     psnr_first = 0.0
     frame_count = 0
@@ -163,14 +184,25 @@ def embed_video_file(
                 if frame_count == 0:
                     psnr_first = calc_psnr(chunk[0], wm_chunk[0])
 
-                # 4) 순차 쓰기 (영상 시간 순서 보존)
+                # 4) ffmpeg stdin 으로 프레임 전송
                 for wf in wm_chunk:
-                    out.write(wf)
+                    try:
+                        ffmpeg_proc.stdin.write(wf.tobytes())
+                    except BrokenPipeError:
+                        break
 
                 frame_count += len(chunk)
     finally:
         cap.release()
-        out.release()
+        try:
+            if ffmpeg_proc.stdin and not ffmpeg_proc.stdin.closed:
+                ffmpeg_proc.stdin.close()
+        except OSError:
+            pass
+        ffmpeg_proc.wait()
+        if ffmpeg_proc.returncode != 0:
+            dest_path.unlink(missing_ok=True)
+            raise ValueError(f"ffmpeg 인코딩 실패 (returncode={ffmpeg_proc.returncode})")
 
     # 원본에 오디오가 있으면 ffmpeg로 mux (cv2.VideoWriter는 오디오를 보존 X)
     if _has_audio_stream(src_path):
