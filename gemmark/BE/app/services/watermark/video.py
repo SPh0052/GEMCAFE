@@ -133,8 +133,10 @@ def embed_video_file(
 
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # mp4v 대신 ffmpeg libx264 CRF 18 사용.
-    # mp4v 양자화가 DCT 워터마크 신호를 손상시켜 검증 실패하는 문제 해결.
+    # mp4v / CRF 18 대신 H.264 무손실(CRF 0 + yuv444p) 사용.
+    # 손실 코덱은 DCT 양자화로 워터마크 신호를 손상시켜 BER > 0.1이 되어 검증 실패함.
+    # yuv444p: 크로마 서브샘플링 없음 → Y 채널 완전 보존.
+    # CRF 0: 무손실 → 디코딩 후 픽셀값 = 인코딩 전 픽셀값.
     ffmpeg_cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-f", "rawvideo",
@@ -143,9 +145,10 @@ def embed_video_file(
         "-framerate", str(fps_input),
         "-i", "pipe:0",
         "-c:v", "libx264",
-        "-crf", "18",
+        "-crf", "0",
         "-preset", "fast",
-        "-pix_fmt", "yuv420p",
+        "-profile:v", "high444",
+        "-pix_fmt", "yuv444p",
         "-movflags", "+faststart",
         str(dest_path),
     ]
