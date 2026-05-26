@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     WATERMARKED_DIR: Path = DEFAULT_WATERMARKED_DIR
     MAX_FILE_SIZE_MB: int = 100
 
-    WATERMARK_ALPHA: float = 20.0
+    WATERMARK_ALPHA: float = 40.0
     WATERMARK_KEY: int = 42
     # gemcafe → gemmark embed-from-path 호출 시 video_watermarked.admin_id 로 기록할 시스템 admin id.
     # 사전에 admin 테이블에 해당 id 의 system 계정이 존재해야 함.

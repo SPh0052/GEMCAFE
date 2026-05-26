@@ -131,9 +131,33 @@ def embed_video_file(
     chunk_size = _adaptive_chunk_size(width, height)
     workers = _calc_workers()
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    out = cv2.VideoWriter(str(dest_path), fourcc, fps_input, (width, height))
+
+    # mp4v / CRF 18 대신 H.264 무손실(CRF 0 + yuv444p) 사용.
+    # 손실 코덱은 DCT 양자화로 워터마크 신호를 손상시켜 BER > 0.1이 되어 검증 실패함.
+    # yuv444p: 크로마 서브샘플링 없음 → Y 채널 완전 보존.
+    # CRF 0: 무손실 → 디코딩 후 픽셀값 = 인코딩 전 픽셀값.
+    ffmpeg_cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-f", "rawvideo",
+        "-pixel_format", "bgr24",
+        "-video_size", f"{width}x{height}",
+        "-framerate", str(fps_input),
+        "-i", "pipe:0",
+        "-c:v", "libx264",
+        "-crf", "0",
+        "-preset", "fast",
+        "-profile:v", "high444",
+        "-pix_fmt", "yuv444p",
+        "-movflags", "+faststart",
+        str(dest_path),
+    ]
+    ffmpeg_proc = subprocess.Popen(
+        ffmpeg_cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
     psnr_first = 0.0
     frame_count = 0
@@ -163,14 +187,25 @@ def embed_video_file(
                 if frame_count == 0:
                     psnr_first = calc_psnr(chunk[0], wm_chunk[0])
 
-                # 4) 순차 쓰기 (영상 시간 순서 보존)
+                # 4) ffmpeg stdin 으로 프레임 전송
                 for wf in wm_chunk:
-                    out.write(wf)
+                    try:
+                        ffmpeg_proc.stdin.write(wf.tobytes())
+                    except BrokenPipeError:
+                        break
 
                 frame_count += len(chunk)
     finally:
         cap.release()
-        out.release()
+        try:
+            if ffmpeg_proc.stdin and not ffmpeg_proc.stdin.closed:
+                ffmpeg_proc.stdin.close()
+        except OSError:
+            pass
+        ffmpeg_proc.wait()
+        if ffmpeg_proc.returncode != 0:
+            dest_path.unlink(missing_ok=True)
+            raise ValueError(f"ffmpeg 인코딩 실패 (returncode={ffmpeg_proc.returncode})")
 
     # 원본에 오디오가 있으면 ffmpeg로 mux (cv2.VideoWriter는 오디오를 보존 X)
     if _has_audio_stream(src_path):
