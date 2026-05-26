@@ -5,8 +5,7 @@
 케이크 사진 한 장으로 SNS 광고 영상을 자동 생성하는 **B2C AI 기반 영상 생성 서비스**와,
 영상 무단 배포를 추적하는 **B2B 워터마크 보안 플랫폼**을 하나의 모노레포로 개발한 프로젝트입니다.
 
-![alt text](gemcafe/FE/public/logo.png)
-![alt text](gemmark/FE/public/fabicon.png)
+<img src="gemcafe/FE/public/logo.png" width="10%"> &nbsp; <img src="gemmark/FE/public/fabicon.png" width="10%">
 ---
 
 ## 목차
