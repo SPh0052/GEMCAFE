@@ -4,9 +4,9 @@
 
 ```
 [케이크 사진]
-   ↓  Moondream3 분석
-   ↓  Gemini 한국어 미리보기 (사장님 편집 가능)
-   ↓  Gemini 한→영 번역 + 잠금 라이브러리 결합
+   ↓  Gemini 2.5 Pro 분석 (SSAFY GMS)
+   ↓  Gemini 2.5 Flash-Lite 한국어 미리보기 (사장님 편집 가능)
+   ↓  Gemini 2.5 Flash-Lite 한→영 번역 + 잠금 라이브러리 결합
    ↓  nano-banana-pro/edit  (I2I 키프레임)
    ↓  Veo 3.1 first-last-frame (I2V)
 [output.mp4]
@@ -62,16 +62,18 @@ pip install -r requirements.txt
 ```bash
 # 테스트 이미지 준비: gemcafe/AI/test_cake.jpg 위치에 케이크 사진 1장 두기
 
-# ① fal.ai 키 검증 — Moondream3로 케이크 분석 (~15초, ~$0.005)
+# ① GMS 키 검증 (분석 모델) — Gemini 2.5 Pro로 케이크 분석 (~15초, 크레딧 소량)
 python analyze.py
-# → outputs/analyze_<ts>/analysis.json 생성되면 FAL_KEY 정상
+# → outputs/analyze_<ts>/analysis.json 생성되면 GMS_KEY 정상 (Gemini 2.5 Pro)
 
-# ② GMS 키 검증 — LLM 한국어 미리보기 + 한→영 번역 (~5초, 크레딧 소량)
+# ② GMS 키 검증 (LLM 모델) — Gemini Flash-Lite 한국어 미리보기 + 한→영 번역 (~5초, 크레딧 소량)
 python llm_client.py
-# → 한국어 묘사 + 영어 번역이 콘솔에 출력되면 GMS_KEY 정상
+# → 한국어 묘사 + 영어 번역이 콘솔에 출력되면 GMS_KEY 정상 (Gemini 2.5 Flash-Lite)
+
+# (선택) FAL_KEY 검증은 키프레임 생성 단계에서 자연스럽게 됩니다 (비용 발생, ~$0.04).
 ```
 
-둘 다 성공하면 **API 키 setup 완료**. 이제 실제 영상 만들러 가시면 됩니다.
+분석/LLM 둘 다 성공하면 **GMS_KEY setup 완료**. FAL_KEY는 키프레임 생성을 한 번 돌려보면 확인됩니다.
 
 ---
 
@@ -79,7 +81,7 @@ python llm_client.py
 
 ```
 gemcafe/AI/
-├── analyze.py              # STEP 2: 케이크 이미지 분석 (Moondream3)
+├── analyze.py              # STEP 2: 케이크 이미지 분석 (Gemini 2.5 Pro via SSAFY GMS)
 ├── llm_client.py           # ⭐ Gemini 2.5 Flash-Lite 래퍼 (GMS 게이트웨이 경유)
 ├── prompt_locks.py         # ⭐ 잠금 라이브러리 (카메라/기술/질감/부정/배경)
 ├── prompt_builder.py       # 프롬프트 템플릿 + 빌더 (LLM Phase 1/2 통합)
@@ -125,13 +127,17 @@ gemcafe/AI/
 [입력] 케이크 사진 1장
    │
    ▼
-[STEP 2] Moondream3 분석
-   │     → cake_type, creams, toppings, suggested_focus 등 추출
+[STEP 2] Gemini 2.5 Pro 분석 (SSAFY GMS 경유)
+   │     → cake_type, base, creams, toppings, coating, key_feature,
+   │       is_warm, is_layered, element_textures(5축 식감), suggested_focus
    │
    ▼
 [사용자 선택 — UI 영역]
-   • simulation:  cross_section_cut / lift_slice / topping_fall
-   • focus:       strawberry / whipped_cream / sponge_layers ...
+   • simulation:  [시트] fork_bite / cut_in_half / lift_slice
+                  [크림] smash / cream_scoop / hand_split
+                  [토핑] topping_fall
+   • focus:       strawberry / whipped_cream / sponge / ganache /
+                  molten_chocolate / mascarpone_cream / baked_cheese
    • background:  white_marble / cafe_interior / outdoor / null(원본)
    • hint:        "고급스럽게" 같은 자유 텍스트 (선택)
    │
@@ -173,11 +179,15 @@ gemcafe/AI/
 
 키프레임이 영상의 **첫 프레임**인지 **끝 프레임**인지가 시뮬레이션마다 달라요.
 
-| 시뮬레이션 | I2I 결과는 | start_frame | end_frame |
-|---|---|---|---|
-| `cross_section_cut` (단면 자르기) | end | 원본/배경교체본 | I2I 결과 |
-| `lift_slice` (한 조각 들어올리기) | end | 원본/배경교체본 | I2I 결과 |
-| `topping_fall` (토핑 떨어지기) | start (역방향) | I2I 결과 | 원본/배경교체본 |
+| 시뮬레이션 | 카테고리 | I2I 결과는 | start_frame | end_frame |
+|---|---|---|---|---|
+| `smash` (뭉개기) | 크림 | end | 원본/배경교체본 | I2I 결과 |
+| `fork_bite` (포크로 한 입 뜨기) | 시트 | end | 원본/배경교체본 | I2I 결과 |
+| `cut_in_half` (칼로 단면 가르기) | 시트 | end | 원본/배경교체본 | I2I 결과 |
+| `lift_slice` (한 조각 들어올리기) | 시트 | end | 원본/배경교체본 | I2I 결과 |
+| `cream_scoop` (크림만 떠내기) | 크림 | end | 원본/배경교체본 (또는 start_frame I2I 결과) | I2I 결과 |
+| `hand_split` (손으로 반 가르기) | 크림 | end | 원본/배경교체본 | I2I 결과 |
+| `topping_fall` (토핑 위에서 떨어뜨리기) | 토핑 | start (역방향) | I2I 결과 | 원본/배경교체본 |
 
 → 이건 `frame_strategy` 필드로 응답에 포함됨. BE/호출자가 보고 분기.
 
@@ -192,9 +202,9 @@ gemcafe/AI/
 키프레임을 미리 확인하고 마음에 들 때만 비싼 영상 생성으로 넘어가는 패턴.
 
 ```bash
-# ① 케이크 분석 (Moondream3, ~$0.005)
+# ① 케이크 분석 (Gemini 2.5 Pro via SSAFY GMS, 크레딧 소량)
 python analyze.py
-# → outputs/analyze_<ts>/analysis.json — suggested_focus 후보 확인
+# → outputs/analyze_<ts>/analysis.json — suggested_focus + element_textures 확인
 
 # ② 키프레임 생성 — 마음에 들 때까지 반복 (nano-banana-pro/edit, ~$0.04~0.08)
 python generate_keyframe.py
@@ -257,8 +267,8 @@ uvicorn api:app --reload --port 8000
   "base_url": "https://v3b.fal.media/.../base.jpg",
   "frame_strategy": "i2i_is_end",
   "video_prompt": "A sharp metal knife descends...",
-  "simulation": "cross_section_cut",
-  "focus": "fresh_strawberries",
+  "simulation": "cut_in_half",
+  "focus": "strawberry",
   "background": "white_marble",
   "seed": null,
   ...
@@ -300,15 +310,15 @@ i2i_is_start:  start = keyframe_url, end = base_url
                               │ HTTP /analyze, /preview-prompts, /keyframe, /video
                               ▼
    🤖 AI (FastAPI/Python)  ← 이 폴더
-      • Moondream3 (분석)
+      • Gemini 2.5 Pro via SSAFY GMS (분석: 구성요소 + 5축 식감) ⭐
       • Gemini 2.5 Flash-Lite via SSAFY GMS (한국어 미리보기 + 한→영 번역) ⭐
       • prompt_locks (잠금 라이브러리: 카메라/기술/부정/배경/질감) ⭐
       • nano-banana-pro/edit (배경 교체 + 시뮬레이션)
       • Veo 3.1 first-last-frame (영상)
                               │
-                              │ fal-client SDK + google-genai SDK
+                              │ fal-client SDK + google-genai SDK (base_url=GMS)
                               ▼
-                       fal.ai + Google AI Studio
+                       fal.ai + SSAFY GMS (Gemini 게이트웨이)
 ```
 
 ### 책임 분리
@@ -333,7 +343,7 @@ i2i_is_start:  start = keyframe_url, end = base_url
 ```
 1.  FE: 사용자가 케이크 사진 업로드
 2.  FE → BE: POST /api/v1/videos (image, simulation, focus, ...)
-3.  BE → AI: POST /analyze                          (Moondream3)
+3.  BE → AI: POST /analyze                          (Gemini 2.5 Pro)
                 ↓ 분석 dict (suggested_focus 등)
 4.  FE: 사용자가 focus/시뮬레이션/배경 선택
 
@@ -364,15 +374,15 @@ i2i_is_start:  start = keyframe_url, end = base_url
 
 | 단계 | 모델 | 비용/회 |
 |---|---|---|
-| 분석 | `fal-ai/moondream3-preview/query` (fal.ai) | ~$0.005 |
+| 분석 (멀티모달 비전) | `gemini-2.5-pro` (SSAFY GMS) | 크레딧 소량 |
 | LLM Phase 1 (한국어 미리보기) ⭐ | `gemini-2.5-flash-lite` (SSAFY GMS) | 크레딧 소량 (input 0.001 / output 0.004 per token) |
 | LLM Phase 2 (한→영 번역) ⭐ | `gemini-2.5-flash-lite` (SSAFY GMS) | 크레딧 소량 (input 0.001 / output 0.004 per token) |
 | I2I (배경 교체) | `fal-ai/nano-banana-pro/edit` (fal.ai) | ~$0.04 |
-| I2I (시뮬레이션) | `fal-ai/nano-banana-pro/edit` (fal.ai) | ~$0.04 |
+| I2I (시뮬레이션 키프레임) | `fal-ai/nano-banana-pro/edit` (fal.ai) | ~$0.04 |
 | I2V (영상) | `fal-ai/veo3.1/first-last-frame-to-video` (fal.ai) | ~$1.20 (6s/720p) |
 
-**1회 풀 파이프라인 (배경 교체 + 키프레임 1번 + 영상 + LLM 2회)**: 약 **$1.285**
+**1회 풀 파이프라인 (배경 교체 + 키프레임 1번 + 영상 + LLM 2회 + 분석)**: 약 **$1.28** (fal.ai 비용 기준, GMS 크레딧 별도)
 
-LLM 비용은 거의 무시할 수준 (전체의 0.01%). 키프레임 검수 재생성 시 매 회 추가 ~$0.04. **영상 생성 전에 키프레임 검수하는 패턴이 비용 효율적**.
+GMS 크레딧 비용은 거의 무시할 수준. 키프레임 검수 재생성 시 매 회 추가 ~$0.04. **영상 생성 전에 키프레임 검수하는 패턴이 비용 효율적**.
 
 ---
