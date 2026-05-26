@@ -2,9 +2,11 @@
 
 > SSAFY 14기 자율 프로젝트 (S14P31S307)
 
-케이크 사진 한 장으로 SNS 광고 영상을 자동 생성하는 **B2C 모바일 PWA**와,
+케이크 사진 한 장으로 SNS 광고 영상을 자동 생성하는 **B2C AI 기반 영상 생성 서비스**와,
 영상 무단 배포를 추적하는 **B2B 워터마크 보안 플랫폼**을 하나의 모노레포로 개발한 프로젝트입니다.
 
+![alt text](gemcafe/FE/public/logo.png)
+![alt text](gemmark/FE/public/fabicon.png)
 ---
 
 ## 목차
@@ -19,7 +21,6 @@
 ---
 
 ## 1. 프로젝트 개요
-
 | 앱 | 형태 | 대상 사용자 | 핵심 가치 |
 |---|---|---|---|
 | **gem.cafe** | 모바일 우선 PWA | 소상공인 대상 | 케이크 사진 1장 → AI 광고 영상 자동 생성 |
@@ -45,13 +46,9 @@
 | 분류 | 기술 |
 |---|---|
 | Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4 |
-| 상태 관리 | Zustand (localStorage persist) |
-| 통신 | Axios, EventSource (SSE) |
-| 미디어 | MediaRecorder API, Web Audio API, Canvas API |
-| PWA | vite-plugin-pwa, Service Worker, Web Push |
-| 인증 | Google Identity Services SDK |
 | Backend | Spring Boot 4, MySQL, RabbitMQ, Redis |
 | AI | Moondream3, Gemini 2.5, nano-banana-pro/edit, Veo 3.1 |
+| 인증 | Google Identity Services SDK |
 
 ### gem.mark
 
